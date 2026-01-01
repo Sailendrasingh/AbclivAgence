@@ -4,30 +4,34 @@
 
 @layer base {
   :root {
-    /* Thème clair - Ambiance administrative avec orange */
+    /* Thème clair - Interface lumineuse */
+    /* Fond blanc */
     --background: 0 0% 100%;
     --surface: 0 0% 98%;
-    --foreground: 222.2 84% 4.9%;
+    /* Texte principal noir, textes secondaires gris moyen */
+    --foreground: 0 0% 0%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 0 0% 0%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    /* Orange comme couleur principale */
-    --primary: 25 95% 50%;
+    --popover-foreground: 0 0% 0%;
+    /* Orange tangerine comme couleur principale */
+    --primary: 30 100% 50%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 25 30% 95%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 25 20% 96%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 25 40% 92%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --secondary: 0 0% 96%;
+    --secondary-foreground: 0 0% 20%;
+    --muted: 0 0% 96%;
+    /* Gris moyen pour les textes secondaires */
+    --muted-foreground: 0 0% 50%;
+    /* Accents abricot/pêche pour les états hover */
+    --accent: 25 85% 75%;
+    --accent-foreground: 0 0% 0%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
     --danger: 0 84.2% 60.2%;
     --danger-foreground: 0 0% 100%;
-    --border: 25 20% 88%;
-    --input: 25 20% 94%;
-    --ring: 25 95% 50%;
+    --border: 0 0% 88%;
+    --input: 0 0% 100%;
+    --ring: 30 100% 50%;
     --radius: 0.5rem;
   }
 
@@ -143,7 +147,12 @@
   }
 
   .btn-primary {
-    @apply bg-primary text-primary-foreground hover:opacity-90 transition-opacity;
+    @apply bg-primary text-primary-foreground transition-colors;
+  }
+  
+  .btn-primary:hover {
+    background-color: hsl(var(--accent));
+    color: hsl(var(--accent-foreground));
   }
 
   .input {
