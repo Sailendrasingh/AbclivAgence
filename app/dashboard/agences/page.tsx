@@ -2545,44 +2545,9 @@ export default function AgencesPage() {
                 {!fullAgencyData?.technical && !editing && !editingTechnical ? (
                   <Card>
                     <CardContent className="p-6">
-                      <div className="text-center text-muted-foreground mb-4">
+                      <div className="text-center text-muted-foreground">
                         Aucune information technique enregistrée
                       </div>
-                      <Button
-                        onClick={() => {
-                          setTechnicalData({
-                            networkIp: "",
-                            machineBrand: "",
-                            machineModel: "",
-                            machineConnection: "",
-                            machineIp: "",
-                            machineMac: "",
-                            wifiRouterBrand: "",
-                            wifiRouterModel: "",
-                            wifiRouterIp: "",
-                            wifiRouterSerial: "",
-                            mainRouterBrand: "",
-                            mainRouterModel: "",
-                            mainRouterIp: "",
-                            mainRouterSerial: "",
-                            mainRouterLinkType: "",
-                            backupRouterBrand: "",
-                            backupRouterModel: "",
-                            backupRouterIp: "",
-                            backupRouterSerial: "",
-                            recorderBrand: "",
-                            recorderModel: "",
-                            recorderSerial: "",
-                            recorderMac: "",
-                            recorderIp: "",
-                            recorderStorage: "",
-                            technicalNotes: "",
-                          })
-                          setEditingTechnical(true)
-                        }}
-                      >
-                        Créer les informations techniques
-                      </Button>
                     </CardContent>
                   </Card>
                 ) : (
