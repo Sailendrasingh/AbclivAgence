@@ -260,8 +260,30 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
     * Nom de l'utilisateur (login) affiché
     * Bouton "Mon profil" (icône User) - lien vers `/dashboard/profil`
     * Bouton "Déconnexion" (icône LogOut)
+  * **Bouton de changement de thème** :
+    * Positionné en bas de la sidebar, juste avant le bouton "Déconnexion"
+    * Affiche le texte "Sombre" en mode clair et "Clair" en mode sombre
+    * Icône Moon en mode clair, icône Sun en mode sombre
+    * Style identique aux autres boutons de menu (variant "ghost", largeur complète, alignement à gauche)
   * En mobile : menu Burger
-* **Mode clair / sombre** : Toggle disponible dans le header (voir section 3.1)
+* **Header (en-tête)** :
+  * **Statistiques d'agences** :
+    * Affichage en temps réel des statistiques d'agences dans le header
+    * **Compteurs affichés** :
+      * **OK** : Nombre d'agences avec l'état "OK" (icône CheckCircle2, couleur verte)
+      * **INFO** : Nombre d'agences avec l'état "INFO" (icône Info, couleur jaune)
+      * **ALERTE** : Nombre d'agences avec l'état "ALERTE" (icône AlertTriangle, couleur rouge)
+      * **FERMÉE** : Nombre d'agences avec l'état "FERMÉE" (icône XCircle, couleur grise)
+    * **Animation** : Animation `slideInFade` avec délais échelonnés pour chaque statistique (0ms, 150ms, 300ms, 450ms)
+    * **Mise à jour événementielle** : Les statistiques sont mises à jour uniquement via des événements personnalisés, sans polling automatique
+      * **Événement déclenché** : `agencyStatsRefresh` est dispatché après chaque action CRUD sur une agence (création, modification, suppression)
+      * **Chargement initial** : Les statistiques sont chargées une seule fois au montage du composant
+      * **Pas de polling** : Aucun appel API automatique périodique (pas de `setInterval`)
+      * **Réanimation** : L'animation est réinitialisée uniquement lorsque les données statistiques changent réellement (via une clé `animationKey`)
+    * **Responsive** : 
+      * Sur mobile : Affichage compact avec icônes et nombres uniquement (texte "OK", "INFO", etc. masqué)
+      * Sur desktop : Affichage complet avec texte des labels
+    * **Format d'affichage** : `[Icône] [Nombre] [Label]` (label masqué sur mobile)
 * **Boutons CRUD conditionnels** :
   * Tous les boutons "Ajouter", "Modifier", "Supprimer" dans tous les onglets (Général, Technique, Photos) ne sont visibles **que si le mode édition est activé** (après clic sur Modifier du Master)
 * **Restrictions d'accès par rôle** :
@@ -624,7 +646,7 @@ Aucun autre type autorisé.
 
 ## 10. Recherche & Filtres
 
-* Champ de recherche global (header)
+* Champ de recherche dans la zone Master (partie fixe, non scrollable)
 * Recherche texte simple
 * **Recherche sur TOUS les champs** incluant :
   * Nom de l'agence
@@ -1030,7 +1052,30 @@ L'application doit être conforme aux standards de sécurité OWASP Top 10 2021.
 
 ---
 
-## 17. Clause finale (bloquante)
+## 17. Architecture événementielle pour les statistiques
+
+* **Système de mise à jour événementielle** :
+  * Les statistiques d'agences dans le header sont mises à jour via un système d'événements personnalisés, sans polling automatique
+  * **Événement personnalisé** : `agencyStatsRefresh` est dispatché sur l'objet `window` après chaque action CRUD sur une agence
+  * **Actions déclenchant l'événement** :
+    * Création d'une nouvelle agence (`handleCreateAgency`)
+    * Modification d'une agence (`handleSaveAgency`) - notamment lors du changement d'état
+    * Suppression d'une agence (`handleDeleteAgency`)
+  * **Écoute de l'événement** : Le composant `AgencyStats` écoute l'événement `agencyStatsRefresh` et met à jour les statistiques en appelant l'API `/api/agencies`
+  * **Chargement initial** : Les statistiques sont chargées une seule fois au montage du composant
+  * **Pas de polling** : Aucun appel API automatique périodique (pas de `setInterval` ou `setTimeout` récurrent)
+  * **Avantages** :
+    * Réduction de la charge serveur (pas d'appels API inutiles)
+    * Mise à jour en temps réel uniquement lorsque nécessaire
+    * Meilleure performance et expérience utilisateur
+  * **Implémentation technique** :
+    * Utilisation de `window.addEventListener('agencyStatsRefresh', handleRefresh)` dans le composant `AgencyStats`
+    * Utilisation de `window.dispatchEvent(new CustomEvent('agencyStatsRefresh'))` après chaque action CRUD
+    * Nettoyage de l'écouteur lors du démontage du composant
+
+---
+
+## 18. Clause finale (bloquante)
 
 ❗ **Toute implémentation qui dépasse ce PRD est NON CONFORME.**
 
