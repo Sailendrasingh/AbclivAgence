@@ -45,10 +45,19 @@ export function AgencyStats() {
       }
     }
 
+    // Chargement initial
     fetchStats()
-    // Rafraîchir les stats toutes les 2 secondes pour une mise à jour quasi-instantanée
-    const interval = setInterval(fetchStats, 2000)
-    return () => clearInterval(interval)
+
+    // Écouter les événements personnalisés pour rafraîchir les stats
+    const handleRefresh = () => {
+      fetchStats()
+    }
+    
+    window.addEventListener('agencyStatsRefresh', handleRefresh)
+
+    return () => {
+      window.removeEventListener('agencyStatsRefresh', handleRefresh)
+    }
   }, [mounted])
 
   // Animation des nombres avec transition

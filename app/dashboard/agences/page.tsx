@@ -624,6 +624,9 @@ export default function AgencesPage() {
       setSelectedAgency(newAgency)
       setIsCreateDialogOpen(false)
       setNewAgencyName("")
+      
+      // Déclencher le rafraîchissement des statistiques
+      window.dispatchEvent(new CustomEvent('agencyStatsRefresh'))
     } catch (error) {
       console.error("Error creating agency:", error)
       alert("Erreur lors de la création de l'agence")
@@ -755,6 +758,9 @@ export default function AgencesPage() {
       setEditing(false)
       setEditingTechnical(false)
       setTechnicalData({})
+      
+      // Déclencher le rafraîchissement des statistiques (surtout si l'état a changé)
+      window.dispatchEvent(new CustomEvent('agencyStatsRefresh'))
     } catch (error) {
       console.error("Error saving agency:", error)
       alert("Erreur lors de la sauvegarde")
@@ -797,6 +803,9 @@ export default function AgencesPage() {
             setFullAgencyData(null)
           }
         }
+        
+        // Déclencher le rafraîchissement des statistiques
+        window.dispatchEvent(new CustomEvent('agencyStatsRefresh'))
       } else {
         const error = await response.json()
         alert(error.error || "Erreur lors de la suppression")
