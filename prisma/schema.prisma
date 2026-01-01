@@ -1,0 +1,242 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String   @id @default(cuid())
+  login             String   @unique
+  passwordHash      String
+  role              String   @default("User")
+  twoFactorSecret   String?
+  twoFactorEnabled  Boolean  @default(false)
+  active            Boolean  @default(true)
+  lockedUntil       DateTime? // Verrouillage temporaire après tentatives échouées
+  failedLoginAttempts Int    @default(0) // Nombre de tentatives échouées
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  logs              Log[]
+  agencyHistory     AgencyHistory[]
+  technicalHistory  TechnicalHistory[]
+}
+
+model Agency {
+  id                String   @id @default(cuid())
+  name              String
+  photo             String?
+  state             String   @default("ALERTE") // OK | ALERTE | INFO | FERMÉE
+  codeAgence        String?  // Code Agence
+  codeRayon         String?  // Code Rayon
+  dateOuverture     DateTime? // Date ouverture
+  dateFermeture     DateTime? // Date fermeture
+  validatedAt       DateTime? // Pour gestion conflits offline
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  addresses         Address[]
+  contacts          Contact[]
+  technical         Technical?
+  photos            PhotoGroup[]
+  history           AgencyHistory[]
+}
+
+model Address {
+  id                String   @id @default(cuid())
+  agencyId          String
+  agency            Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  banId             String? // ID de l'API BAN
+  label             String
+  street            String
+  city              String
+  postalCode        String
+  country           String   @default("France")
+  latitude          Float?
+  longitude         Float?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Contact {
+  id                String   @id @default(cuid())
+  agencyId          String
+  agency            Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  postNumber        String   // 6 chiffres exacts
+  agentNumber       String   // 4 chiffres exacts
+  directLine        String   // Format: 00 00 00 00 00
+  emails            String   // JSON array
+  managerName       String
+  note              String?
+  order             Int      @default(0) // Ordre d'affichage
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Technical {
+  id                String   @id @default(cuid())
+  agencyId          String   @unique
+  agency            Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  networkIp         String?  // CIDR
+  machineBrand      String?
+  machineModel      String?
+  machineConnection String?  // Wifi | Filaire
+  machineIp         String?
+  machineMac        String?
+  wifiRouterBrand   String?
+  wifiRouterModel   String?
+  wifiRouterIp      String?
+  wifiRouterSerial  String?
+  mainRouterBrand   String?
+  mainRouterModel   String?
+  mainRouterIp      String?
+  mainRouterSerial  String?
+  mainRouterLinkType String?
+  backupRouterBrand String?
+  backupRouterModel String?
+  backupRouterIp    String?
+  backupRouterSerial String?
+  recorderBrand     String?
+  recorderModel     String?
+  recorderSerial    String?
+  recorderMac       String?
+  recorderIp        String?
+  recorderStorage   String?
+  technicalNotes    String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  pcs               PC[]
+  printers          Printer[]
+  wifiAccessPoints  WifiAccessPoint[]
+  cameras           Camera[]
+  dynamicFields     DynamicField[]
+  technicalHistory  TechnicalHistory[]
+}
+
+model PC {
+  id                String   @id @default(cuid())
+  technicalId       String
+  technical         Technical @relation(fields: [technicalId], references: [id], onDelete: Cascade)
+  name              String
+  ip                String?
+  mac               String?
+  serialNumber      String?
+  brand             String?
+  model             String?
+  purchaseDate      DateTime?
+  warrantyDate      DateTime?
+  files             String?  // JSON array de chemins
+  photos            String?  // JSON array de chemins
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Printer {
+  id                String   @id @default(cuid())
+  technicalId      String
+  technical        Technical @relation(fields: [technicalId], references: [id], onDelete: Cascade)
+  name             String
+  ip               String?
+  mac              String?
+  serialNumber     String?
+  brand            String?
+  model            String?
+  purchaseDate     DateTime?
+  warrantyDate     DateTime?
+  files            String?  // JSON array de chemins
+  photos           String?  // JSON array de chemins
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model WifiAccessPoint {
+  id                String   @id @default(cuid())
+  technicalId       String
+  technical         Technical @relation(fields: [technicalId], references: [id], onDelete: Cascade)
+  brand             String?
+  model             String?
+  ip                String?
+  serialNumber      String?
+  ssid              String?
+  passwordEncrypted String?  // Chiffré, jamais affiché en clair
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Camera {
+  id                String   @id @default(cuid())
+  technicalId       String
+  technical         Technical @relation(fields: [technicalId], references: [id], onDelete: Cascade)
+  brand             String?
+  model             String?
+  type              String?
+  ip                String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model DynamicField {
+  id                String   @id @default(cuid())
+  technicalId       String
+  technical         Technical @relation(fields: [technicalId], references: [id], onDelete: Cascade)
+  key               String
+  value             String
+  order             Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model TechnicalHistory {
+  id                String   @id @default(cuid())
+  technicalId       String
+  technical         Technical @relation(fields: [technicalId], references: [id], onDelete: Cascade)
+  userId            String
+  user              User     @relation(fields: [userId], references: [id])
+  notes             String?
+  version           Int
+  createdAt         DateTime @default(now())
+}
+
+model PhotoGroup {
+  id                String   @id @default(cuid())
+  agencyId          String
+  agency            Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  type              String   // Bureau | Connexion | Armoire électrique | Agence | Divers
+  title             String?  // Titre du groupe de photos
+  photos            String   // JSON array de chemins
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model AgencyHistory {
+  id                String   @id @default(cuid())
+  agencyId          String
+  agency            Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  userId            String
+  user              User     @relation(fields: [userId], references: [id])
+  version           Int
+  data              String   // JSON de l'état complet de l'agence
+  createdAt         DateTime @default(now())
+}
+
+model Log {
+  id                String   @id @default(cuid())
+  userId            String?
+  user              User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action            String
+  details           String?
+  ipAddress         String?
+  userAgent         String?
+  createdAt         DateTime @default(now())
+}
+
+model AppSettings {
+  id                String   @id @default("settings")
+  sessionTimeout    Int      @default(60) // Durée en minutes (défaut: 1 minute)
+  updatedAt         DateTime @updatedAt
+}
+

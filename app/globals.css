@@ -1,0 +1,210 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Thème clair - Ambiance administrative avec orange */
+    --background: 0 0% 100%;
+    --surface: 0 0% 98%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    /* Orange comme couleur principale */
+    --primary: 25 95% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 25 30% 95%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 25 20% 96%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 25 40% 92%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+    --danger: 0 84.2% 60.2%;
+    --danger-foreground: 0 0% 100%;
+    --border: 25 20% 88%;
+    --input: 25 20% 94%;
+    --ring: 25 95% 50%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    /* Thème sombre - Ambiance aérée et moderne avec bleu ciel sombre */
+    --background: 200 30% 11%;
+    --surface: 200 30% 13%;
+    --foreground: 200 25% 96%;
+    --card: 200 30% 13%;
+    --card-foreground: 200 25% 96%;
+    --popover: 200 30% 13%;
+    --popover-foreground: 200 25% 96%;
+    /* Bleu ciel comme couleur principale - aéré et moderne */
+    --primary: 200 70% 60%;
+    --primary-foreground: 200 30% 11%;
+    --secondary: 200 25% 20%;
+    --secondary-foreground: 200 25% 96%;
+    --muted: 200 20% 22%;
+    --muted-foreground: 200 15% 68%;
+    --accent: 200 30% 24%;
+    --accent-foreground: 200 25% 96%;
+    --destructive: 0 70% 55%;
+    --destructive-foreground: 200 25% 96%;
+    --danger: 0 70% 55%;
+    --danger-foreground: 200 25% 96%;
+    --border: 200 25% 24%;
+    --input: 200 25% 20%;
+    --ring: 200 70% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  /* Transitions douces pour les changements de thème */
+  *,
+  *::before,
+  *::after {
+    transition-property: background-color, border-color, color, fill, stroke;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 200ms;
+  }
+  
+  /* Respecter les préférences d'accessibilité pour les animations réduites */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      transition-property: none !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+    }
+  }
+  
+  body {
+    @apply bg-background text-foreground;
+    margin: 0;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    /* Améliorer la lisibilité sur mobile */
+    -webkit-text-size-adjust: 100%;
+    -moz-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    /* Empêcher le scroll horizontal sur mobile */
+    overflow-x: hidden;
+    width: 100%;
+    max-width: 100vw;
+  }
+  
+  /* Assurer que tous les éléments respectent la largeur de l'écran */
+  * {
+    box-sizing: border-box;
+  }
+  
+  /* Empêcher le dépassement horizontal sur mobile */
+  @media (max-width: 768px) {
+    html, body {
+      overflow-x: hidden;
+      width: 100%;
+      max-width: 100vw;
+    }
+    
+    /* S'assurer que les conteneurs ne dépassent pas */
+    .container, [class*="container"] {
+      max-width: 100%;
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+  }
+  /* Taille minimale pour les éléments interactifs sur mobile (accessibilité) */
+  @media (max-width: 768px) {
+    button:not([class*="icon-only"]):not([class*="ghost"]), 
+    a:not([class*="icon-only"]), 
+    input[type="text"], 
+    input[type="email"], 
+    input[type="password"], 
+    input[type="number"],
+    input[type="date"],
+    select, 
+    textarea {
+      min-height: 44px;
+      font-size: 16px; /* Évite le zoom automatique sur iOS */
+    }
+  }
+}
+
+@layer components {
+  /* Classes utilitaires réutilisables */
+  .panel {
+    @apply bg-card border border-border rounded-lg p-4 shadow-sm;
+  }
+
+  .btn-primary {
+    @apply bg-primary text-primary-foreground hover:opacity-90 transition-opacity;
+  }
+
+  .input {
+    @apply bg-input border border-border rounded-md px-3 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-ring;
+  }
+
+  .badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+
+  .brand-gradient {
+    background: linear-gradient(
+      to right,
+      hsl(var(--primary)),
+      hsl(var(--background))
+    );
+  }
+
+  .dark .brand-gradient {
+    background: linear-gradient(
+      to right,
+      hsl(var(--primary)),
+      hsl(var(--background))
+    );
+  }
+
+  /* Masquer la scrollbar horizontale sur mobile */
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE et Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari et Opera */
+  }
+
+  /* Animation pour les statistiques d'agences */
+  .agency-stat-item {
+    animation: slideInFade 0.6s ease-out forwards;
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+
+  @keyframes slideInFade {
+    from {
+      opacity: 0;
+      transform: translateX(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .agency-stat-item {
+      animation: none;
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+}
+
