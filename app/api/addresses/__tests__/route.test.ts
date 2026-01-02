@@ -25,7 +25,7 @@ describe('POST /api/addresses', () => {
     await prisma.user.deleteMany()
     jest.clearAllMocks()
 
-    const uniqueId = Date.now().toString()
+    const uniqueId = `${Date.now()}-${Math.random().toString(36).substring(7)}`
     const passwordHash = await hashPassword('password123')
     user = await prisma.user.create({
       data: {
@@ -222,6 +222,20 @@ describe('POST /api/addresses', () => {
   })
 
   it('should create address without coordinates', async () => {
+    // Vérifier que l'agence existe
+    const existingAgency = await prisma.agency.findUnique({
+      where: { id: agency.id },
+    })
+    if (!existingAgency) {
+      // Recréer l'agence si elle n'existe plus
+      agency = await prisma.agency.create({
+        data: {
+          name: 'Agence Test',
+          state: 'OK',
+        },
+      })
+    }
+
     const request = new NextRequest('http://localhost/api/addresses', {
       method: 'POST',
       headers: {

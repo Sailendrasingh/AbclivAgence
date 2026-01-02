@@ -16,6 +16,9 @@ jest.mock('@/lib/session', () => ({
 
 describe('GET /api/agencies', () => {
   beforeEach(async () => {
+    // Nettoyer toutes les tables liées avant les agences
+    await prisma.contact.deleteMany()
+    await prisma.address.deleteMany()
     await prisma.agency.deleteMany()
     await prisma.user.deleteMany()
     jest.clearAllMocks()
@@ -31,7 +34,7 @@ describe('GET /api/agencies', () => {
   })
 
   it('should return all agencies for authenticated user', async () => {
-    const uniqueId = Date.now().toString()
+    const uniqueId = `${Date.now()}-${Math.random().toString(36).substring(7)}`
     const passwordHash = await hashPassword('password123')
     const user = await prisma.user.create({
       data: {
@@ -72,7 +75,7 @@ describe('GET /api/agencies', () => {
   })
 
   it('should filter agencies by state', async () => {
-    const uniqueId = Date.now().toString()
+    const uniqueId = `${Date.now()}-${Math.random().toString(36).substring(7)}`
     const passwordHash = await hashPassword('password123')
     const user = await prisma.user.create({
       data: {
@@ -315,7 +318,7 @@ describe('POST /api/agencies', () => {
   it('should allow creation for User role (no RBAC check in route)', async () => {
     // Note: La route POST /api/agencies ne vérifie pas le rôle actuellement
     // Ce test vérifie le comportement actuel, pas le comportement souhaité
-    const uniqueId = Date.now().toString()
+    const uniqueId = `${Date.now()}-${Math.random().toString(36).substring(7)}`
     const passwordHash = await hashPassword('password123')
     const user = await prisma.user.create({
       data: {

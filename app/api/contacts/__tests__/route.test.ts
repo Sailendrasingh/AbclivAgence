@@ -26,7 +26,7 @@ describe('POST /api/contacts', () => {
     jest.clearAllMocks()
 
     // Créer un utilisateur et une agence de test avec un login unique
-    const uniqueId = Date.now().toString()
+    const uniqueId = `${Date.now()}-${Math.random().toString(36).substring(7)}`
     const passwordHash = await hashPassword('password123')
     user = await prisma.user.create({
       data: {
@@ -66,6 +66,20 @@ describe('POST /api/contacts', () => {
   })
 
   it('should create contact with valid data', async () => {
+    // Vérifier que l'agence existe
+    const existingAgency = await prisma.agency.findUnique({
+      where: { id: agency.id },
+    })
+    if (!existingAgency) {
+      // Recréer l'agence si elle n'existe plus
+      agency = await prisma.agency.create({
+        data: {
+          name: 'Agence Test',
+          state: 'OK',
+        },
+      })
+    }
+
     const request = new NextRequest('http://localhost/api/contacts', {
       method: 'POST',
       headers: {
@@ -249,6 +263,20 @@ describe('POST /api/contacts', () => {
   })
 
   it('should accept multiple valid emails', async () => {
+    // Vérifier que l'agence existe
+    const existingAgency = await prisma.agency.findUnique({
+      where: { id: agency.id },
+    })
+    if (!existingAgency) {
+      // Recréer l'agence si elle n'existe plus
+      agency = await prisma.agency.create({
+        data: {
+          name: 'Agence Test',
+          state: 'OK',
+        },
+      })
+    }
+
     const request = new NextRequest('http://localhost/api/contacts', {
       method: 'POST',
       headers: {

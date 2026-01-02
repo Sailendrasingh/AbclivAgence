@@ -56,18 +56,18 @@ export default function ProfilPage() {
     loadUserData()
   }, [])
 
-  const fetchUserData = async () => {
-    try {
-      const response = await fetch("/api/auth/me")
-      if (response.ok) {
-        const data = await response.json()
-        setUserData(data)
-        setFormData((prev) => ({ ...prev, login: data.login }))
+    const fetchUserData = async () => {
+      try {
+        const response = await fetch("/api/auth/me")
+        if (response.ok) {
+          const data = await response.json()
+          setUserData(data)
+          setFormData((prev) => ({ ...prev, login: data.login }))
+        }
+      } catch (error) {
+        console.error("Error fetching user data:", error)
       }
-    } catch (error) {
-      console.error("Error fetching user data:", error)
     }
-  }
 
   const handleSave = async () => {
     setError("")
@@ -270,21 +270,21 @@ export default function ProfilPage() {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>
-                  <Input
-                    id="confirmPassword"
-                    type="password"
-                    value={formData.confirmPassword}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        confirmPassword: e.target.value,
-                      })
-                    }
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword">Confirmer le mot de passe</Label>
+                    <Input
+                      id="confirmPassword"
+                      type="password"
+                      value={formData.confirmPassword}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          confirmPassword: e.target.value,
+                        })
+                      }
                     placeholder={formData.password ? "Confirmer le mot de passe" : "Laisser vide pour ne pas modifier"}
-                  />
-                </div>
+                    />
+                  </div>
               </>
             )}
 

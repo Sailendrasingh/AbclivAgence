@@ -116,8 +116,15 @@ export async function PUT(
     }, request)
 
     return NextResponse.json(updatedAgency)
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error updating agency:", error)
+    // Si l'agence n'existe pas, retourner 404
+    if (error?.code === 'P2025') {
+      return NextResponse.json(
+        { error: "Agence non trouvée" },
+        { status: 404 }
+      )
+    }
     return NextResponse.json(
       { error: "Erreur serveur" },
       { status: 500 }
@@ -144,8 +151,15 @@ export async function DELETE(
     }, request)
 
     return NextResponse.json({ success: true })
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error deleting agency:", error)
+    // Si l'agence n'existe pas, retourner 404
+    if (error?.code === 'P2025') {
+      return NextResponse.json(
+        { error: "Agence non trouvée" },
+        { status: 404 }
+      )
+    }
     return NextResponse.json(
       { error: "Erreur serveur" },
       { status: 500 }

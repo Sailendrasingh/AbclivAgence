@@ -26,7 +26,7 @@ describe('PUT /api/contacts/[id]', () => {
     await prisma.user.deleteMany()
     jest.clearAllMocks()
 
-    const uniqueId = Date.now().toString()
+    const uniqueId = `${Date.now()}-${Math.random().toString(36).substring(7)}`
     const passwordHash = await hashPassword('password123')
     user = await prisma.user.create({
       data: {
@@ -235,7 +235,7 @@ describe('PUT /api/contacts/[id]', () => {
     })
 
     const response = await PUT(request, { params: { id: 'non-existent-id' } })
-    expect(response.status).toBe(500) // Prisma retourne une erreur qui devient 500
+    expect(response.status).toBe(404) // Le contact n'existe pas
   })
 })
 
@@ -317,7 +317,7 @@ describe('DELETE /api/contacts/[id]', () => {
     })
 
     const response = await DELETE(request, { params: { id: 'non-existent-id' } })
-    expect(response.status).toBe(500) // Prisma retourne une erreur qui devient 500
+    expect(response.status).toBe(404) // Le contact n'existe pas
   })
 })
 

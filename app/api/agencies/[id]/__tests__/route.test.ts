@@ -163,7 +163,7 @@ describe('PUT /api/agencies/[id]', () => {
   it('should allow update without name (route does not validate name)', async () => {
     // Note: La route PUT /api/agencies/[id] ne valide pas que le nom est requis
     // Ce test vérifie le comportement actuel
-    const uniqueId = Date.now().toString()
+    const uniqueId = `${Date.now()}-${Math.random().toString(36).substring(7)}`
     const passwordHash = await hashPassword('password123')
     const user = await prisma.user.create({
       data: {
@@ -200,7 +200,7 @@ describe('PUT /api/agencies/[id]', () => {
 
   it('should allow update for User role (no RBAC check in route)', async () => {
     // Note: La route PUT /api/agencies/[id] ne vérifie pas le rôle actuellement
-    const uniqueId = Date.now().toString()
+    const uniqueId = `${Date.now()}-${Math.random().toString(36).substring(7)}`
     const passwordHash = await hashPassword('password123')
     const user = await prisma.user.create({
       data: {
@@ -237,7 +237,7 @@ describe('PUT /api/agencies/[id]', () => {
 
   it('should create history entry for Super Admin', async () => {
     const { createAgencyHistory } = require('@/lib/history')
-    const uniqueId = Date.now().toString()
+    const uniqueId = `${Date.now()}-${Math.random().toString(36).substring(7)}`
     const passwordHash = await hashPassword('password123')
     const user = await prisma.user.create({
       data: {
@@ -329,7 +329,7 @@ describe('DELETE /api/agencies/[id]', () => {
 
   it('should allow deletion for Admin role (no RBAC check in route)', async () => {
     // Note: La route DELETE /api/agencies/[id] ne vérifie pas le rôle actuellement
-    const uniqueId = Date.now().toString()
+    const uniqueId = `${Date.now()}-${Math.random().toString(36).substring(7)}`
     const passwordHash = await hashPassword('password123')
     const user = await prisma.user.create({
       data: {
@@ -360,7 +360,7 @@ describe('DELETE /api/agencies/[id]', () => {
 
   it('should return 500 if agency not found (Prisma error)', async () => {
     // Note: La route DELETE retourne 500 quand Prisma ne trouve pas l'enregistrement
-    const uniqueId = Date.now().toString()
+    const uniqueId = `${Date.now()}-${Math.random().toString(36).substring(7)}`
     const passwordHash = await hashPassword('password123')
     const user = await prisma.user.create({
       data: {
@@ -378,8 +378,8 @@ describe('DELETE /api/agencies/[id]', () => {
     })
 
     const response = await DELETE(request, { params: { id: 'non-existent-id' } })
-    // La route actuelle retourne 500 pour les erreurs Prisma
-    expect(response.status).toBe(500)
+    // La route retourne maintenant 404 quand l'agence n'existe pas
+    expect(response.status).toBe(404)
   })
 })
 

@@ -98,8 +98,15 @@ export async function PUT(
     }, request)
 
     return NextResponse.json(contact)
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error updating contact:", error)
+    // Si le contact n'existe pas, retourner 404
+    if (error?.code === 'P2025') {
+      return NextResponse.json(
+        { error: "Contact non trouvé" },
+        { status: 404 }
+      )
+    }
     return NextResponse.json(
       { error: "Erreur serveur" },
       { status: 500 }
@@ -126,8 +133,15 @@ export async function DELETE(
     }, request)
 
     return NextResponse.json({ success: true })
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error deleting contact:", error)
+    // Si le contact n'existe pas, retourner 404
+    if (error?.code === 'P2025') {
+      return NextResponse.json(
+        { error: "Contact non trouvé" },
+        { status: 404 }
+      )
+    }
     return NextResponse.json(
       { error: "Erreur serveur" },
       { status: 500 }
