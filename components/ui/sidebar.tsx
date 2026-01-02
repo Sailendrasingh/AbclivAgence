@@ -117,10 +117,13 @@ function SidebarContent() {
       {/* Sidebar */}
       <aside
         className={cn(
-          "w-full h-full z-40 transition-transform duration-300 flex flex-col",
-          "lg:relative lg:w-48",
-          "lg:after:content-[''] lg:after:absolute lg:after:right-0 lg:after:top-0 lg:after:bottom-0 lg:after:w-px lg:after:bg-border lg:after:z-50",
-          mobileOpen ? "translate-x-0 fixed left-0 top-0 h-full" : "-translate-x-full lg:translate-x-0"
+          "h-full z-40 flex flex-col transition-transform duration-300 ease-in-out",
+          "bg-background lg:bg-transparent",
+          // En mode mobile : fixed, 50% de largeur, hors écran par défaut, visible quand ouvert
+          "fixed left-0 top-0 w-1/2 h-full lg:relative lg:w-48",
+          // Transition : translate-x pour mobile, normal pour desktop
+          mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
+          "lg:after:content-[''] lg:after:absolute lg:after:right-0 lg:after:top-0 lg:after:bottom-0 lg:after:w-px lg:after:bg-border lg:after:z-50"
         )}
       >
         <div className="p-4 sm:p-6 flex-1 flex flex-col lg:overflow-hidden" style={{ paddingTop: "calc(env(safe-area-inset-top) + 1rem)" }}>

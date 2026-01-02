@@ -1955,13 +1955,13 @@ export default function AgencesPage() {
 
   return (
     <>
-      <div ref={containerRef} className="flex h-full w-full overflow-hidden">
+      <div ref={containerRef} className="flex h-full w-full max-w-full min-w-0 overflow-hidden">
         {/* Zone Master */}
         <div
           className={`h-full flex flex-col overflow-hidden border-r ${
             isMobile && showDetailsOnMobile ? "hidden" : ""
-          }`}
-          style={{ width: isMobile ? "100%" : `${masterWidth}%`, minWidth: isMobile ? "auto" : "200px", maxWidth: isMobile ? "auto" : "60%" }}
+          } ${isMobile ? "w-full min-w-0 max-w-full" : ""}`}
+          style={isMobile ? { width: "100%", minWidth: "0", maxWidth: "100%" } : { width: `${masterWidth}%`, minWidth: "200px", maxWidth: "60%" }}
           suppressHydrationWarning
         >
         {/* Partie fixe : Titre, recherche et filtres */}
