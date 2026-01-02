@@ -155,6 +155,10 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
   * `.brand-gradient` : Dégradé de marque (orange→blanc / bleu ciel→bleu ciel foncé)
 * **Adaptation des composants** :
   * **Vignettes de photos** : Utilisation de `dark:bg-secondary` (HSL: 200 25% 20%) pour distinguer du fond de l'onglet Photos (`background` à 11% de luminosité)
+  * **Bordures des champs de saisie** : Tous les champs de saisie (Input, Textarea) utilisent la variable `border` (et non `input`) pour garantir une bordure visible en thème clair
+    * En thème clair : Bordure grise (`--border: 0 0% 88%`) visible sur fond blanc
+    * En thème sombre : Bordure bleu-gris (`--border: 200 25% 24%`) visible sur fond sombre
+    * La bordure est visible même sans focus pour améliorer la lisibilité et l'accessibilité
   * Tous les composants s'adaptent automatiquement via les variables CSS du thème
 
 ---
