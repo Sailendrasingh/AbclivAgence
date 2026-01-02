@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Plus, Save, MapPin, Mail, Phone, User, Settings, Camera, Edit, Trash2, X, ChevronLeft, ChevronRight, Eye, EyeOff, Clock, ChevronUp, ChevronDown, ArrowLeft } from "lucide-react"
+import { Plus, Save, MapPin, Mail, Phone, User, Settings, Camera, Edit, Trash2, X, ChevronLeft, ChevronRight, Eye, EyeOff, Clock, ChevronUp, ChevronDown, ArrowLeft, Search } from "lucide-react"
 import { AddressSearch } from "@/components/address-search"
 
 interface Agency {
@@ -208,6 +208,7 @@ export default function AgencesPage() {
   const [photoGroupTitle, setPhotoGroupTitle] = useState("")
   const [selectedPhotoTypeTab, setSelectedPhotoTypeTab] = useState<string>("")
   const [photoFiles, setPhotoFiles] = useState<File[]>([])
+  const [photoSearch, setPhotoSearch] = useState("")
   
   // États pour l'édition du titre d'une photo individuelle
   const [isEditPhotoTitleDialogOpen, setIsEditPhotoTitleDialogOpen] = useState(false)
@@ -309,8 +310,8 @@ export default function AgencesPage() {
         }
         // Si aucune agence n'est sélectionnée ou si l'agence sélectionnée n'existe plus, sélectionner la première
         if (sortedData.length > 0 && !currentSelectedId) {
-          setSelectedAgency(sortedData[0])
-        }
+        setSelectedAgency(sortedData[0])
+      }
         return sortedData
       })
     } catch (error) {
@@ -449,6 +450,11 @@ export default function AgencesPage() {
       setSelectedPhotoTypeTab("")
     }
   }, [fullAgencyData?.photos, selectedPhotoTypeTab])
+
+  // Réinitialiser la recherche de photos uniquement lors du changement d'agence
+  useEffect(() => {
+    setPhotoSearch("")
+  }, [selectedAgency?.id])
 
   // Initialiser les données techniques quand fullAgencyData change et que le mode édition est actif
   useEffect(() => {
@@ -693,9 +699,9 @@ export default function AgencesPage() {
           if (fullAgencyData?.technical) {
             // Mise à jour de données existantes
             const technicalBody = {
-              technicalId: fullAgencyData.technical.id,
-              ...dataToSend,
-            }
+                technicalId: fullAgencyData.technical.id,
+                ...dataToSend,
+              }
 
             console.log("technicalBody from handleSaveAgency (PUT):", technicalBody)
 
@@ -720,28 +726,28 @@ export default function AgencesPage() {
           } else if (Object.keys(dataToSend).length > 0 && Object.values(dataToSend).some(v => v !== "" && v !== null)) {
             // Création de nouvelles données techniques seulement si on a des données non vides
             const technicalBody = {
-              agencyId: selectedAgency.id,
-              ...dataToSend,
-            }
+                agencyId: selectedAgency.id,
+                ...dataToSend,
+              }
 
             console.log("technicalBody from handleSaveAgency (POST):", technicalBody)
 
-            const technicalResponse = await fetch("/api/technical", {
+          const technicalResponse = await fetch("/api/technical", {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(technicalBody),
-            })
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(technicalBody),
+          })
 
-            if (!technicalResponse.ok) {
-              const error = await technicalResponse.json()
+          if (!technicalResponse.ok) {
+            const error = await technicalResponse.json()
               console.error("Error creating technical data:", error)
-              // Ne pas bloquer la sauvegarde de l'agence si la sauvegarde technique échoue
+            // Ne pas bloquer la sauvegarde de l'agence si la sauvegarde technique échoue
               alert("L'agence a été sauvegardée mais une erreur est survenue lors de la création des données techniques")
-            } else {
-              const technicalResponseData = await technicalResponse.json()
-              // Mettre à jour latestTechnicalNotes avec la nouvelle valeur sauvegardée
-              if (technicalResponseData.technicalNotes !== undefined) {
-                setLatestTechnicalNotes(technicalResponseData.technicalNotes)
+          } else {
+            const technicalResponseData = await technicalResponse.json()
+            // Mettre à jour latestTechnicalNotes avec la nouvelle valeur sauvegardée
+            if (technicalResponseData.technicalNotes !== undefined) {
+              setLatestTechnicalNotes(technicalResponseData.technicalNotes)
               }
             }
           }
@@ -1912,10 +1918,10 @@ export default function AgencesPage() {
           <div className="space-y-2">
             <div className="relative">
               <Input
-                type="text"
-                placeholder="Rechercher..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+              type="text"
+              placeholder="Rechercher..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
                 className="w-full min-h-[44px] text-foreground pr-10"
               />
               {search && (
@@ -1983,10 +1989,10 @@ export default function AgencesPage() {
         {/* Partie scrollable : Liste des agences */}
         <div className="flex-1 overflow-y-auto min-h-0">
           <div className="p-2 sm:p-4" style={{ paddingBottom: '120px' }}>
-            {loading ? (
-              <div>Chargement...</div>
-            ) : (
-              <div className="space-y-2">
+          {loading ? (
+            <div>Chargement...</div>
+          ) : (
+            <div className="space-y-2">
                 {agencies.map((agency) => {
                 const isSelected = selectedAgency?.id === agency.id
                 return (
@@ -2005,14 +2011,14 @@ export default function AgencesPage() {
                     onClick={() => {
                       // Utiliser startTransition pour rendre les mises à jour non-bloquantes et plus fluides
                       startTransition(() => {
-                        setSelectedAgency(agency)
+                      setSelectedAgency(agency)
                         setEditing(false)
-                        setEditingTechnical(false)
-                        setTechnicalData({})
-                        setEditedCodeAgence("")
-                        setEditedCodeRayon("")
-                        setEditedDateOuverture("")
-                        setEditedDateFermeture("")
+                      setEditingTechnical(false)
+                      setTechnicalData({})
+                      setEditedCodeAgence("")
+                      setEditedCodeRayon("")
+                      setEditedDateOuverture("")
+                      setEditedDateFermeture("")
                       })
                       // Sur mobile, afficher les détails (hors transition pour réactivité)
                       if (isMobile) {
@@ -2069,8 +2075,8 @@ export default function AgencesPage() {
                 </div>
                 )
               })}
-              </div>
-            )}
+            </div>
+          )}
           </div>
         </div>
       </div>
@@ -2090,7 +2096,7 @@ export default function AgencesPage() {
       {/* Zone Détails */}
       <div 
         className={`h-full flex flex-col overflow-hidden transition-opacity duration-300 ${
-          isMobile && !showDetailsOnMobile ? "hidden" : ""
+        isMobile && !showDetailsOnMobile ? "hidden" : ""
         }`}
         style={{ 
           width: isMobile ? "100%" : `${100 - masterWidth}%`,
@@ -3595,19 +3601,48 @@ export default function AgencesPage() {
               <TabsContent value="photos" className="space-y-2 sm:space-y-4 pt-2 sm:pt-4 mt-0">
                 <Card>
                   <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle>Photos</CardTitle>
-                      {editing && (
-                        <Button onClick={handleAddPhotoGroup} size="sm" className="gap-2">
-                          <Plus className="h-4 w-4" />
-                          Ajouter
-                        </Button>
-                      )}
+                    <div className="flex flex-col gap-4">
+                      <div className="flex items-center justify-between">
+                        <CardTitle>Photos</CardTitle>
+                        {editing && (
+                          <Button onClick={handleAddPhotoGroup} size="sm" className="gap-2">
+                            <Plus className="h-4 w-4" />
+                            Ajouter
+                          </Button>
+                        )}
+                      </div>
+                      {/* Champ de recherche */}
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          type="text"
+                          placeholder="Rechercher par libellé ou type de photo..."
+                          value={photoSearch}
+                          onChange={(e) => setPhotoSearch(e.target.value)}
+                          className="pl-9 pr-9"
+                        />
+                        {photoSearch && (
+                          <button
+                            type="button"
+                            onClick={() => setPhotoSearch("")}
+                            className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground hover:text-foreground transition-colors"
+                            aria-label="Effacer la recherche"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent>
                     {fullAgencyData.photos && fullAgencyData.photos.length > 0 ? (
                       (() => {
+                        // Normaliser le terme de recherche (minuscules, sans accents)
+                        const normalizeSearch = (text: string) => {
+                          return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+                        }
+                        const searchTerm = normalizeSearch(photoSearch)
+
                         // Grouper toutes les photos par type (toutes les photos d'un même type ensemble)
                         const photosByType = fullAgencyData.photos.reduce((acc, photoGroup) => {
                           const type = photoGroup.type
@@ -3625,18 +3660,28 @@ export default function AgencesPage() {
                               ? photo.title 
                               : (photoGroup.title || "")
                             
-                            acc[type].push({
-                              url: photoPath,
-                              title: photoTitle,
-                              createdAt: createdAt,
-                              type: photoGroup.type,
-                              photoGroupId: photoGroup.id,
-                            })
+                            // Filtrer selon la recherche : par libellé (title) ou par type
+                            const matchesSearch = !searchTerm || 
+                              normalizeSearch(photoTitle).includes(searchTerm) ||
+                              normalizeSearch(type).includes(searchTerm)
+                            
+                            if (matchesSearch) {
+                              acc[type].push({
+                                url: photoPath,
+                                title: photoTitle,
+                                createdAt: createdAt,
+                                type: photoGroup.type,
+                                photoGroupId: photoGroup.id,
+                              })
+                            }
                           })
                           return acc
                         }, {} as Record<string, Array<{ url: string; title?: string; createdAt: string | null; type: string; photoGroupId: string }>>)
 
-                        const photoTypes = Object.keys(photosByType).sort()
+                        // Filtrer les types qui ont des photos après le filtrage
+                        const photoTypes = Object.keys(photosByType)
+                          .filter(type => photosByType[type].length > 0)
+                          .sort()
                         const defaultTab = photoTypes.length > 0 ? photoTypes[0] : ""
                         
                         // Initialiser le tab sélectionné si vide ou si le type n'existe plus
@@ -3644,6 +3689,19 @@ export default function AgencesPage() {
                           if (defaultTab && selectedPhotoTypeTab !== defaultTab) {
                             setSelectedPhotoTypeTab(defaultTab)
                           }
+                        }
+
+                        // Si aucune photo ne correspond à la recherche
+                        if (photoTypes.length === 0) {
+                          return (
+                            <div className="text-muted-foreground text-center py-8">
+                              {photoSearch ? (
+                                <>Aucune photo ne correspond à la recherche &quot;{photoSearch}&quot;</>
+                              ) : (
+                                <>Aucune photo enregistrée</>
+                              )}
+                            </div>
+                          )
                         }
 
                         return (

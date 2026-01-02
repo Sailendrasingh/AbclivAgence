@@ -517,7 +517,29 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
   * Lors de la suppression d'un groupe de photos entier, tous les fichiers physiques du groupe sont supprimés avant la suppression en base de données
   * La suppression est irréversible : les fichiers sont définitivement supprimés du système de fichiers
 
-### 8.1 Affichage et navigation des photos
+### 8.1 Recherche dans l'onglet Photos
+
+* **Champ de recherche** :
+  * Champ de recherche affiché dans l'en-tête de l'onglet Photos (CardHeader)
+  * Icône de recherche (Search) à gauche du champ
+  * Placeholder : "Rechercher par libellé ou type de photo..."
+  * **Bouton de réinitialisation** : Bouton en forme de croix (X) à droite du champ, visible uniquement lorsque le champ contient du texte
+    * Permet de vider manuellement le champ de recherche
+    * Positionné à droite du champ avec espacement approprié
+* **Fonctionnalités de recherche** :
+  * **Recherche par libellé** : Filtre les photos selon leur titre individuel ou le titre du groupe
+  * **Recherche par type** : Filtre les photos selon leur type (ex: "Façade", "Intérieur", "PC", etc.)
+  * **Recherche insensible à la casse** : La recherche ignore les majuscules/minuscules
+  * **Recherche sans accents** : La recherche ignore les accents (normalisation Unicode NFD)
+  * **Filtrage en temps réel** : Les résultats sont filtrés instantanément lors de la saisie
+  * **Filtrage des onglets** : Seuls les types de photos contenant des résultats sont affichés dans les onglets
+  * **Conservation de la recherche** : La recherche est conservée lors du changement d'onglet de type de photo
+  * **Réinitialisation automatique** : La recherche est réinitialisée uniquement lors du changement d'agence (pas lors du changement d'onglet)
+* **Message d'absence de résultats** :
+  * Si aucune photo ne correspond à la recherche, un message est affiché : "Aucune photo ne correspond à la recherche "[terme]"" (avec le terme de recherche entre guillemets)
+  * Si aucune photo n'est enregistrée, un message est affiché : "Aucune photo enregistrée"
+
+### 8.2 Affichage et navigation des photos
 
 * **Stockage des métadonnées** :
   * Chaque photo est stockée avec son chemin (`path`), sa date de création (`createdAt`) et son titre individuel (`title`)
