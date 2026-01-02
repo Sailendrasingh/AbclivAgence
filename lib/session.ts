@@ -1,48 +1,111 @@
-import { cookies } from "next/headers"
-import { prisma } from "./prisma"
+/**
+ * Ce fichier est maintenu pour la compatibilité avec l'ancien code
+ * Il redirige vers la nouvelle gestion de session sécurisée
+ */
+import { getSecureSession, createSecureSession, destroySecureSession as destroySecure } from "./session-secure"
 
-export async function getSession() {
-  const cookieStore = await cookies()
-  const sessionId = cookieStore.get("session")?.value
+export interface Session {
+  id: string
+  login: string
+  role: string
+  twoFactorEnabled: boolean
+}
 
-  if (!sessionId) {
-    return null
-  }
-
-  // En production, utiliser une table Session dédiée
-  // Pour l'instant, on vérifie juste que l'utilisateur existe
+/**
+ * @deprecated Utilisez getSecureSession() à la place
+ * Cette fonction est maintenue pour la compatibilité
+ * Fallback vers l'ancien système si le modèle Session n'est pas disponible
+ */
+export async function getSession(): Promise<Session | null> {
   try {
-    const user = await prisma.user.findFirst({
-      where: {
-        id: sessionId,
-        active: true,
-      },
-      select: {
-        id: true,
-        login: true,
-        role: true,
-        twoFactorEnabled: true,
-      },
-    })
+    const secureSession = await getSecureSession()
+    if (!secureSession) {
+      return null
+    }
+    
+    // Adapter le format pour la compatibilité
+    return {
+      id: secureSession.userId,
+      login: secureSession.login,
+      role: secureSession.role,
+      twoFactorEnabled: secureSession.twoFactorEnabled,
+    }
+  } catch (error: any) {
+    // Fallback vers l'ancien système si le modèle Session n'est pas disponible
+    if (error?.code === 'P2021' || error?.message?.includes('Session') || error?.message?.includes('Prisma') || error?.message?.includes('does not exist')) {
+      // Ne logger qu'une seule fois au démarrage pour éviter le spam
+      if (!(global as any).__sessionFallbackLogged) {
+        console.warn("[SESSION] Table Session non disponible, utilisation du fallback (userId comme sessionId)")
+        console.warn("[SESSION] Pour activer les sessions sécurisées: arrêtez le serveur, exécutez 'npx prisma generate', puis redémarrez")
+        ;(global as any).__sessionFallbackLogged = true
+      }
+      const { cookies } = await import("next/headers")
+      const { prisma } = await import("./prisma")
+      const cookieStore = await cookies()
+      const sessionId = cookieStore.get("session")?.value
 
-    return user
-  } catch {
-    return null
+      if (!sessionId) {
+        return null
+      }
+
+      try {
+        const user = await prisma.user.findFirst({
+          where: {
+            id: sessionId,
+            active: true,
+          },
+          select: {
+            id: true,
+            login: true,
+            role: true,
+            twoFactorEnabled: true,
+          },
+        })
+
+        return user
+      } catch {
+        return null
+      }
+    }
+    throw error
   }
 }
 
-export async function createSession(userId: string) {
-  const cookieStore = await cookies()
-  cookieStore.set("session", userId, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    maxAge: 60 * 60 * 24 * 7, // 7 jours
-  })
+/**
+ * @deprecated Utilisez createSecureSession() à la place
+ * Cette fonction est maintenue pour la compatibilité
+ * Fallback vers l'ancien système si le modèle Session n'est pas disponible
+ */
+export async function createSession(userId: string): Promise<void> {
+  try {
+    await createSecureSession(userId)
+  } catch (error: any) {
+    // Fallback vers l'ancien système si le modèle Session n'est pas disponible
+    if (error?.code === 'P2021' || error?.message?.includes('Session') || error?.message?.includes('Prisma') || error?.message?.includes('does not exist')) {
+      // Ne logger qu'une seule fois au démarrage pour éviter le spam
+      if (!(global as any).__sessionFallbackLogged) {
+        console.warn("[SESSION] Table Session non disponible, utilisation du fallback (userId comme sessionId)")
+        console.warn("[SESSION] Pour activer les sessions sécurisées: arrêtez le serveur, exécutez 'npx prisma generate', puis redémarrez")
+        ;(global as any).__sessionFallbackLogged = true
+      }
+      const cookieStore = await (await import("next/headers")).cookies()
+      cookieStore.set("session", userId, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 60 * 60 * 24 * 7, // 7 jours
+      })
+      return
+    }
+    throw error
+  }
 }
 
-export async function destroySession() {
-  const cookieStore = await cookies()
-  cookieStore.delete("session")
+/**
+ * @deprecated Utilisez destroySecureSession() à la place
+ * Cette fonction est maintenue pour la compatibilité
+ */
+export async function destroySession(): Promise<void> {
+  await destroySecure()
 }
 

@@ -4,6 +4,7 @@ import { verifyPassword, verifyTwoFactorToken } from "@/lib/auth"
 import { createLog } from "@/lib/logs"
 import { checkRateLimit, resetRateLimit } from "@/lib/rate-limit"
 import { createCSRFToken } from "@/lib/csrf"
+import { ensureSessionTable } from "@/lib/ensure-session-table"
 
 const MAX_FAILED_ATTEMPTS = 5
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000 // 15 minutes
@@ -222,22 +223,52 @@ export async function POST(request: NextRequest) {
     
     await createLog(user.id, "CONNEXION", null, request)
 
-    // Créer une session (userId comme sessionId pour l'instant)
-    const { createSession } = await import("@/lib/session")
-    await createSession(user.id)
-    
-    // Créer un token CSRF pour cette session
-    const csrfToken = await createCSRFToken()
+    // Vérifier et créer la table Session si nécessaire
+    await ensureSessionTable()
 
-    // Créer la réponse avec le token CSRF
-    const response = NextResponse.json({ 
-      success: true,
-      csrfToken // Retourner le token CSRF au client
-    })
+    // Créer une session sécurisée avec token aléatoire
+    try {
+      const { createSecureSession } = await import("@/lib/session-secure")
+      const sessionToken = await createSecureSession(user.id)
+      
+      // Créer un token CSRF pour cette session
+      const csrfToken = await createCSRFToken()
 
-    console.log(`[LOGIN] Session créée pour l'utilisateur ${user.login} (${user.id})`)
+      // Créer la réponse avec le token CSRF
+      const response = NextResponse.json({ 
+        success: true,
+        csrfToken // Retourner le token CSRF au client
+      })
 
-    return response
+      console.log(`[LOGIN] Session sécurisée créée pour l'utilisateur ${user.login} (${user.id}) avec token ${sessionToken.substring(0, 16)}...`)
+
+      return response
+    } catch (sessionError: any) {
+      // Si le modèle Session n'est pas disponible, utiliser l'ancien système temporairement
+      if (sessionError?.code === 'P2021' || sessionError?.message?.includes('Session') || sessionError?.message?.includes('Prisma') || sessionError?.message?.includes('does not exist')) {
+        // Ne logger qu'une seule fois pour éviter le spam
+        if (!(global as any).__loginFallbackLogged) {
+          console.warn("[LOGIN] Table Session non disponible, utilisation du fallback temporaire")
+          console.warn("[LOGIN] Pour activer les sessions sécurisées: arrêtez le serveur, exécutez 'npx prisma generate', puis redémarrez")
+          ;(global as any).__loginFallbackLogged = true
+        }
+        
+        // Fallback temporaire : utiliser l'ancien système de session
+        const { createSession } = await import("@/lib/session")
+        await createSession(user.id)
+        
+        // Créer un token CSRF pour cette session
+        const csrfToken = await createCSRFToken()
+
+        const response = NextResponse.json({ 
+          success: true,
+          csrfToken
+        })
+
+        return response
+      }
+      throw sessionError
+    }
   } catch (error) {
     console.error("Login error:", error)
     return NextResponse.json(

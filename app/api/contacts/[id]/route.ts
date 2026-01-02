@@ -4,6 +4,9 @@ import { getSession } from "@/lib/session"
 import { createLog } from "@/lib/logs"
 import validator from "validator"
 import { requireCSRF } from "@/lib/csrf-middleware"
+import { sanitize } from "@/lib/sanitize"
+import { updateContactSchema } from "@/lib/validations"
+import { validateRequest } from "@/lib/validation-middleware"
 
 export async function PUT(
   request: NextRequest,
@@ -21,7 +24,12 @@ export async function PUT(
   }
 
   try {
-    const body = await request.json()
+    // Valider les données avec Zod
+    const validation = await validateRequest(request, updateContactSchema)
+    if (!validation.success) {
+      return validation.error
+    }
+
     const {
       postNumber,
       agentNumber,
@@ -30,36 +38,24 @@ export async function PUT(
       managerName,
       note,
       order,
-    } = body
+    } = validation.data
 
-    // Validations identiques à POST
-    if (postNumber && !/^\d{6}$/.test(postNumber)) {
-      return NextResponse.json(
-        { error: "Le numéro de poste doit contenir exactement 6 chiffres" },
-        { status: 400 }
-      )
-    }
+    // Sanitizer les entrées utilisateur (après validation)
+    const sanitizedPostNumber = postNumber ? sanitize(postNumber) : ""
+    const sanitizedAgentNumber = agentNumber ? sanitize(agentNumber) : ""
+    const sanitizedManagerName = managerName ? sanitize(managerName) : undefined
+    const sanitizedNote = note ? sanitize(note) : null
 
-    if (agentNumber && !/^\d{4}$/.test(agentNumber)) {
-      return NextResponse.json(
-        { error: "Le numéro d'agent doit contenir exactement 4 chiffres" },
-        { status: 400 }
-      )
-    }
+    // Sanitizer les emails (tableau)
+    const sanitizedEmails = emails && Array.isArray(emails)
+      ? emails.map((email: string) => sanitize(email))
+      : undefined
 
-    // Validation ligne directe - optionnel
-    // Accepte le format avec espaces (00 00 00 00 00) ou sans espaces (0000000000)
-    let normalizedDirectLine = directLine
+    // Normaliser la ligne directe - retirer les espaces pour le stockage
+    let normalizedDirectLine: string | undefined = undefined
     if (directLine !== undefined) {
       if (directLine) {
-        // Retirer les espaces pour la validation
         const cleanedDirectLine = directLine.replace(/\s/g, "")
-        if (!/^\d{10}$/.test(cleanedDirectLine)) {
-          return NextResponse.json(
-            { error: "La ligne directe doit contenir 10 chiffres (format: 00 00 00 00 00 ou 0000000000)" },
-            { status: 400 }
-          )
-        }
         // Normaliser au format avec espaces pour le stockage
         normalizedDirectLine = cleanedDirectLine.match(/.{1,2}/g)?.join(" ") || cleanedDirectLine
       } else {
@@ -67,32 +63,13 @@ export async function PUT(
       }
     }
 
-    if (emails !== undefined) {
-      if (!Array.isArray(emails)) {
-        return NextResponse.json(
-          { error: "Les emails doivent être un tableau" },
-          { status: 400 }
-        )
-      }
-
-      // Valider chaque email s'il y en a
-      for (const email of emails) {
-        if (!validator.isEmail(email)) {
-          return NextResponse.json(
-            { error: `Email invalide: ${email}` },
-            { status: 400 }
-          )
-        }
-      }
-    }
-
     const updateData: any = {}
-    if (postNumber !== undefined) updateData.postNumber = postNumber || ""
-    if (agentNumber !== undefined) updateData.agentNumber = agentNumber || ""
-    if (directLine !== undefined) updateData.directLine = normalizedDirectLine
-    if (emails !== undefined) updateData.emails = emails && emails.length > 0 ? JSON.stringify(emails) : "[]"
-    if (managerName !== undefined) updateData.managerName = managerName
-    if (note !== undefined) updateData.note = note || null
+    if (postNumber !== undefined) updateData.postNumber = sanitizedPostNumber
+    if (agentNumber !== undefined) updateData.agentNumber = sanitizedAgentNumber
+    if (normalizedDirectLine !== undefined) updateData.directLine = normalizedDirectLine
+    if (sanitizedEmails !== undefined) updateData.emails = sanitizedEmails.length > 0 ? JSON.stringify(sanitizedEmails) : "[]"
+    if (sanitizedManagerName !== undefined) updateData.managerName = sanitizedManagerName
+    if (sanitizedNote !== undefined) updateData.note = sanitizedNote
     if (order !== undefined) updateData.order = order
 
     const contact = await prisma.contact.update({

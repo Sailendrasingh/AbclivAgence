@@ -3,6 +3,9 @@ import { prisma } from "@/lib/prisma"
 import { getSession } from "@/lib/session"
 import { createLog } from "@/lib/logs"
 import { requireCSRF } from "@/lib/csrf-middleware"
+import { sanitize } from "@/lib/sanitize"
+import { updatePCSchema } from "@/lib/validations"
+import { validateRequest } from "@/lib/validation-middleware"
 
 export async function PUT(
   request: NextRequest,
@@ -20,7 +23,12 @@ export async function PUT(
   }
 
   try {
-    const body = await request.json()
+    // Valider les données avec Zod
+    const validation = await validateRequest(request, updatePCSchema)
+    if (!validation.success) {
+      return validation.error
+    }
+
     const {
       name,
       ip,
@@ -33,17 +41,25 @@ export async function PUT(
       files,
       photos,
       order,
-    } = body
+    } = validation.data
+
+    // Sanitizer les entrées utilisateur (après validation)
+    const sanitizedName = name ? sanitize(name) : undefined
+    const sanitizedIp = ip ? sanitize(ip) : null
+    const sanitizedMac = mac ? sanitize(mac) : null
+    const sanitizedSerialNumber = serialNumber ? sanitize(serialNumber) : null
+    const sanitizedBrand = brand ? sanitize(brand) : null
+    const sanitizedModel = model ? sanitize(model) : null
 
     const updateData: any = {}
-    if (name) updateData.name = name
-    if (ip !== undefined) updateData.ip = ip
-    if (mac !== undefined) updateData.mac = mac
-    if (serialNumber !== undefined) updateData.serialNumber = serialNumber
-    if (brand !== undefined) updateData.brand = brand
-    if (model !== undefined) updateData.model = model
-    if (purchaseDate !== undefined) updateData.purchaseDate = purchaseDate ? new Date(purchaseDate) : null
-    if (warrantyDate !== undefined) updateData.warrantyDate = warrantyDate ? new Date(warrantyDate) : null
+    if (sanitizedName !== undefined) updateData.name = sanitizedName
+    if (ip !== undefined) updateData.ip = sanitizedIp
+    if (mac !== undefined) updateData.mac = sanitizedMac
+    if (serialNumber !== undefined) updateData.serialNumber = sanitizedSerialNumber
+    if (brand !== undefined) updateData.brand = sanitizedBrand
+    if (model !== undefined) updateData.model = sanitizedModel
+    if (purchaseDate !== undefined) updateData.purchaseDate = purchaseDate
+    if (warrantyDate !== undefined) updateData.warrantyDate = warrantyDate
     if (files !== undefined) updateData.files = files ? JSON.stringify(files) : null
     if (photos !== undefined) updateData.photos = photos ? JSON.stringify(photos) : null
     if (order !== undefined) {

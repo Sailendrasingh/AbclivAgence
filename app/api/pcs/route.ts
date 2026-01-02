@@ -3,6 +3,9 @@ import { prisma } from "@/lib/prisma"
 import { getSession } from "@/lib/session"
 import { createLog } from "@/lib/logs"
 import { requireCSRF } from "@/lib/csrf-middleware"
+import { sanitize } from "@/lib/sanitize"
+import { createPCSchema } from "@/lib/validations"
+import { validateRequest } from "@/lib/validation-middleware"
 
 export async function POST(request: NextRequest) {
   // Vérifier le token CSRF
@@ -17,7 +20,12 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const body = await request.json()
+    // Valider les données avec Zod
+    const validation = await validateRequest(request, createPCSchema)
+    if (!validation.success) {
+      return validation.error
+    }
+
     const {
       technicalId,
       name,
@@ -30,14 +38,15 @@ export async function POST(request: NextRequest) {
       warrantyDate,
       files,
       photos,
-    } = body
+    } = validation.data
 
-    if (!technicalId || !name) {
-      return NextResponse.json(
-        { error: "technicalId et name sont requis" },
-        { status: 400 }
-      )
-    }
+    // Sanitizer les entrées utilisateur (après validation)
+    const sanitizedName = sanitize(name)
+    const sanitizedIp = ip ? sanitize(ip) : null
+    const sanitizedMac = mac ? sanitize(mac) : null
+    const sanitizedSerialNumber = serialNumber ? sanitize(serialNumber) : null
+    const sanitizedBrand = brand ? sanitize(brand) : null
+    const sanitizedModel = model ? sanitize(model) : null
 
     // Calculer l'ordre pour le nouveau PC (maximum + 1)
     const maxOrder = await prisma.pC.findFirst({
@@ -50,14 +59,14 @@ export async function POST(request: NextRequest) {
     const pc = await prisma.pC.create({
       data: {
         technicalId,
-        name,
-        ip: ip || null,
-        mac: mac || null,
-        serialNumber: serialNumber || null,
-        brand: brand || null,
-        model: model || null,
-        purchaseDate: purchaseDate ? new Date(purchaseDate) : null,
-        warrantyDate: warrantyDate ? new Date(warrantyDate) : null,
+        name: sanitizedName,
+        ip: sanitizedIp,
+        mac: sanitizedMac,
+        serialNumber: sanitizedSerialNumber,
+        brand: sanitizedBrand,
+        model: sanitizedModel,
+        purchaseDate: purchaseDate,
+        warrantyDate: warrantyDate,
         files: files ? JSON.stringify(files) : null,
         photos: photos ? JSON.stringify(photos) : null,
         order: newOrder,

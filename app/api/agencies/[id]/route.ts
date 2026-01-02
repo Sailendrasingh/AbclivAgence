@@ -4,6 +4,9 @@ import { getSession } from "@/lib/session"
 import { createLog } from "@/lib/logs"
 import { createAgencyHistory } from "@/lib/history"
 import { requireCSRF } from "@/lib/csrf-middleware"
+import { sanitize } from "@/lib/sanitize"
+import { updateAgencySchema } from "@/lib/validations"
+import { validateRequest } from "@/lib/validation-middleware"
 
 export async function GET(
   request: NextRequest,
@@ -74,8 +77,18 @@ export async function PUT(
   }
 
   try {
-    const body = await request.json()
-    const { name, photo, state, codeAgence, codeRayon, dateOuverture, dateFermeture, validatedAt } = body
+    // Valider les données avec Zod
+    const validation = await validateRequest(request, updateAgencySchema)
+    if (!validation.success) {
+      return validation.error
+    }
+
+    const { name, photo, state, codeAgence, codeRayon, dateOuverture, dateFermeture, validatedAt } = validation.data
+
+    // Sanitizer les entrées utilisateur (après validation)
+    const sanitizedName = name ? sanitize(name) : undefined
+    const sanitizedCodeAgence = codeAgence ? sanitize(codeAgence) : undefined
+    const sanitizedCodeRayon = codeRayon ? sanitize(codeRayon) : undefined
 
     // Sauvegarder l'état actuel pour l'historique
     const currentAgency = await prisma.agency.findUnique({
@@ -99,14 +112,14 @@ export async function PUT(
     const updatedAgency = await prisma.agency.update({
       where: { id: params.id },
       data: {
-        name,
+        name: sanitizedName,
         photo,
         state: state || "ALERTE",
-        codeAgence: codeAgence || null,
-        codeRayon: codeRayon || null,
-        dateOuverture: dateOuverture ? new Date(dateOuverture) : null,
-        dateFermeture: dateFermeture ? new Date(dateFermeture) : null,
-        validatedAt: validatedAt ? new Date(validatedAt) : null,
+        codeAgence: sanitizedCodeAgence,
+        codeRayon: sanitizedCodeRayon,
+        dateOuverture: dateOuverture,
+        dateFermeture: dateFermeture,
+        validatedAt: validatedAt,
       },
     })
 

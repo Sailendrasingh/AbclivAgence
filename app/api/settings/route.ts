@@ -66,27 +66,22 @@ export async function PUT(request: NextRequest) {
   }
 
   try {
-    const body = await request.json()
-    const { sessionTimeout } = body
-
-    // Convertir en nombre si nécessaire
-    const timeoutValue = typeof sessionTimeout === "string" ? parseInt(sessionTimeout, 10) : Number(sessionTimeout)
-
-    if (!timeoutValue || isNaN(timeoutValue) || timeoutValue < 1) {
-      return NextResponse.json(
-        { error: "La durée de session doit être un nombre positif d'au moins 1 minute" },
-        { status: 400 }
-      )
+    // Valider les données avec Zod
+    const validation = await validateRequest(request, updateSettingsSchema)
+    if (!validation.success) {
+      return validation.error
     }
+
+    const { sessionTimeout } = validation.data
 
     const settings = await prisma.appSettings.upsert({
       where: { id: "settings" },
       update: {
-        sessionTimeout: timeoutValue,
+        sessionTimeout: sessionTimeout,
       },
       create: {
         id: "settings",
-        sessionTimeout: timeoutValue,
+        sessionTimeout: sessionTimeout,
       },
     })
 

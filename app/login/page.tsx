@@ -11,12 +11,17 @@ import { setCSRFToken } from "@/lib/csrf-client"
 
 export default function LoginPage() {
   const router = useRouter()
+  const [mounted, setMounted] = useState(false)
   const [login, setLogin] = useState("")
   const [password, setPassword] = useState("")
   const [twoFactorToken, setTwoFactorToken] = useState("")
   const [needsTwoFactor, setNeedsTwoFactor] = useState(false)
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -62,6 +67,53 @@ export default function LoginPage() {
     }
   }
 
+  // Éviter les erreurs d'hydratation en retournant un contenu cohérent
+  if (!mounted) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Connexion</CardTitle>
+            <CardDescription>
+              Connectez-vous à votre compte
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form className="space-y-4" suppressHydrationWarning>
+              <div className="space-y-2">
+                <Label htmlFor="login">Identifiant</Label>
+              <Input
+                id="login"
+                type="text"
+                value=""
+                readOnly
+                required
+                disabled
+                suppressHydrationWarning
+              />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Mot de passe</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value=""
+                  readOnly
+                  required
+                  disabled
+                  suppressHydrationWarning
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled>
+                Se connecter
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
       <Card className="w-full max-w-md">
@@ -72,7 +124,7 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" suppressHydrationWarning>
             <div className="space-y-2">
               <Label htmlFor="login">Identifiant</Label>
               <Input
@@ -82,6 +134,7 @@ export default function LoginPage() {
                 onChange={(e) => setLogin(e.target.value)}
                 required
                 disabled={loading}
+                suppressHydrationWarning
               />
             </div>
             <div className="space-y-2">
@@ -93,6 +146,7 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={loading}
+                suppressHydrationWarning
               />
             </div>
             {needsTwoFactor && (
@@ -107,6 +161,7 @@ export default function LoginPage() {
                   maxLength={6}
                   required
                   disabled={loading}
+                  suppressHydrationWarning
                 />
               </div>
             )}

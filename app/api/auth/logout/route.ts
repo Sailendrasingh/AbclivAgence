@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getSession } from "@/lib/session"
+import { getSecureSession, destroySecureSession } from "@/lib/session-secure"
 import { createLog } from "@/lib/logs"
 import { validateCSRF } from "@/lib/csrf"
 
@@ -11,15 +11,17 @@ export async function POST(request: NextRequest) {
     console.warn("[LOGOUT] Token CSRF invalide ou manquant, mais déconnexion autorisée")
   }
 
-  const session = await getSession()
+  const session = await getSecureSession()
   
   if (session) {
-    await createLog(session.id, "DECONNEXION", null)
+    await createLog(session.userId, "DECONNEXION", null)
   }
 
-  // Supprimer les cookies de session et CSRF dans la réponse
+  // Détruire la session sécurisée (supprime de la DB et du cookie)
+  await destroySecureSession()
+
+  // Supprimer aussi le cookie CSRF
   const response = NextResponse.json({ success: true })
-  response.cookies.delete("session")
   response.cookies.delete("csrf-token")
 
   return response

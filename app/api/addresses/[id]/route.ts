@@ -3,6 +3,9 @@ import { prisma } from "@/lib/prisma"
 import { getSession } from "@/lib/session"
 import { createLog } from "@/lib/logs"
 import { requireCSRF } from "@/lib/csrf-middleware"
+import { sanitize } from "@/lib/sanitize"
+import { updateAddressSchema } from "@/lib/validations"
+import { validateRequest } from "@/lib/validation-middleware"
 
 export async function PUT(
   request: NextRequest,
@@ -20,7 +23,12 @@ export async function PUT(
   }
 
   try {
-    const body = await request.json()
+    // Valider les données avec Zod
+    const validation = await validateRequest(request, updateAddressSchema)
+    if (!validation.success) {
+      return validation.error
+    }
+
     const {
       label,
       street,
@@ -29,19 +37,27 @@ export async function PUT(
       country,
       latitude,
       longitude,
-    } = body
+    } = validation.data
+
+    // Sanitizer les entrées utilisateur (après validation)
+    const sanitizedLabel = label ? sanitize(label) : undefined
+    const sanitizedStreet = street ? sanitize(street) : undefined
+    const sanitizedCity = city ? sanitize(city) : undefined
+    const sanitizedPostalCode = postalCode ? sanitize(postalCode) : undefined
+    const sanitizedCountry = country ? sanitize(country) : "France"
+
+    const updateData: any = {}
+    if (sanitizedLabel !== undefined) updateData.label = sanitizedLabel
+    if (sanitizedStreet !== undefined) updateData.street = sanitizedStreet
+    if (sanitizedCity !== undefined) updateData.city = sanitizedCity
+    if (sanitizedPostalCode !== undefined) updateData.postalCode = sanitizedPostalCode
+    if (sanitizedCountry !== undefined) updateData.country = sanitizedCountry
+    if (latitude !== undefined) updateData.latitude = latitude || null
+    if (longitude !== undefined) updateData.longitude = longitude || null
 
     const address = await prisma.address.update({
       where: { id: params.id },
-      data: {
-        label,
-        street,
-        city,
-        postalCode,
-        country: country || "France",
-        latitude: latitude || null,
-        longitude: longitude || null,
-      },
+      data: updateData,
     })
 
     await createLog(session.id, "ADRESSE_MODIFIEE", {

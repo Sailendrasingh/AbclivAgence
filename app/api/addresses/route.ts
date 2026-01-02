@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { getSession } from "@/lib/session"
 import { createLog } from "@/lib/logs"
 import { requireCSRF } from "@/lib/csrf-middleware"
+import { sanitize } from "@/lib/sanitize"
 
 export async function POST(request: NextRequest) {
   // Vérifier le token CSRF
@@ -17,7 +18,12 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const body = await request.json()
+    // Valider les données avec Zod
+    const validation = await validateRequest(request, createAddressSchema)
+    if (!validation.success) {
+      return validation.error
+    }
+
     const {
       agencyId,
       banId,
@@ -28,24 +34,25 @@ export async function POST(request: NextRequest) {
       country,
       latitude,
       longitude,
-    } = body
+    } = validation.data
 
-    if (!agencyId || !label || !street || !city || !postalCode) {
-      return NextResponse.json(
-        { error: "Champs obligatoires manquants" },
-        { status: 400 }
-      )
-    }
+    // Sanitizer les entrées utilisateur (après validation)
+    const sanitizedBanId = banId ? sanitize(banId) : null
+    const sanitizedLabel = sanitize(label)
+    const sanitizedStreet = sanitize(street)
+    const sanitizedCity = sanitize(city)
+    const sanitizedPostalCode = sanitize(postalCode)
+    const sanitizedCountry = sanitize(country || "France")
 
     const address = await prisma.address.create({
       data: {
         agencyId,
-        banId: banId || null,
-        label,
-        street,
-        city,
-        postalCode,
-        country: country || "France",
+        banId: sanitizedBanId,
+        label: sanitizedLabel,
+        street: sanitizedStreet,
+        city: sanitizedCity,
+        postalCode: sanitizedPostalCode,
+        country: sanitizedCountry,
         latitude: latitude || null,
         longitude: longitude || null,
       },

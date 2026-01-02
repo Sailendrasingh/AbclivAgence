@@ -48,30 +48,32 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const body = await request.json()
-    const { login, password, role } = body
-
-    if (!login || !password) {
-      return NextResponse.json(
-        { error: "Login et mot de passe requis" },
-        { status: 400 }
-      )
+    // Valider les données avec Zod
+    const validation = await validateRequest(request, createUserSchema)
+    if (!validation.success) {
+      return validation.error
     }
+
+    const { login, password, role } = validation.data
+
+    // Sanitizer les entrées utilisateur (après validation)
+    const sanitizedLogin = sanitize(login)
+    const sanitizedRole = sanitize(role || "User")
 
     const passwordHash = await hashPassword(password)
 
     const user = await prisma.user.create({
       data: {
-        login,
+        login: sanitizedLogin,
         passwordHash,
-        role: role || "User",
+        role: sanitizedRole,
         active: true,
       },
     })
 
     await createLog(session.id, "UTILISATEUR_CREE", {
       userId: user.id,
-      login,
+      login: sanitizedLogin,
     }, request)
 
     return NextResponse.json(

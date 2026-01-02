@@ -3,6 +3,11 @@ import { getSession } from "@/lib/session"
 import { hashPassword } from "@/lib/auth"
 import { prisma } from "@/lib/prisma"
 import { createLog } from "@/lib/logs"
+import { requireCSRF } from "@/lib/csrf-middleware"
+import { invalidateAllUserSessions } from "@/lib/session-secure"
+import { sanitize } from "@/lib/sanitize"
+import { updateProfileSchema } from "@/lib/validations"
+import { validateRequest } from "@/lib/validation-middleware"
 
 export async function GET(request: NextRequest) {
   const session = await getSession()
@@ -51,11 +56,20 @@ export async function PUT(request: NextRequest) {
   }
 
   try {
-    const body = await request.json()
-    const { login, password } = body
+    // Valider les données avec Zod
+    const validation = await validateRequest(request, updateProfileSchema)
+    if (!validation.success) {
+      return validation.error
+    }
+
+    const { login, password } = validation.data
+
+    // Sanitizer les entrées utilisateur (après validation)
+    const sanitizedLogin = login ? sanitize(login) : undefined
 
     const updateData: any = {}
-    if (login) updateData.login = login
+    if (sanitizedLogin) updateData.login = sanitizedLogin
+    const passwordChanged = !!password
     if (password) {
       updateData.passwordHash = await hashPassword(password)
     }
@@ -65,8 +79,16 @@ export async function PUT(request: NextRequest) {
       data: updateData,
     })
 
+    // Si le mot de passe a été changé, invalider toutes les sessions de l'utilisateur
+    // (sauf la session actuelle qui sera invalidée par le client)
+    if (passwordChanged) {
+      await invalidateAllUserSessions(session.id)
+      console.log(`[PROFILE] Toutes les sessions de l'utilisateur ${session.id} ont été invalidées après changement de mot de passe`)
+    }
+
     await createLog(session.id, "PROFIL_MODIFIE", {
       userId: session.id,
+      passwordChanged,
     }, request)
 
     return NextResponse.json({

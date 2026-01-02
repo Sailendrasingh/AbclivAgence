@@ -3,6 +3,9 @@ import { prisma } from "@/lib/prisma"
 import { getSession } from "@/lib/session"
 import { createLog } from "@/lib/logs"
 import { requireCSRF } from "@/lib/csrf-middleware"
+import { sanitize } from "@/lib/sanitize"
+import { createAgencySchema } from "@/lib/validations"
+import { validateRequest } from "@/lib/validation-middleware"
 
 export async function GET(request: NextRequest) {
   const session = await getSession()
@@ -195,32 +198,35 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const body = await request.json()
-    const { name, photo, state, codeAgence, codeRayon, dateOuverture, dateFermeture, validatedAt } = body
-
-    if (!name) {
-      return NextResponse.json(
-        { error: "Le nom de l'agence est obligatoire" },
-        { status: 400 }
-      )
+    // Valider les données avec Zod
+    const validation = await validateRequest(request, createAgencySchema)
+    if (!validation.success) {
+      return validation.error
     }
+
+    const { name, photo, state, codeAgence, codeRayon, dateOuverture, dateFermeture, validatedAt } = validation.data
+
+    // Sanitizer les entrées utilisateur (après validation)
+    const sanitizedName = sanitize(name)
+    const sanitizedCodeAgence = codeAgence ? sanitize(codeAgence) : null
+    const sanitizedCodeRayon = codeRayon ? sanitize(codeRayon) : null
 
     const agency = await prisma.agency.create({
       data: {
-        name,
+        name: sanitizedName,
         photo: photo || null,
         state: state || "ALERTE", // Valeur par défaut selon PRD
-        codeAgence: codeAgence || null,
-        codeRayon: codeRayon || null,
-        dateOuverture: dateOuverture ? new Date(dateOuverture) : null,
-        dateFermeture: dateFermeture ? new Date(dateFermeture) : null,
-        validatedAt: validatedAt ? new Date(validatedAt) : null,
+        codeAgence: sanitizedCodeAgence,
+        codeRayon: sanitizedCodeRayon,
+        dateOuverture: dateOuverture,
+        dateFermeture: dateFermeture,
+        validatedAt: validatedAt,
       },
     })
 
     await createLog(session.id, "AGENCE_CREEE", {
       agencyId: agency.id,
-      agencyName: name,
+      agencyName: sanitizedName,
     }, request)
 
     return NextResponse.json(agency, { status: 201 })

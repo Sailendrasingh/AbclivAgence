@@ -4,6 +4,9 @@ import { getSession } from "@/lib/session"
 import { createLog } from "@/lib/logs"
 import { hashPassword } from "@/lib/auth"
 import { requireCSRF } from "@/lib/csrf-middleware"
+import { sanitize } from "@/lib/sanitize"
+import { updateUserSchema } from "@/lib/validations"
+import { validateRequest } from "@/lib/validation-middleware"
 
 export async function PUT(
   request: NextRequest,
@@ -34,13 +37,22 @@ export async function PUT(
       )
     }
 
-    const body = await request.json()
-    const { login, password, role, active } = body
+    // Valider les données avec Zod
+    const validation = await validateRequest(request, updateUserSchema)
+    if (!validation.success) {
+      return validation.error
+    }
+
+    const { login, password, role, active } = validation.data
+
+    // Sanitizer les entrées utilisateur (après validation)
+    const sanitizedLogin = login ? sanitize(login) : undefined
+    const sanitizedRole = role ? sanitize(role) : undefined
 
     const updateData: any = {}
-    if (login) updateData.login = login
+    if (sanitizedLogin) updateData.login = sanitizedLogin
     if (password) updateData.passwordHash = await hashPassword(password)
-    if (role) updateData.role = role
+    if (sanitizedRole) updateData.role = sanitizedRole
     if (active !== undefined) updateData.active = active
 
     const user = await prisma.user.update({

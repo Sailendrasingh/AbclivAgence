@@ -4,6 +4,9 @@ import { getSession } from "@/lib/session"
 import { createLog } from "@/lib/logs"
 import validator from "validator"
 import { requireCSRF } from "@/lib/csrf-middleware"
+import { sanitize } from "@/lib/sanitize"
+import { createContactSchema } from "@/lib/validations"
+import { validateRequest } from "@/lib/validation-middleware"
 
 export async function POST(request: NextRequest) {
   // Vérifier le token CSRF
@@ -18,7 +21,15 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const body = await request.json()
+    // Valider les données avec Zod
+    const validation = await validateRequest(request, createContactSchema)
+    if (!validation.success) {
+      // Logger les détails de l'erreur pour le débogage
+      const errorResponse = await validation.error.json()
+      console.error("[CONTACTS] Erreur de validation:", JSON.stringify(errorResponse, null, 2))
+      return validation.error
+    }
+
     const {
       agencyId,
       postNumber,
@@ -27,65 +38,25 @@ export async function POST(request: NextRequest) {
       emails,
       managerName,
       note,
-    } = body
+    } = validation.data
 
-    // Validation selon PRD - seul managerName est obligatoire
-    if (!agencyId || !managerName) {
-      return NextResponse.json(
-        { error: "Champs obligatoires manquants" },
-        { status: 400 }
-      )
-    }
+    // Sanitizer les entrées utilisateur (après validation)
+    const sanitizedPostNumber = postNumber ? sanitize(postNumber) : ""
+    const sanitizedAgentNumber = agentNumber ? sanitize(agentNumber) : ""
+    const sanitizedManagerName = sanitize(managerName)
+    const sanitizedNote = note ? sanitize(note) : null
 
-    // Validation numéro de poste (6 chiffres exacts) - optionnel
-    if (postNumber && !/^\d{6}$/.test(postNumber)) {
-      return NextResponse.json(
-        { error: "Le numéro de poste doit contenir exactement 6 chiffres" },
-        { status: 400 }
-      )
-    }
+    // Sanitizer les emails (tableau)
+    const sanitizedEmails = emails && Array.isArray(emails) 
+      ? emails.map((email: string) => sanitize(email))
+      : []
 
-    // Validation numéro d'agent (4 chiffres exacts) - optionnel
-    if (agentNumber && !/^\d{4}$/.test(agentNumber)) {
-      return NextResponse.json(
-        { error: "Le numéro d'agent doit contenir exactement 4 chiffres" },
-        { status: 400 }
-      )
-    }
-
-    // Validation ligne directe - optionnel
-    // Accepte le format avec espaces (00 00 00 00 00) ou sans espaces (0000000000)
-    let normalizedDirectLine = directLine || ""
+    // Normaliser la ligne directe - retirer les espaces pour le stockage
+    let normalizedDirectLine = ""
     if (directLine) {
-      // Retirer les espaces pour la validation
       const cleanedDirectLine = directLine.replace(/\s/g, "")
-      if (!/^\d{10}$/.test(cleanedDirectLine)) {
-        return NextResponse.json(
-          { error: "La ligne directe doit contenir 10 chiffres (format: 00 00 00 00 00 ou 0000000000)" },
-          { status: 400 }
-        )
-      }
       // Normaliser au format avec espaces pour le stockage
       normalizedDirectLine = cleanedDirectLine.match(/.{1,2}/g)?.join(" ") || cleanedDirectLine
-    }
-
-    // Validation emails - optionnel, mais si fourni, doit être valide
-    if (emails) {
-      if (!Array.isArray(emails)) {
-        return NextResponse.json(
-          { error: "Les emails doivent être un tableau" },
-          { status: 400 }
-        )
-      }
-
-      for (const email of emails) {
-        if (!validator.isEmail(email)) {
-          return NextResponse.json(
-            { error: `Email invalide: ${email}` },
-            { status: 400 }
-          )
-        }
-      }
     }
 
     // Calculer l'ordre pour le nouveau contact (maximum + 1)
@@ -99,12 +70,12 @@ export async function POST(request: NextRequest) {
     const contact = await prisma.contact.create({
       data: {
         agencyId,
-        postNumber: postNumber || "",
-        agentNumber: agentNumber || "",
+        postNumber: sanitizedPostNumber,
+        agentNumber: sanitizedAgentNumber,
         directLine: normalizedDirectLine,
-        emails: emails && emails.length > 0 ? JSON.stringify(emails) : "[]",
-        managerName,
-        note: note || null,
+        emails: sanitizedEmails.length > 0 ? JSON.stringify(sanitizedEmails) : "[]",
+        managerName: sanitizedManagerName,
+        note: sanitizedNote,
         order: newOrder,
       },
     })

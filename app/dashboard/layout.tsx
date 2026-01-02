@@ -3,6 +3,7 @@ import { getSession } from "@/lib/session"
 import { Sidebar } from "@/components/ui/sidebar"
 import { AgencyStats } from "@/components/agency-stats"
 import { SessionTimeoutWrapper } from "@/components/session-timeout-wrapper"
+import { ensureSessionTable } from "@/lib/ensure-session-table"
 import Image from "next/image"
 
 export default async function DashboardLayout({
@@ -10,7 +11,17 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const session = await getSession()
+  // Vérifier et créer la table Session si nécessaire
+  await ensureSessionTable()
+  
+  let session
+  try {
+    session = await getSession()
+  } catch (error: any) {
+    // Si erreur liée à la table Session, rediriger vers login
+    console.error("[DASHBOARD LAYOUT] Erreur lors de la récupération de la session:", error)
+    redirect("/login")
+  }
 
   if (!session) {
     redirect("/login")

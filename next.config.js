@@ -1,6 +1,10 @@
 /** @type {import('next').NextConfig} */
+const path = require('path')
+
 const nextConfig = {
   reactStrictMode: true,
+  // Spécifier le répertoire racine pour éviter les warnings sur les lockfiles multiples
+  outputFileTracingRoot: path.join(__dirname),
   images: {
     domains: [],
     unoptimized: true
