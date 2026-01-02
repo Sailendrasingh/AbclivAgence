@@ -32,6 +32,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Calculer l'ordre pour le nouveau PC (maximum + 1)
+    const maxOrder = await prisma.pC.findFirst({
+      where: { technicalId },
+      orderBy: { order: "desc" },
+      select: { order: true },
+    })
+    const newOrder = (maxOrder?.order ?? -1) + 1
+
     const pc = await prisma.pC.create({
       data: {
         technicalId,
@@ -45,6 +53,7 @@ export async function POST(request: NextRequest) {
         warrantyDate: warrantyDate ? new Date(warrantyDate) : null,
         files: files ? JSON.stringify(files) : null,
         photos: photos ? JSON.stringify(photos) : null,
+        order: newOrder,
       },
     })
 

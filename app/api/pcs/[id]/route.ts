@@ -25,6 +25,7 @@ export async function PUT(
       warrantyDate,
       files,
       photos,
+      order,
     } = body
 
     const updateData: any = {}
@@ -38,11 +39,17 @@ export async function PUT(
     if (warrantyDate !== undefined) updateData.warrantyDate = warrantyDate ? new Date(warrantyDate) : null
     if (files !== undefined) updateData.files = files ? JSON.stringify(files) : null
     if (photos !== undefined) updateData.photos = photos ? JSON.stringify(photos) : null
+    if (order !== undefined) {
+      updateData.order = order
+      console.log(`[API PC] Mise à jour de l'ordre du PC ${params.id} à ${order}`)
+    }
 
     const pc = await prisma.pC.update({
       where: { id: params.id },
       data: updateData,
     })
+    
+    console.log(`[API PC] PC mis à jour:`, { id: pc.id, name: pc.name, order: pc.order })
 
     await createLog(session.id, "PC_MODIFIE", {
       pcId: params.id,

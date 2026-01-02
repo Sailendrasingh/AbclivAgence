@@ -23,7 +23,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Plus, Save, MapPin, Mail, Phone, User, Settings, Camera, Edit, Trash2, X, ChevronLeft, ChevronRight, Eye, EyeOff, Clock, ChevronUp, ChevronDown, ArrowLeft, Search } from "lucide-react"
+import { Plus, Save, MapPin, Mail, Phone, User, Settings, Camera, Edit, Trash2, X, ChevronLeft, ChevronRight, Eye, EyeOff, Clock, ChevronUp, ChevronDown, ArrowLeft, GripVertical } from "lucide-react"
+import { Search } from "lucide-react"
 import { AddressSearch } from "@/components/address-search"
 
 interface Agency {
@@ -109,6 +110,7 @@ interface PC {
   warrantyDate?: string
   files?: string
   photos?: string
+  order?: number
 }
 
 interface Printer {
@@ -548,6 +550,15 @@ export default function AgencesPage() {
           ...contact,
           order: contact.order !== undefined ? contact.order : index
         }))
+      }
+      
+      // S'assurer que les PC ont un champ order (rétrocompatibilité)
+      if (data.technical?.pcs && Array.isArray(data.technical.pcs)) {
+        data.technical.pcs = data.technical.pcs.map((pc: any, index: number) => ({
+          ...pc,
+          order: pc.order !== undefined ? pc.order : index
+        }))
+        console.log("[loadAgencyDetails] PCs chargés:", data.technical.pcs.map((p: any) => ({ id: p.id, name: p.name, order: p.order })))
       }
       
       // Petit délai pour permettre la transition visuelle
@@ -1088,40 +1099,45 @@ export default function AgencesPage() {
     }
   }
 
-  const handleMoveContact = async (contactId: string, direction: "up" | "down") => {
-    if (!selectedAgency || !fullAgencyData?.contacts) return
+  const handleMoveContact = async (draggedId: string, targetId: string) => {
+    if (!selectedAgency || !fullAgencyData?.contacts) {
+      return
+    }
 
-    const contacts = [...fullAgencyData.contacts].sort((a, b) => (a.order || 0) - (b.order || 0))
-    const currentIndex = contacts.findIndex((c) => c.id === contactId)
+    // S'assurer que les contacts ont un champ order (rétrocompatibilité)
+    const contactsWithOrder = fullAgencyData.contacts.map((contact, index) => ({
+      ...contact,
+      order: contact.order !== undefined ? contact.order : index
+    }))
+    const contacts = [...contactsWithOrder].sort((a, b) => (a.order || 0) - (b.order || 0))
+    
+    const draggedIndex = contacts.findIndex((c) => c.id === draggedId)
+    const targetIndex = contacts.findIndex((c) => c.id === targetId)
 
-    if (currentIndex === -1) return
+    if (draggedIndex === -1 || targetIndex === -1 || draggedIndex === targetIndex) {
+      return
+    }
 
-    const newIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1
-
-    if (newIndex < 0 || newIndex >= contacts.length) return
-
-    // Échanger les ordres
-    const currentContact = contacts[currentIndex]
-    const targetContact = contacts[newIndex]
+    // Réordonner les contacts
+    const newContacts = [...contacts]
+    const [removed] = newContacts.splice(draggedIndex, 1)
+    newContacts.splice(targetIndex, 0, removed)
 
     try {
-      // Mettre à jour les deux contacts
-      await Promise.all([
-        fetch(`/api/contacts/${currentContact.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ order: targetContact.order || 0 }),
-        }),
-        fetch(`/api/contacts/${targetContact.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ order: currentContact.order || 0 }),
-        }),
-      ])
+      // Mettre à jour tous les ordres
+      await Promise.all(
+        newContacts.map((contact, index) =>
+          fetch(`/api/contacts/${contact.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ order: index }),
+          })
+        )
+      )
 
       await loadAgencyDetails(selectedAgency.id)
     } catch (error) {
-      console.error("Error moving contact:", error)
+      console.error("[handleMoveContact] Erreur:", error)
       alert("Erreur lors du déplacement")
     }
   }
@@ -1751,6 +1767,54 @@ export default function AgencesPage() {
   const handleEditPC = (pc: PC) => {
     setSelectedPC(pc)
     setIsPCDialogOpen(true)
+  }
+
+  const [draggedPCId, setDraggedPCId] = useState<string | null>(null)
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
+  const [draggedContactId, setDraggedContactId] = useState<string | null>(null)
+  const [dragOverContactIndex, setDragOverContactIndex] = useState<number | null>(null)
+
+  const handleMovePC = async (draggedId: string, targetId: string) => {
+    if (!selectedAgency || !fullAgencyData?.technical?.pcs) {
+      return
+    }
+
+    // S'assurer que les PC ont un champ order (rétrocompatibilité)
+    const pcsWithOrder = fullAgencyData.technical.pcs.map((pc, index) => ({
+      ...pc,
+      order: pc.order !== undefined ? pc.order : index
+    }))
+    const pcs = [...pcsWithOrder].sort((a, b) => (a.order || 0) - (b.order || 0))
+    
+    const draggedIndex = pcs.findIndex((p) => p.id === draggedId)
+    const targetIndex = pcs.findIndex((p) => p.id === targetId)
+
+    if (draggedIndex === -1 || targetIndex === -1 || draggedIndex === targetIndex) {
+      return
+    }
+
+    // Réordonner les PC
+    const newPcs = [...pcs]
+    const [removed] = newPcs.splice(draggedIndex, 1)
+    newPcs.splice(targetIndex, 0, removed)
+
+    try {
+      // Mettre à jour tous les ordres
+      await Promise.all(
+        newPcs.map((pc, index) =>
+          fetch(`/api/pcs/${pc.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ order: index }),
+          })
+        )
+      )
+
+      await loadAgencyDetails(selectedAgency.id)
+    } catch (error) {
+      console.error("[handleMovePC] Erreur:", error)
+      alert("Erreur lors du déplacement")
+    }
   }
 
   const handleDeletePC = async (pcId: string) => {
@@ -2472,8 +2536,45 @@ export default function AgencesPage() {
                           return sortedContacts.map((contact, index) => {
                             const emails = JSON.parse(contact.emails || "[]")
                             return (
-                              <div key={contact.id} className="border p-3 sm:p-4 rounded">
+                              <div
+                                key={contact.id}
+                                draggable={editing}
+                                onDragStart={(e) => {
+                                  setDraggedContactId(contact.id)
+                                  e.dataTransfer.effectAllowed = "move"
+                                }}
+                                onDragEnd={() => {
+                                  setDraggedContactId(null)
+                                  setDragOverContactIndex(null)
+                                }}
+                                onDragOver={(e) => {
+                                  e.preventDefault()
+                                  e.dataTransfer.dropEffect = "move"
+                                  setDragOverContactIndex(index)
+                                }}
+                                onDragLeave={() => {
+                                  setDragOverContactIndex(null)
+                                }}
+                                onDrop={(e) => {
+                                  e.preventDefault()
+                                  setDragOverContactIndex(null)
+                                  if (draggedContactId && draggedContactId !== contact.id) {
+                                    handleMoveContact(draggedContactId, contact.id)
+                                  }
+                                  setDraggedContactId(null)
+                                }}
+                                className={`border p-3 sm:p-4 rounded ${
+                                  draggedContactId === contact.id ? "opacity-50" : ""
+                                } ${
+                                  dragOverContactIndex === index ? "border-primary border-2" : ""
+                                } ${editing ? "cursor-move" : ""}`}
+                              >
                                 <div className="flex items-start justify-between">
+                                  {editing && (
+                                    <div className="mr-2 text-muted-foreground cursor-move">
+                                      <GripVertical className="h-5 w-5" />
+                                    </div>
+                                  )}
                                   <div className="flex-1">
                                     <div className="font-semibold">{contact.managerName}</div>
                                     <div className="text-sm space-y-1 mt-2">
@@ -2494,28 +2595,6 @@ export default function AgencesPage() {
                                   </div>
                                   {editing && (
                                     <div className="flex gap-2">
-                                      <div className="flex flex-col gap-1">
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => handleMoveContact(contact.id, "up")}
-                                          disabled={index === 0}
-                                          className="h-6 w-6 p-0"
-                                          title="Monter"
-                                        >
-                                          <ChevronUp className="h-3 w-3" />
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => handleMoveContact(contact.id, "down")}
-                                          disabled={index === contactsLength - 1}
-                                          className="h-6 w-6 p-0"
-                                          title="Descendre"
-                                        >
-                                          <ChevronDown className="h-3 w-3" />
-                                        </Button>
-                                      </div>
                                       <Button
                                         variant="ghost"
                                         size="sm"
@@ -2607,9 +2686,53 @@ export default function AgencesPage() {
                       <CardContent>
                         {fullAgencyData.technical?.pcs && fullAgencyData.technical.pcs.length > 0 ? (
                           <div className="space-y-2 sm:space-y-4">
-                            {fullAgencyData.technical.pcs.map((pc) => (
-                              <div key={pc.id} className="border p-3 sm:p-4 rounded-lg space-y-2 sm:space-y-3">
+                            {(() => {
+                              // S'assurer que les PC ont un champ order (rétrocompatibilité)
+                              const pcsWithOrder = fullAgencyData.technical.pcs.map((pc, index) => ({
+                                ...pc,
+                                order: pc.order !== undefined ? pc.order : index
+                              }))
+                              const sortedPCs = [...pcsWithOrder].sort((a, b) => (a.order || 0) - (b.order || 0))
+                              return sortedPCs.map((pc, index) => (
+                              <div
+                                key={pc.id}
+                                draggable={editing}
+                                onDragStart={(e) => {
+                                  setDraggedPCId(pc.id)
+                                  e.dataTransfer.effectAllowed = "move"
+                                }}
+                                onDragEnd={() => {
+                                  setDraggedPCId(null)
+                                  setDragOverIndex(null)
+                                }}
+                                onDragOver={(e) => {
+                                  e.preventDefault()
+                                  e.dataTransfer.dropEffect = "move"
+                                  setDragOverIndex(index)
+                                }}
+                                onDragLeave={() => {
+                                  setDragOverIndex(null)
+                                }}
+                                onDrop={(e) => {
+                                  e.preventDefault()
+                                  setDragOverIndex(null)
+                                  if (draggedPCId && draggedPCId !== pc.id) {
+                                    handleMovePC(draggedPCId, pc.id)
+                                  }
+                                  setDraggedPCId(null)
+                                }}
+                                className={`border p-3 sm:p-4 rounded-lg space-y-2 sm:space-y-3 ${
+                                  draggedPCId === pc.id ? "opacity-50" : ""
+                                } ${
+                                  dragOverIndex === index ? "border-primary border-2" : ""
+                                } ${editing ? "cursor-move" : ""}`}
+                              >
                                 <div className="flex items-start justify-between">
+                                  {editing && (
+                                    <div className="mr-2 text-muted-foreground cursor-move">
+                                      <GripVertical className="h-5 w-5" />
+                                    </div>
+                                  )}
                                   <div className="flex-1">
                                     <div className="font-semibold text-base sm:text-lg mb-2">{pc.name}</div>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 text-sm sm:text-sm">
@@ -2712,7 +2835,8 @@ export default function AgencesPage() {
                                   )}
                                 </div>
                               </div>
-                            ))}
+                            ))
+                            })()}
                           </div>
                         ) : (
                           <div className="text-muted-foreground">Aucun PC enregistré</div>

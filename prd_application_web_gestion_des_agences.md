@@ -386,11 +386,15 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
 * **Gestion de l'ordre d'affichage** :
   * Champ `order` (Int) dans le modèle Contact pour définir l'ordre d'affichage
   * **Tri automatique** : Les contacts sont affichés triés par ordre croissant (`order` ASC)
-  * **Réordonnancement** : En mode édition, boutons "Monter" (↑) et "Descendre" (↓) pour chaque contact
-    * Boutons visibles uniquement en mode édition de l'agence
-    * Bouton "Monter" désactivé pour le premier contact
-    * Bouton "Descendre" désactivé pour le dernier contact
-    * Échange des valeurs `order` entre deux contacts adjacents lors du déplacement
+  * **Réordonnancement par drag and drop** : En mode édition, les contacts peuvent être réordonnés par glisser-déposer (drag and drop HTML5 natif)
+    * **Fonctionnalité drag and drop** : Chaque contact est draggable en mode édition
+    * **Indicateur visuel** : Icône de poignée (`GripVertical`) affichée à gauche de chaque contact en mode édition pour indiquer que l'élément peut être déplacé
+    * **Feedback visuel** :
+      * Opacité réduite (50%) pendant le drag de l'élément déplacé
+      * Bordure mise en évidence (couleur primaire, épaisseur 2px) sur la zone de drop cible
+      * Curseur "move" affiché sur les éléments draggables en mode édition
+    * **Mise à jour automatique** : Lors du drop, tous les ordres sont recalculés et mis à jour dans la base de données
+    * **Rechargement** : Les détails de l'agence sont automatiquement rechargés après le drop pour afficher le nouvel ordre
   * **Initialisation** : Lors de la création d'un nouveau contact, l'ordre est automatiquement défini à `max(order) + 1` pour l'agence
   * **Stockage** : Valeur par défaut `0` si non spécifiée
   * **Migration des contacts existants** : Un script de migration (`npm run migrate:contacts-order`) permet d'initialiser le champ `order` pour tous les contacts existants en se basant sur leur date de création (`createdAt`)
@@ -429,6 +433,20 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
 * Date garantie - **OPTIONNEL**
 * Fichiers - **OPTIONNEL** (JSON array de chemins)
 * Photos - **OPTIONNEL** (JSON array de chemins)
+* **Gestion de l'ordre d'affichage** :
+  * Champ `order` (Int) dans le modèle PC pour définir l'ordre d'affichage
+  * **Tri automatique** : Les PC sont affichés triés par ordre croissant (`order` ASC)
+  * **Réordonnancement par drag and drop** : En mode édition, les PC peuvent être réordonnés par glisser-déposer (drag and drop HTML5 natif)
+    * **Fonctionnalité drag and drop** : Chaque PC est draggable en mode édition
+    * **Indicateur visuel** : Icône de poignée (`GripVertical`) affichée à gauche de chaque PC en mode édition pour indiquer que l'élément peut être déplacé
+    * **Feedback visuel** :
+      * Opacité réduite (50%) pendant le drag de l'élément déplacé
+      * Bordure mise en évidence (couleur primaire, épaisseur 2px) sur la zone de drop cible
+      * Curseur "move" affiché sur les éléments draggables en mode édition
+    * **Mise à jour automatique** : Lors du drop, tous les ordres sont recalculés et mis à jour dans la base de données
+    * **Rechargement** : Les détails de l'agence sont automatiquement rechargés après le drop pour afficher le nouvel ordre
+  * **Initialisation** : Lors de la création d'un nouveau PC, l'ordre est automatiquement défini à `max(order) + 1` pour le technicalId associé
+  * **Stockage** : Valeur par défaut `0` si non spécifiée
 * **CRUD complet** : Boutons Ajouter, Modifier, Supprimer pour chaque PC
 * **Affichage intégral** : Tous les champs renseignés doivent être affichés dans l'interface avec leurs labels
 * **Format dates** : Affichage au format français (JJ/MM/AAAA)

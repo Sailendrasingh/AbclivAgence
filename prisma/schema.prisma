@@ -131,6 +131,7 @@ model PC {
   warrantyDate      DateTime?
   files             String?  // JSON array de chemins
   photos            String?  // JSON array de chemins
+  order             Int      @default(0) // Ordre d'affichage
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }
