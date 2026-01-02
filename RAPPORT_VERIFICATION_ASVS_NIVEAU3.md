@@ -539,7 +539,7 @@ L'application présente une base de sécurité solide avec de bonnes pratiques i
 
 ---
 
-## État Actuel (2026-01-02)
+## État Actuel (2026-01-30)
 
 ### ✅ Points Forts Maintenus
 
@@ -550,8 +550,9 @@ L'application présente une base de sécurité solide avec de bonnes pratiques i
 - Logging : journalisation des actions importantes
 - Protection du compte Admin : désactivation et suppression bloquées
 - **Protection CSRF** : ✅ Tokens CSRF implémentés sur toutes les routes modifiantes
-- **Gestion des Sessions Sécurisée** : ✅ Tokens aléatoires de 256 bits avec table Session dédiée (nouveau)
-- **Invalidation Globale** : ✅ Invalidation de toutes les sessions lors du changement de mot de passe (nouveau)
+- **Gestion des Sessions Sécurisée** : ✅ Tokens aléatoires de 256 bits avec table Session dédiée
+- **Invalidation Globale** : ✅ Invalidation de toutes les sessions lors du changement de mot de passe
+- **Schémas de Validation Stricts** : ✅ Schémas Zod implémentés pour toutes les entités avec middleware de validation
 
 ### ✅ Points Critiques Résolus
 
@@ -559,6 +560,7 @@ L'application présente une base de sécurité solide avec de bonnes pratiques i
 2. **Gestion des Sessions Sécurisée** : ✅ **RÉSOLU** (2026-01-02) - Tokens aléatoires de 256 bits avec table Session dédiée
 3. **Table Session** : ✅ **RÉSOLU** (2026-01-02) - Modèle Session créé dans Prisma avec migration appliquée
 4. **Invalidation Globale** : ✅ **RÉSOLU** (2026-01-02) - Invalidation de toutes les sessions lors du changement de mot de passe
+5. **Schémas de Validation Stricts** : ✅ **RÉSOLU** (2026-01-30) - Schémas Zod implémentés pour toutes les entités avec middleware de validation
 
 ### ⚠️ Points à Améliorer
 
