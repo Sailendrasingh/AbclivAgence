@@ -2261,6 +2261,60 @@ export default function AgencesPage() {
                   </Button>
                 )}
               </div>
+              {/* Bouton Modifier à droite en mode non-édition */}
+              {!editing && (
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => {
+                      setEditing(true)
+                      setEditedName(fullAgencyData.name)
+                      setEditedState(fullAgencyData.state as "OK" | "ALERTE" | "INFO" | "FERMÉE")
+                      setEditedCodeAgence(fullAgencyData.codeAgence || "")
+                      setEditedCodeRayon(fullAgencyData.codeRayon || "")
+                      setEditedDateOuverture(fullAgencyData.dateOuverture ? new Date(fullAgencyData.dateOuverture).toISOString().split('T')[0] : "")
+                      setEditedDateFermeture(fullAgencyData.dateFermeture ? new Date(fullAgencyData.dateFermeture).toISOString().split('T')[0] : "")
+                      setEditingTechnical(true)
+                      if (fullAgencyData?.technical) {
+                        const notesToUse = latestTechnicalNotes !== null ? latestTechnicalNotes : (fullAgencyData.technical.technicalNotes || "")
+                        setTechnicalData({
+                          networkIp: fullAgencyData.technical.networkIp || "",
+                          machineBrand: fullAgencyData.technical.machineBrand || "",
+                          machineModel: fullAgencyData.technical.machineModel || "",
+                          machineConnection: fullAgencyData.technical.machineConnection || "",
+                          machineIp: fullAgencyData.technical.machineIp || "",
+                          machineMac: fullAgencyData.technical.machineMac || "",
+                          wifiRouterBrand: fullAgencyData.technical.wifiRouterBrand || "",
+                          wifiRouterModel: fullAgencyData.technical.wifiRouterModel || "",
+                          wifiRouterIp: fullAgencyData.technical.wifiRouterIp || "",
+                          wifiRouterSerial: fullAgencyData.technical.wifiRouterSerial || "",
+                          mainRouterBrand: fullAgencyData.technical.mainRouterBrand || "",
+                          mainRouterModel: fullAgencyData.technical.mainRouterModel || "",
+                          mainRouterIp: fullAgencyData.technical.mainRouterIp || "",
+                          mainRouterSerial: fullAgencyData.technical.mainRouterSerial || "",
+                          mainRouterLinkType: fullAgencyData.technical.mainRouterLinkType || "",
+                          backupRouterBrand: fullAgencyData.technical.backupRouterBrand || "",
+                          backupRouterModel: fullAgencyData.technical.backupRouterModel || "",
+                          backupRouterIp: fullAgencyData.technical.backupRouterIp || "",
+                          backupRouterSerial: fullAgencyData.technical.backupRouterSerial || "",
+                          recorderBrand: fullAgencyData.technical.recorderBrand || "",
+                          recorderModel: fullAgencyData.technical.recorderModel || "",
+                          recorderSerial: fullAgencyData.technical.recorderSerial || "",
+                          recorderMac: fullAgencyData.technical.recorderMac || "",
+                          recorderIp: fullAgencyData.technical.recorderIp || "",
+                          recorderStorage: fullAgencyData.technical.recorderStorage || "",
+                          technicalNotes: notesToUse,
+                        })
+                      } else {
+                        setTechnicalData({})
+                      }
+                    }}
+                    className="gap-2"
+                  >
+                    <Edit className="h-4 w-4" />
+                    <span className="hidden sm:inline">Modifier</span>
+                  </Button>
+                </div>
+              )}
               {/* Boutons Annuler/Enregistrer à droite en mode édition */}
               {editing && (
                 <div className="flex gap-2">

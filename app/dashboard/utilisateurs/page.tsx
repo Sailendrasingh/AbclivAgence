@@ -1,41 +1,16 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import Image from "next/image"
-import { DashboardLayout } from "@/components/layout/dashboard-layout"
-import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Switch } from "@/components/ui/switch"
-import { Plus, Edit, Trash2, Shield, ShieldOff, Save, X } from "lucide-react"
-
-interface User {
-  id: string
-  login: string
-  role: string
-  twoFactorEnabled: boolean
-  active: boolean
-  createdAt: string
-  updatedAt: string
-}
+import { useEffect } from "react"
+import { useRouter } from "next/navigation"
 
 export default function UtilisateursPage() {
+  const router = useRouter()
+  
+  useEffect(() => {
+    router.replace("/dashboard/parametres?tab=utilisateurs")
+  }, [router])
+  
+  return null
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [isDialogOpen, setIsDialogOpen] = useState(false)

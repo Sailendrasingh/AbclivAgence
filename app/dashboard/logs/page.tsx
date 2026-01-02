@@ -1,21 +1,16 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Button } from "@/components/ui/button"
-import { DashboardLayout } from "@/components/layout/dashboard-layout"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Trash2, AlertTriangle, Download } from "lucide-react"
+import { useEffect } from "react"
+import { useRouter } from "next/navigation"
 
 export default function LogsPage() {
+  const router = useRouter()
+  
+  useEffect(() => {
+    router.replace("/dashboard/parametres?tab=logs")
+  }, [router])
+  
+  return null
   const [logs, setLogs] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [purgeDialogOpen, setPurgeDialogOpen] = useState(false)

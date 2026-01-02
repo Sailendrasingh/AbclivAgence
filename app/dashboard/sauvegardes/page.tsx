@@ -1,29 +1,16 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { DashboardLayout } from "@/components/layout/dashboard-layout"
-import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Plus, RotateCcw, HardDrive, AlertTriangle, Trash2 } from "lucide-react"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-
-interface Backup {
-  filename: string
-  date: string
-  size: number
-  sizeFormatted: string
-}
+import { useEffect } from "react"
+import { useRouter } from "next/navigation"
 
 export default function SauvegardesPage() {
+  const router = useRouter()
+  
+  useEffect(() => {
+    router.replace("/dashboard/parametres?tab=sauvegardes")
+  }, [router])
+  
+  return null
   const [backups, setBackups] = useState<Backup[]>([])
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)

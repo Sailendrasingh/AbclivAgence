@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react"
 import Image from "next/image"
-import { DashboardLayout } from "@/components/layout/dashboard-layout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -204,16 +203,13 @@ export default function ProfilPage() {
 
   if (loading) {
     return (
-      <DashboardLayout>
-        <div className="p-6">
-          <div>Chargement...</div>
-        </div>
-      </DashboardLayout>
+      <div className="p-6">
+        <div>Chargement...</div>
+      </div>
     )
   }
 
   return (
-    <DashboardLayout>
       <div className="p-3 sm:p-6">
         <h1 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">Mon profil</h1>
 
@@ -431,7 +427,6 @@ export default function ProfilPage() {
           </DialogContent>
         </Dialog>
       </div>
-    </DashboardLayout>
   )
 }
 
