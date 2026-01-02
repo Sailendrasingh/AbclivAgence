@@ -10,8 +10,9 @@ const ALLOWED_TYPES = ["Bureau", "Connexion", "Armoire électrique", "Agence", "
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: Promise<{ params: { id: string } }>
 ) {
+  const { id } = await params
   const session = await getSession()
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
@@ -37,7 +38,7 @@ export async function PUT(
 
     // Récupérer le groupe photo actuel pour vérifier le type
     const currentPhotoGroup = await prisma.photoGroup.findUnique({
-      where: { id: params.id },
+      where: { id },
     })
 
     if (!currentPhotoGroup) {
@@ -101,12 +102,12 @@ export async function PUT(
     }
 
     const photoGroup = await prisma.photoGroup.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
     })
 
     await createLog(session.id, "PHOTO_GROUPE_MODIFIE", {
-      photoGroupId: params.id,
+      photoGroupId: id,
     }, request)
 
     return NextResponse.json(photoGroup)
@@ -121,8 +122,9 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: Promise<{ params: { id: string } }>
 ) {
+  const { id } = await params
   const session = await getSession()
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
@@ -131,7 +133,7 @@ export async function DELETE(
   try {
     // Récupérer le groupe photo avant suppression
     const photoGroup = await prisma.photoGroup.findUnique({
-      where: { id: params.id },
+      where: { id },
     })
 
     if (!photoGroup) {
@@ -169,11 +171,11 @@ export async function DELETE(
     }
 
     await prisma.photoGroup.delete({
-      where: { id: params.id },
+      where: { id },
     })
 
     await createLog(session.id, "PHOTO_GROUPE_SUPPRIME", {
-      photoGroupId: params.id,
+      photoGroupId: id,
     }, request)
 
     return NextResponse.json({ success: true })

@@ -10,14 +10,16 @@ import { validateRequest } from "@/lib/validation-middleware"
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  props: Promise<{ params: { id: string } }>
 ) {
+  const { params } = await props
   // Vérifier le token CSRF
   const csrfError = await requireCSRF(request)
   if (csrfError) {
     return csrfError
   }
 
+  const { id } = await params
   const session = await getSession()
   if (!session || session.role !== "Super Admin") {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
@@ -26,7 +28,7 @@ export async function PUT(
   try {
     // Vérifier si l'utilisateur est Admin avant toute modification
     const existingUser = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: { login: true },
     })
 
@@ -56,12 +58,12 @@ export async function PUT(
     if (active !== undefined) updateData.active = active
 
     const user = await prisma.user.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
     })
 
     await createLog(session.id, "UTILISATEUR_MODIFIE", {
-      userId: params.id,
+      userId: id,
     }, request)
 
     return NextResponse.json({
@@ -81,14 +83,16 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  props: Promise<{ params: { id: string } }>
 ) {
+  const { params } = await props
   // Vérifier le token CSRF
   const csrfError = await requireCSRF(request)
   if (csrfError) {
     return csrfError
   }
 
+  const { id } = await params
   const session = await getSession()
   if (!session || session.role !== "Super Admin") {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
@@ -97,7 +101,7 @@ export async function DELETE(
   try {
     // Vérifier si l'utilisateur est Admin avant suppression
     const existingUser = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: { login: true },
     })
 
@@ -109,11 +113,11 @@ export async function DELETE(
     }
 
     await prisma.user.delete({
-      where: { id: params.id },
+      where: { id },
     })
 
     await createLog(session.id, "UTILISATEUR_SUPPRIME", {
-      userId: params.id,
+      userId: id,
     }, request)
 
     return NextResponse.json({ success: true })

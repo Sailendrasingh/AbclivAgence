@@ -5,21 +5,22 @@ import { generateTwoFactorSecret, generateQRCode } from "@/lib/auth"
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: Promise<{ params: { id: string } }>
 ) {
+  const { id } = await params
   const session = await getSession()
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
   }
 
   // L'utilisateur ne peut activer 2FA que pour lui-même, sauf Super Admin
-  if (session.id !== params.id && session.role !== "Super Admin") {
+  if (session.id !== id && session.role !== "Super Admin") {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
   }
 
   try {
     const user = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { id },
     })
 
     if (!user) {
@@ -33,7 +34,7 @@ export async function POST(
     const qrCode = await generateQRCode(uri)
 
     await prisma.user.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         twoFactorSecret: secret,
         twoFactorEnabled: false, // Pas encore activé, doit valider avec un token
@@ -56,14 +57,15 @@ export async function POST(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: Promise<{ params: { id: string } }>
 ) {
+  const { id } = await params
   const session = await getSession()
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
   }
 
-  if (session.id !== params.id && session.role !== "Super Admin") {
+  if (session.id !== id && session.role !== "Super Admin") {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
   }
 
@@ -72,7 +74,7 @@ export async function PUT(
     const { enabled } = body
 
     await prisma.user.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         twoFactorEnabled: enabled,
       },

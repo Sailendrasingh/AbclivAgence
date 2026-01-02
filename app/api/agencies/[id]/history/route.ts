@@ -5,8 +5,9 @@ import { prisma } from "@/lib/prisma"
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: Promise<{ params: { id: string } }>
 ) {
+  const { id } = await params
   const session = await getSession()
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
@@ -18,7 +19,7 @@ export async function GET(
   }
 
   try {
-    const agencyId = params.id
+    const agencyId = id
 
     const agency = await prisma.agency.findUnique({
       where: { id: agencyId },

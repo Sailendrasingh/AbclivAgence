@@ -5,15 +5,16 @@ import { prisma } from "@/lib/prisma"
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: Promise<{ params: { id: string } }>
 ) {
+  const { id } = await params
   const session = await getSession()
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
   }
 
   try {
-    const technicalId = params.id
+    const technicalId = id
 
     // Vérifier que les données techniques existent
     const technical = await prisma.technical.findUnique({

@@ -9,7 +9,7 @@ import { validateRequest } from "@/lib/validation-middleware"
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: Promise<{ params: { id: string } }>
 ) {
   // Vérifier le token CSRF
   const csrfError = await requireCSRF(request)
@@ -17,6 +17,7 @@ export async function PUT(
     return csrfError
   }
 
+  const { id } = await params
   const session = await getSession()
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
@@ -56,12 +57,12 @@ export async function PUT(
     if (longitude !== undefined) updateData.longitude = longitude || null
 
     const address = await prisma.address.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
     })
 
     await createLog(session.id, "ADRESSE_MODIFIEE", {
-      addressId: params.id,
+      addressId: id,
     }, request)
 
     return NextResponse.json(address)
@@ -83,7 +84,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: Promise<{ params: { id: string } }>
 ) {
   // Vérifier le token CSRF
   const csrfError = await requireCSRF(request)
@@ -91,6 +92,7 @@ export async function DELETE(
     return csrfError
   }
 
+  const { id } = await params
   const session = await getSession()
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
@@ -98,11 +100,11 @@ export async function DELETE(
 
   try {
     await prisma.address.delete({
-      where: { id: params.id },
+      where: { id },
     })
 
     await createLog(session.id, "ADRESSE_SUPPRIMEE", {
-      addressId: params.id,
+      addressId: id,
     }, request)
 
     return NextResponse.json({ success: true })

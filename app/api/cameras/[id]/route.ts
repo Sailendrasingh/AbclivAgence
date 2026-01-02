@@ -5,8 +5,9 @@ import { createLog } from "@/lib/logs"
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: Promise<{ params: { id: string } }>
 ) {
+  const { id } = await params
   const session = await getSession()
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
@@ -23,12 +24,12 @@ export async function PUT(
     if (ip !== undefined) updateData.ip = ip
 
     const camera = await prisma.camera.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
     })
 
     await createLog(session.id, "CAMERA_MODIFIEE", {
-      cameraId: params.id,
+      cameraId: id,
     }, request)
 
     return NextResponse.json(camera)
@@ -43,7 +44,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: Promise<{ params: { id: string } }>
 ) {
   const session = await getSession()
   if (!session) {
@@ -52,11 +53,11 @@ export async function DELETE(
 
   try {
     await prisma.camera.delete({
-      where: { id: params.id },
+      where: { id },
     })
 
     await createLog(session.id, "CAMERA_SUPPRIMEE", {
-      cameraId: params.id,
+      cameraId: id,
     }, request)
 
     return NextResponse.json({ success: true })

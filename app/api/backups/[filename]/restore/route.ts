@@ -9,8 +9,9 @@ import yauzl from "yauzl"
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { filename: string } }
+  { params }: Promise<{ params: { filename: string } }>
 ) {
+  const { filename } = await params
   const session = await getSession()
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
@@ -24,7 +25,7 @@ export async function POST(
   try {
     const backupsDir = join(process.cwd(), "backups")
     const dbPath = join(process.cwd(), "prisma", "dev.db")
-    const backupPath = join(backupsDir, params.filename)
+    const backupPath = join(backupsDir, filename)
 
     // Vérifier que le fichier de sauvegarde existe
     if (!existsSync(backupPath)) {
@@ -35,10 +36,10 @@ export async function POST(
     }
 
     // Vérifier que c'est bien un fichier .zip ou .db (rétrocompatibilité)
-    const isZip = params.filename.endsWith(".zip")
-    const isDb = params.filename.endsWith(".db")
+    const isZip = filename.endsWith(".zip")
+    const isDb = filename.endsWith(".db")
     
-    if (!params.filename.startsWith("backup-") || (!isZip && !isDb)) {
+    if (!filename.startsWith("backup-") || (!isZip && !isDb)) {
       return NextResponse.json(
         { error: "Fichier de sauvegarde invalide" },
         { status: 400 }
@@ -191,7 +192,7 @@ export async function POST(
     }
 
     await createLog(session.id, "SAUVEGARDE_RESTAUREE", {
-      restoredFrom: params.filename,
+      restoredFrom: filename,
       backupCreatedBefore: `backup-before-restore-${timestamp}.zip`,
     }, request)
 

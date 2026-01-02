@@ -6,8 +6,9 @@ import { createHash } from "crypto"
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { path: string[] } }
+  { params }: Promise<{ params: { path: string[] } }>
 ) {
+  const { path } = await params
   const session = await getSession()
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
@@ -15,7 +16,7 @@ export async function GET(
 
   try {
     // Protection contre path traversal
-    const filepath = join(process.cwd(), "uploads", ...params.path)
+    const filepath = join(process.cwd(), "uploads", ...path)
     const resolvedPath = resolve(filepath)
     const uploadsDir = resolve(process.cwd(), "uploads")
     
@@ -49,7 +50,7 @@ export async function GET(
     }
 
     // Déterminer le type MIME
-    const ext = params.path[params.path.length - 1].split(".").pop()
+    const ext = path[path.length - 1].split(".").pop()
     const mimeTypes: Record<string, string> = {
       jpg: "image/jpeg",
       jpeg: "image/jpeg",

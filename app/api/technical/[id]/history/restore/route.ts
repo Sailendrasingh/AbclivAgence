@@ -6,15 +6,16 @@ import { createLog } from "@/lib/logs"
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: Promise<{ params: { id: string } }>
 ) {
+  const { id } = await params
   const session = await getSession()
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
   }
 
   try {
-    const technicalId = params.id
+    const technicalId = id
     const body = await request.json()
     const { version } = body
 

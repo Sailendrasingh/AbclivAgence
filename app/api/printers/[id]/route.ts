@@ -5,8 +5,9 @@ import { createLog } from "@/lib/logs"
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: Promise<{ params: { id: string } }>
 ) {
+  const { id } = await params
   const session = await getSession()
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
@@ -40,12 +41,12 @@ export async function PUT(
     if (photos !== undefined) updateData.photos = photos ? JSON.stringify(photos) : null
 
     const printer = await prisma.printer.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
     })
 
     await createLog(session.id, "IMPRIMANTE_MODIFIEE", {
-      printerId: params.id,
+      printerId: id,
     }, request)
 
     return NextResponse.json(printer)
@@ -60,7 +61,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: Promise<{ params: { id: string } }>
 ) {
   const session = await getSession()
   if (!session) {
@@ -69,11 +70,11 @@ export async function DELETE(
 
   try {
     await prisma.printer.delete({
-      where: { id: params.id },
+      where: { id },
     })
 
     await createLog(session.id, "IMPRIMANTE_SUPPRIMEE", {
-      printerId: params.id,
+      printerId: id,
     }, request)
 
     return NextResponse.json({ success: true })

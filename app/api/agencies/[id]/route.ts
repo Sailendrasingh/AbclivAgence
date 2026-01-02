@@ -10,8 +10,9 @@ import { validateRequest } from "@/lib/validation-middleware"
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: Promise<{ params: { id: string } }>
 ) {
+  const { id } = await params
   const session = await getSession()
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
@@ -19,7 +20,7 @@ export async function GET(
 
   try {
     const agency = await prisma.agency.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         addresses: true,
         contacts: true,
@@ -63,7 +64,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: Promise<{ params: { id: string } }>
 ) {
   // Vérifier le token CSRF
   const csrfError = await requireCSRF(request)
@@ -71,6 +72,7 @@ export async function PUT(
     return csrfError
   }
 
+  const { id } = await params
   const session = await getSession()
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
@@ -92,7 +94,7 @@ export async function PUT(
 
     // Sauvegarder l'état actuel pour l'historique
     const currentAgency = await prisma.agency.findUnique({
-      where: { id: params.id },
+      where: { id },
       include: {
         addresses: true,
         contacts: true,
@@ -110,7 +112,7 @@ export async function PUT(
 
     // Mettre à jour l'agence
     const updatedAgency = await prisma.agency.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         name: sanitizedName,
         photo,
@@ -125,13 +127,13 @@ export async function PUT(
 
     // Créer l'entrée d'historique
     await createAgencyHistory(
-      params.id,
+      id,
       session.id,
       JSON.stringify(currentAgency)
     )
 
     await createLog(session.id, "AGENCE_MODIFIEE", {
-      agencyId: params.id,
+      agencyId: id,
       agencyName: name,
     }, request)
 
@@ -154,7 +156,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: Promise<{ params: { id: string } }>
 ) {
   // Vérifier le token CSRF
   const csrfError = await requireCSRF(request)
@@ -162,6 +164,7 @@ export async function DELETE(
     return csrfError
   }
 
+  const { id } = await params
   const session = await getSession()
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
@@ -169,11 +172,11 @@ export async function DELETE(
 
   try {
     await prisma.agency.delete({
-      where: { id: params.id },
+      where: { id },
     })
 
     await createLog(session.id, "AGENCE_SUPPRIMEE", {
-      agencyId: params.id,
+      agencyId: id,
     }, request)
 
     return NextResponse.json({ success: true })

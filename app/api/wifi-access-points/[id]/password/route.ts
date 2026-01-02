@@ -45,8 +45,9 @@ function decrypt(text: string): string {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: Promise<{ params: { id: string } }>
 ) {
+  const { id } = await params
   const session = await getSession()
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
@@ -54,7 +55,7 @@ export async function GET(
 
   try {
     const wifiAP = await prisma.wifiAccessPoint.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: {
         passwordEncrypted: true,
       },

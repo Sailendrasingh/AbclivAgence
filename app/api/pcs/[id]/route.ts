@@ -9,7 +9,7 @@ import { validateRequest } from "@/lib/validation-middleware"
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: Promise<{ params: { id: string } }>
 ) {
   // Vérifier le token CSRF
   const csrfError = await requireCSRF(request)
@@ -17,6 +17,7 @@ export async function PUT(
     return csrfError
   }
 
+  const { id } = await params
   const session = await getSession()
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
@@ -64,18 +65,18 @@ export async function PUT(
     if (photos !== undefined) updateData.photos = photos ? JSON.stringify(photos) : null
     if (order !== undefined) {
       updateData.order = order
-      console.log(`[API PC] Mise à jour de l'ordre du PC ${params.id} à ${order}`)
+      console.log(`[API PC] Mise à jour de l'ordre du PC ${id} à ${order}`)
     }
 
     const pc = await prisma.pC.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
     })
     
     console.log(`[API PC] PC mis à jour:`, { id: pc.id, name: pc.name, order: pc.order })
 
     await createLog(session.id, "PC_MODIFIE", {
-      pcId: params.id,
+      pcId: id,
     }, request)
 
     return NextResponse.json(pc)
@@ -90,7 +91,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: Promise<{ params: { id: string } }>
 ) {
   // Vérifier le token CSRF
   const csrfError = await requireCSRF(request)
@@ -98,6 +99,7 @@ export async function DELETE(
     return csrfError
   }
 
+  const { id } = await params
   const session = await getSession()
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
@@ -105,11 +107,11 @@ export async function DELETE(
 
   try {
     await prisma.pC.delete({
-      where: { id: params.id },
+      where: { id },
     })
 
     await createLog(session.id, "PC_SUPPRIME", {
-      pcId: params.id,
+      pcId: id,
     }, request)
 
     return NextResponse.json({ success: true })

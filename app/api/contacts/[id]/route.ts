@@ -10,7 +10,7 @@ import { validateRequest } from "@/lib/validation-middleware"
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: Promise<{ params: { id: string } }>
 ) {
   // Vérifier le token CSRF
   const csrfError = await requireCSRF(request)
@@ -18,6 +18,7 @@ export async function PUT(
     return csrfError
   }
 
+  const { id } = await params
   const session = await getSession()
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
@@ -73,12 +74,12 @@ export async function PUT(
     if (order !== undefined) updateData.order = order
 
     const contact = await prisma.contact.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
     })
 
     await createLog(session.id, "CONTACT_MODIFIE", {
-      contactId: params.id,
+      contactId: id,
     }, request)
 
     return NextResponse.json(contact)
@@ -100,7 +101,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: Promise<{ params: { id: string } }>
 ) {
   // Vérifier le token CSRF
   const csrfError = await requireCSRF(request)
@@ -108,6 +109,7 @@ export async function DELETE(
     return csrfError
   }
 
+  const { id } = await params
   const session = await getSession()
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
@@ -115,11 +117,11 @@ export async function DELETE(
 
   try {
     await prisma.contact.delete({
-      where: { id: params.id },
+      where: { id },
     })
 
     await createLog(session.id, "CONTACT_SUPPRIME", {
-      contactId: params.id,
+      contactId: id,
     }, request)
 
     return NextResponse.json({ success: true })

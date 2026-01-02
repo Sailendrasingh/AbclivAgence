@@ -40,8 +40,9 @@ function encrypt(text: string): string {
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: Promise<{ params: { id: string } }>
 ) {
+  const { id } = await params
   const session = await getSession()
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
@@ -64,12 +65,12 @@ export async function PUT(
     }
 
     const wifiAP = await prisma.wifiAccessPoint.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
     })
 
     await createLog(session.id, "WIFI_AP_MODIFIE", {
-      wifiAPId: params.id,
+      wifiAPId: id,
     }, request)
 
     return NextResponse.json(wifiAP)
@@ -84,8 +85,9 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: Promise<{ params: { id: string } }>
 ) {
+  const { id } = await params
   const session = await getSession()
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
@@ -93,11 +95,11 @@ export async function DELETE(
 
   try {
     await prisma.wifiAccessPoint.delete({
-      where: { id: params.id },
+      where: { id },
     })
 
     await createLog(session.id, "WIFI_AP_SUPPRIME", {
-      wifiAPId: params.id,
+      wifiAPId: id,
     }, request)
 
     return NextResponse.json({ success: true })

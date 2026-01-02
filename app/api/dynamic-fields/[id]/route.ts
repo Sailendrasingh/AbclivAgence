@@ -5,8 +5,9 @@ import { createLog } from "@/lib/logs"
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: Promise<{ params: { id: string } }>
 ) {
+  const { id } = await params
   const session = await getSession()
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
@@ -22,12 +23,12 @@ export async function PUT(
     if (order !== undefined) updateData.order = order
 
     const dynamicField = await prisma.dynamicField.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
     })
 
     await createLog(session.id, "CHAMP_DYNAMIQUE_MODIFIE", {
-      dynamicFieldId: params.id,
+      dynamicFieldId: id,
     }, request)
 
     return NextResponse.json(dynamicField)
@@ -42,8 +43,9 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: Promise<{ params: { id: string } }>
 ) {
+  const { id } = await params
   const session = await getSession()
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
@@ -51,11 +53,11 @@ export async function DELETE(
 
   try {
     await prisma.dynamicField.delete({
-      where: { id: params.id },
+      where: { id },
     })
 
     await createLog(session.id, "CHAMP_DYNAMIQUE_SUPPRIME", {
-      dynamicFieldId: params.id,
+      dynamicFieldId: id,
     }, request)
 
     return NextResponse.json({ success: true })
