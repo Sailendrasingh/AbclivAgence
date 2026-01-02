@@ -965,34 +965,52 @@ Aucun autre type autorisé.
 * **Sauvegarde automatique** : **quotidienne**
   * Script de sauvegarde : `scripts/backup.ts`
   * Commande : `npm run backup`
-  * Format du nom de fichier : `backup-YYYY-MM-DDTHH-mm-ss-sssZ.zip` (timestamp ISO)
-  * **Format de sauvegarde** : Archive ZIP compressée contenant :
+  * Format du nom de fichier : `backup-YYYY-MM-DDTHH-mm-ss-sssZ.encrypted.zip` (timestamp ISO)
+  * **Format de sauvegarde** : Archive ZIP compressée et chiffrée contenant :
     * La base de données SQLite complète (`prisma/dev.db`)
     * Le dossier `/uploads` complet avec toutes les photos et fichiers uploadés
   * **Compression** : Niveau de compression maximal (zlib level 9) pour optimiser l'espace disque
-  * **Rétrocompatibilité** : Les anciennes sauvegardes au format `.db` (base de données uniquement) peuvent toujours être restaurées, mais les nouvelles sauvegardes sont au format `.zip`
+  * **Chiffrement** : **AES-256-GCM** (Advanced Encryption Standard avec Galois/Counter Mode)
+    * **Algorithme** : AES-256-GCM avec authentification intégrée
+    * **Clé de chiffrement** : Dérivée depuis la variable d'environnement `ENCRYPTION_KEY` (minimum 32 caractères)
+    * **Dérivation de clé** : Utilisation de `scrypt` avec un salt aléatoire (32 bytes) pour chaque fichier
+    * **IV (Initialization Vector)** : Aléatoire de 16 bytes pour chaque fichier
+    * **Tag d'authentification** : 16 bytes pour garantir l'intégrité des données
+    * **AAD (Additional Authenticated Data)** : "abcliv-agency-backup" pour lier le contexte
+    * **Format du fichier chiffré** : `salt (32 bytes) + iv (16 bytes) + tag (16 bytes) + données chiffrées`
+    * **Sécurité** : Protection contre les attaques de modification et garantit la confidentialité et l'intégrité des données
+  * **Rétrocompatibilité** : 
+    * Les anciennes sauvegardes au format `.db` (base de données uniquement) peuvent toujours être restaurées
+    * Les anciennes sauvegardes au format `.zip` non chiffrées peuvent être restaurées (détection automatique du chiffrement)
+    * Les nouvelles sauvegardes sont au format `.encrypted.zip` (ZIP chiffré)
 * **Dossier de stockage** : **/backups** (racine projet)
   * Création automatique du dossier si inexistant
   * Stockage filesystem uniquement
+  * **Sécurité** : Tous les fichiers de sauvegarde sont chiffrés avant stockage
 * **Rétention** : **10 jours**
   * Nettoyage automatique : Les sauvegardes de plus de 10 jours sont automatiquement supprimées lors de chaque sauvegarde
   * Calcul basé sur la date de modification du fichier (`mtime`)
-  * Les anciennes sauvegardes `.db` et les nouvelles sauvegardes `.zip` sont toutes nettoyées selon cette règle
+  * Les anciennes sauvegardes `.db`, `.zip` et les nouvelles sauvegardes `.encrypted.zip` sont toutes nettoyées selon cette règle
   * **Restauration complète possible** :
     * **Interface de restauration** : Page `/dashboard/sauvegardes` accessible uniquement aux utilisateurs avec le rôle **Super Admin**
-    * **Fonctionnalités requises** :
+      * **Fonctionnalités requises** :
       * Liste des sauvegardes disponibles avec date, heure et taille
       * Bouton de restauration pour chaque sauvegarde
       * Confirmation avant restauration (action irréversible)
       * **Restauration complète** :
-        * Pour les sauvegardes `.zip` : Extraction complète de l'archive (base de données + dossier uploads)
+        * Pour les sauvegardes `.encrypted.zip` : Déchiffrement automatique puis extraction complète de l'archive (base de données + dossier uploads)
+          * **Déchiffrement** : Détection automatique du format chiffré et déchiffrement avec la clé `ENCRYPTION_KEY`
           * **Bibliothèque d'extraction** : `yauzl` (bibliothèque légère sans dépendances externes)
           * La base de données est restaurée dans `prisma/dev.db`
           * Le dossier `/uploads` est remplacé par celui de la sauvegarde
           * Une sauvegarde de l'état actuel est créée automatiquement avant la restauration
           * **Sécurité** : Protection contre les chemins malformés (chemins avec `..`, chemins absolus) - ces entrées sont ignorées lors de l'extraction
           * **Gestion d'erreurs** : Les erreurs individuelles lors de l'extraction sont loggées sans interrompre le processus complet, permettant la restauration partielle en cas de problème sur certains fichiers
-        * Pour les anciennes sauvegardes `.db` (rétrocompatibilité) : Restauration uniquement de la base de données
+        * Pour les sauvegardes `.zip` non chiffrées (rétrocompatibilité) : Détection automatique du format et extraction directe
+        * Pour les anciennes sauvegardes `.db` (rétrocompatibilité) : 
+          * Détection automatique du format chiffré
+          * Si chiffré : Déchiffrement puis restauration de la base de données
+          * Si non chiffré : Restauration directe de la base de données
       * **Note** : La restauration remplace complètement la base de données ET les fichiers uploadés par la version sauvegardée
       * **Sauvegarde avant restauration** : Une sauvegarde automatique de l'état actuel est créée avant chaque restauration (format `backup-before-restore-YYYY-MM-DDTHH-mm-ss-sssZ.zip`)
 * **Purge de toutes les sauvegardes** :
@@ -1082,6 +1100,12 @@ L'application doit être conforme aux standards de sécurité OWASP Top 10 2021.
   * `Permissions-Policy` (limitation des APIs)
 * **Mode strict React** : `reactStrictMode: true` dans `next.config.js`
 * **Variables d'environnement** : Utilisation de `.env` pour la configuration
+  * **DATABASE_URL** : Chemin vers la base de données SQLite (ex: `file:./prisma/dev.db`)
+  * **ENCRYPTION_KEY** : **OBLIGATOIRE** - Clé de chiffrement pour les sauvegardes et la base de données (minimum 32 caractères)
+    * **Génération** : Utiliser `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` pour générer une clé sécurisée
+    * **Sécurité** : Ne jamais commiter cette clé dans Git, utiliser `.env.local` en développement et variables d'environnement sécurisées en production
+    * **Usage** : Utilisée pour chiffrer les backups et potentiellement la base de données
+  * **NODE_ENV** : Environnement d'exécution (`development`, `production`, `test`)
 * **Cookies sécurisés** : Configuration correcte selon l'environnement
 
 ### 16.6 A06:2021 – Vulnerable and Outdated Components

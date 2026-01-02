@@ -1,17 +1,19 @@
 import { NextRequest, NextResponse } from "next/server"
-import { readFile, writeFile, mkdir, rm } from "fs/promises"
+import { readFile, writeFile, mkdir, rm, unlink } from "fs/promises"
 import { createWriteStream } from "fs"
 import { join, dirname } from "path"
 import { existsSync } from "fs"
 import { getSession } from "@/lib/session"
 import { createLog } from "@/lib/logs"
 import yauzl from "yauzl"
+import { decryptFile, isEncryptedFile } from "@/lib/encryption"
 
 export async function POST(
   request: NextRequest,
-  { params }: Promise<{ params: { filename: string } }>
+  props: Promise<{ params: { filename: string } }>
 ) {
-  const { filename } = await params
+  const { params } = await props
+  const { filename } = params
   const session = await getSession()
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
@@ -35,7 +37,8 @@ export async function POST(
       )
     }
 
-    // Vérifier que c'est bien un fichier .zip ou .db (rétrocompatibilité)
+    // Vérifier que c'est bien un fichier .zip (chiffré ou non) ou .db (rétrocompatibilité)
+    const isEncryptedZip = filename.endsWith(".encrypted.zip")
     const isZip = filename.endsWith(".zip")
     const isDb = filename.endsWith(".db")
     
@@ -44,6 +47,44 @@ export async function POST(
         { error: "Fichier de sauvegarde invalide" },
         { status: 400 }
       )
+    }
+
+    // Déterminer le chemin du fichier à restaurer (déchiffré si nécessaire)
+    let fileToRestore = backupPath
+    if (isEncryptedZip) {
+      // Déchiffrer le fichier dans un fichier temporaire
+      const tempZipPath = join(backupsDir, `temp-restore-${Date.now()}.zip`)
+      try {
+        await decryptFile(backupPath, tempZipPath)
+        fileToRestore = tempZipPath
+      } catch (decryptError: any) {
+        return NextResponse.json(
+          { 
+            error: "Erreur lors du déchiffrement de la sauvegarde",
+            details: decryptError.message
+          },
+          { status: 500 }
+        )
+      }
+    } else if (isZip) {
+      // Vérifier si le fichier ZIP est chiffré (ancien format sans extension .encrypted)
+      const fileData = await readFile(backupPath)
+      if (isEncryptedFile(fileData)) {
+        // Le fichier est chiffré mais n'a pas l'extension .encrypted (ancien format)
+        const tempZipPath = join(backupsDir, `temp-restore-${Date.now()}.zip`)
+        try {
+          await decryptFile(backupPath, tempZipPath)
+          fileToRestore = tempZipPath
+        } catch (decryptError: any) {
+          return NextResponse.json(
+            { 
+              error: "Erreur lors du déchiffrement de la sauvegarde",
+              details: decryptError.message
+            },
+            { status: 500 }
+          )
+        }
+      }
     }
 
     // Créer une sauvegarde de la base actuelle avant restauration
@@ -58,7 +99,7 @@ export async function POST(
       const output = createWriteStream(currentBackupPath)
       const archive = archiver("zip", { zlib: { level: 9 } })
       
-      archive.on("error", (err) => {
+      archive.on("error", (err: Error) => {
         throw err
       })
       
@@ -77,23 +118,24 @@ export async function POST(
     }
 
     // Restaurer la sauvegarde
-    if (isZip) {
-      // Extraire l'archive ZIP avec yauzl
-      const uploadsDir = join(process.cwd(), "uploads")
-      const prismaDir = join(process.cwd(), "prisma")
-      
-      // Supprimer l'ancien dossier uploads s'il existe
-      if (existsSync(uploadsDir)) {
-        await rm(uploadsDir, { recursive: true, force: true })
-      }
-      
-      // Créer les dossiers nécessaires
-      await mkdir(uploadsDir, { recursive: true })
-      await mkdir(prismaDir, { recursive: true })
-      
-      // Extraire l'archive avec yauzl
-      await new Promise<void>((resolve, reject) => {
-        yauzl.open(backupPath, { lazyEntries: true }, (err, zipfile) => {
+    try {
+      if (isZip) {
+        // Extraire l'archive ZIP avec yauzl
+        const uploadsDir = join(process.cwd(), "uploads")
+        const prismaDir = join(process.cwd(), "prisma")
+        
+        // Supprimer l'ancien dossier uploads s'il existe
+        if (existsSync(uploadsDir)) {
+          await rm(uploadsDir, { recursive: true, force: true })
+        }
+        
+        // Créer les dossiers nécessaires
+        await mkdir(uploadsDir, { recursive: true })
+        await mkdir(prismaDir, { recursive: true })
+        
+        // Extraire l'archive avec yauzl
+        await new Promise<void>((resolve, reject) => {
+          yauzl.open(fileToRestore, { lazyEntries: true }, (err: Error | null, zipfile: any) => {
           if (err) {
             reject(err)
             return
@@ -106,7 +148,7 @@ export async function POST(
           
           zipfile.readEntry()
           
-          zipfile.on("entry", (entry) => {
+          zipfile.on("entry", (entry: any) => {
             // Ignorer les entrées malformées ou dangereuses
             if (entry.fileName.includes("..") || entry.fileName.startsWith("/")) {
               zipfile.readEntry()
@@ -124,7 +166,7 @@ export async function POST(
                 })
             } else {
               // C'est un fichier, l'extraire
-              zipfile.openReadStream(entry, (err, readStream) => {
+              zipfile.openReadStream(entry, (err: Error | null, readStream: any) => {
                 if (err) {
                   console.error(`Erreur lors de l'ouverture de ${entry.fileName}:`, err)
                   zipfile.readEntry() // Continuer même en cas d'erreur
@@ -170,7 +212,7 @@ export async function POST(
                     zipfile.readEntry() // Continuer même en cas d'erreur
                   })
                 
-                readStream.on("error", (err) => {
+                readStream.on("error", (err: Error) => {
                   console.error(`Erreur lors de la lecture de ${entry.fileName}:`, err)
                   zipfile.readEntry() // Continuer même en cas d'erreur
                 })
@@ -185,10 +227,35 @@ export async function POST(
           zipfile.on("error", reject)
         })
       })
-    } else {
-      // Rétrocompatibilité : restaurer uniquement la base de données (.db)
-      const backupData = await readFile(backupPath)
-      await writeFile(dbPath, backupData)
+      } else {
+        // Rétrocompatibilité : restaurer uniquement la base de données (.db)
+        // Vérifier si le fichier .db est chiffré
+        const fileData = await readFile(backupPath)
+        if (isEncryptedFile(fileData)) {
+          // Déchiffrer le fichier .db
+          const tempDbPath = join(backupsDir, `temp-restore-${Date.now()}.db`)
+          await decryptFile(backupPath, tempDbPath)
+          const decryptedData = await readFile(tempDbPath)
+          await writeFile(dbPath, decryptedData)
+          await unlink(tempDbPath)
+        } else {
+          const backupData = await readFile(backupPath)
+          await writeFile(dbPath, backupData)
+        }
+      }
+
+      // Nettoyer le fichier temporaire si créé
+      if (fileToRestore !== backupPath && existsSync(fileToRestore)) {
+        await unlink(fileToRestore)
+      }
+    } catch (restoreError: any) {
+      // Nettoyer le fichier temporaire en cas d'erreur
+      if (fileToRestore !== backupPath && existsSync(fileToRestore)) {
+        try {
+          await unlink(fileToRestore)
+        } catch {}
+      }
+      throw restoreError
     }
 
     await createLog(session.id, "SAUVEGARDE_RESTAUREE", {

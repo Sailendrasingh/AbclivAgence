@@ -23,6 +23,13 @@ Application web de gestion des agences développée avec Next.js, React, TypeScr
    ENCRYPTION_KEY="votre-cle-de-chiffrement-32-caracteres"
    NODE_ENV="development"
    ```
+   
+   ⚠️ **Important** : Pour générer une clé de chiffrement sécurisée (64 caractères hexadécimaux) :
+   ```bash
+   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+   ```
+   
+   La variable `ENCRYPTION_KEY` est **obligatoire** et utilisée pour chiffrer les sauvegardes de la base de données et des fichiers uploadés.
 
 4. **Initialiser la base de données**
    ```bash
@@ -66,6 +73,14 @@ L'application sera accessible sur `http://localhost:3000`
 L'application utilise SQLite avec Prisma ORM. La base de données de développement est `prisma/dev.db`.
 
 ⚠️ **Note** : La base de données n'est pas versionnée dans Git. Chaque développeur doit créer sa propre base de données locale.
+
+## 🔒 Chiffrement des sauvegardes
+
+Toutes les sauvegardes sont automatiquement chiffrées avec **AES-256-GCM** avant stockage :
+- **Algorithme** : AES-256-GCM (chiffrement authentifié)
+- **Clé** : Dérivée depuis `ENCRYPTION_KEY` avec `scrypt`
+- **Format** : Les backups sont stockés avec l'extension `.encrypted.zip`
+- **Rétrocompatibilité** : Les anciennes sauvegardes non chiffrées peuvent toujours être restaurées (détection automatique)
 
 ## 🧪 Tests
 

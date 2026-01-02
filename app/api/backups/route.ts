@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
-import { readdir, stat, mkdir, unlink } from "fs/promises"
+import { readdir, stat, mkdir, unlink, readFile, writeFile } from "fs/promises"
 import { createWriteStream } from "fs"
 import { join } from "path"
 import { existsSync } from "fs"
 import { getSession } from "@/lib/session"
 import { createLog } from "@/lib/logs"
 import archiver from "archiver"
+import { encryptFile } from "@/lib/encryption"
 
 // GET : Lister toutes les sauvegardes
 export async function GET(request: NextRequest) {
@@ -28,10 +29,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json([])
     }
 
-    // Lister tous les fichiers de sauvegarde (ZIP uniquement, .db pour rétrocompatibilité)
+    // Lister tous les fichiers de sauvegarde (ZIP chiffrés, ZIP non chiffrés pour rétrocompatibilité, .db pour rétrocompatibilité)
     const files = await readdir(backupsDir)
     const backupFiles = files.filter((file) => 
-      file.startsWith("backup-") && (file.endsWith(".zip") || file.endsWith(".db"))
+      file.startsWith("backup-") && (
+        file.endsWith(".encrypted.zip") || 
+        file.endsWith(".zip") || 
+        file.endsWith(".db")
+      )
     )
     
     if (backupFiles.length === 0) {
@@ -102,11 +107,12 @@ export async function POST(request: NextRequest) {
 
     // Générer le nom de fichier avec timestamp
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-")
-    const backupPath = join(backupsDir, `backup-${timestamp}.zip`)
+    const backupZipPath = join(backupsDir, `backup-${timestamp}.zip`)
+    const backupPath = join(backupsDir, `backup-${timestamp}.encrypted.zip`)
     const uploadsDir = join(process.cwd(), "uploads")
 
-    // Créer l'archive ZIP
-    const output = createWriteStream(backupPath)
+    // Créer l'archive ZIP (temporaire, non chiffrée)
+    const output = createWriteStream(backupZipPath)
     const archive = archiver("zip", {
       zlib: { level: 9 } // Compression maximale
     })
@@ -123,7 +129,7 @@ export async function POST(request: NextRequest) {
       })
       
       // Gérer les erreurs de l'archive
-      archive.on("error", (err) => {
+      archive.on("error", (err: Error) => {
         console.error("Erreur lors de la création de l'archive:", err)
         reject(err)
       })
@@ -146,6 +152,22 @@ export async function POST(request: NextRequest) {
     // Attendre que l'écriture soit terminée
     await archivePromise
 
+    // Chiffrer l'archive ZIP
+    try {
+      await encryptFile(backupZipPath, backupPath)
+      // Supprimer le fichier ZIP non chiffré
+      await unlink(backupZipPath)
+    } catch (encryptError: any) {
+      // En cas d'erreur de chiffrement, supprimer les deux fichiers
+      try {
+        await unlink(backupZipPath)
+      } catch {}
+      try {
+        await unlink(backupPath)
+      } catch {}
+      throw new Error(`Erreur lors du chiffrement de la sauvegarde: ${encryptError.message}`)
+    }
+
     // Nettoyer les sauvegardes de plus de 10 jours
     const files = await readdir(backupsDir)
     const now = Date.now()
@@ -153,7 +175,11 @@ export async function POST(request: NextRequest) {
 
     let deletedCount = 0
     for (const file of files) {
-      if (file.startsWith("backup-") && (file.endsWith(".zip") || file.endsWith(".db"))) {
+      if (file.startsWith("backup-") && (
+        file.endsWith(".encrypted.zip") || 
+        file.endsWith(".zip") || 
+        file.endsWith(".db")
+      )) {
         const filePath = join(backupsDir, file)
         const stats = await stat(filePath)
 
@@ -170,7 +196,7 @@ export async function POST(request: NextRequest) {
     }
 
     await createLog(session.id, "SAUVEGARDE_CREEE", {
-      filename: `backup-${timestamp}.zip`,
+      filename: `backup-${timestamp}.encrypted.zip`,
       deletedOldBackups: deletedCount,
     }, request)
 
@@ -178,7 +204,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       {
-        filename: `backup-${timestamp}.zip`,
+        filename: `backup-${timestamp}.encrypted.zip`,
         date: new Date().toISOString(),
         size: backupStats.size,
         sizeFormatted: formatFileSize(backupStats.size),
@@ -223,7 +249,11 @@ export async function DELETE(request: NextRequest) {
     // Lister tous les fichiers de sauvegarde
     const files = await readdir(backupsDir)
     const backupFiles = files.filter((file) =>
-      file.startsWith("backup-") && (file.endsWith(".zip") || file.endsWith(".db"))
+      file.startsWith("backup-") && (
+        file.endsWith(".encrypted.zip") || 
+        file.endsWith(".zip") || 
+        file.endsWith(".db")
+      )
     )
 
     if (backupFiles.length === 0) {

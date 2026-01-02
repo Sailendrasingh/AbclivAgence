@@ -3,13 +3,15 @@ import { createWriteStream } from "fs"
 import { join } from "path"
 import { existsSync } from "fs"
 import archiver from "archiver"
+import { encryptFile } from "../lib/encryption"
 
 async function backup() {
   const backupsDir = join(process.cwd(), "backups")
   const dbPath = join(process.cwd(), "prisma", "dev.db")
   const uploadsDir = join(process.cwd(), "uploads")
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-")
-  const backupPath = join(backupsDir, `backup-${timestamp}.zip`)
+  const backupZipPath = join(backupsDir, `backup-${timestamp}.zip`)
+  const backupPath = join(backupsDir, `backup-${timestamp}.encrypted.zip`)
 
   try {
     // Créer le dossier backups s'il n'existe pas
@@ -23,8 +25,8 @@ async function backup() {
       process.exit(1)
     }
 
-    // Créer l'archive ZIP
-    const output = createWriteStream(backupPath)
+    // Créer l'archive ZIP (temporaire, non chiffrée)
+    const output = createWriteStream(backupZipPath)
     const archive = archiver("zip", {
       zlib: { level: 9 } // Compression maximale
     })
@@ -51,12 +53,23 @@ async function backup() {
     // Attendre que l'écriture soit terminée
     await new Promise((resolve, reject) => {
       output.on("close", () => {
-        console.log(`Sauvegarde créée: ${backupPath}`)
-        console.log(`Taille de l'archive: ${archive.pointer()} bytes`)
+        console.log(`Archive ZIP créée: ${archive.pointer()} bytes`)
         resolve(undefined)
       })
       output.on("error", reject)
     })
+
+    // Chiffrer l'archive ZIP
+    console.log("Chiffrement de la sauvegarde...")
+    await encryptFile(backupZipPath, backupPath)
+    console.log(`Sauvegarde chiffrée créée: ${backupPath}`)
+    
+    // Supprimer le fichier ZIP non chiffré
+    await unlink(backupZipPath)
+    
+    const { stat } = await import("fs/promises")
+    const backupStats = await stat(backupPath)
+    console.log(`Taille de la sauvegarde chiffrée: ${backupStats.size} bytes`)
 
     // Nettoyer les sauvegardes de plus de 10 jours
     const files = await readdir(backupsDir)
@@ -64,7 +77,11 @@ async function backup() {
     const tenDaysAgo = now - 10 * 24 * 60 * 60 * 1000
 
     for (const file of files) {
-      if (file.startsWith("backup-") && (file.endsWith(".zip") || file.endsWith(".db"))) {
+      if (file.startsWith("backup-") && (
+        file.endsWith(".encrypted.zip") || 
+        file.endsWith(".zip") || 
+        file.endsWith(".db")
+      )) {
         const filePath = join(backupsDir, file)
         const stats = await stat(filePath)
         

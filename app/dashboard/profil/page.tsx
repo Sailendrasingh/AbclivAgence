@@ -16,6 +16,8 @@ import {
 } from "@/components/ui/dialog"
 import { Switch } from "@/components/ui/switch"
 import { Save, Shield, ShieldOff } from "lucide-react"
+import { apiFetch } from "@/lib/api-client"
+import { setCSRFToken } from "@/lib/csrf-client"
 
 interface UserData {
   id: string
@@ -43,6 +45,24 @@ export default function ProfilPage() {
   } | null>(null)
   const [twoFactorToken, setTwoFactorToken] = useState("")
 
+  const fetchUserData = async () => {
+    try {
+      const response = await apiFetch("/api/auth/me")
+      if (response.ok) {
+        const data = await response.json()
+        setUserData(data)
+        setFormData((prev) => ({ ...prev, login: data.login }))
+        
+        // Stocker le token CSRF si disponible
+        if (data.csrfToken) {
+          setCSRFToken(data.csrfToken)
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching user data:", error)
+    }
+  }
+
   useEffect(() => {
     const loadUserData = async () => {
       try {
@@ -54,24 +74,6 @@ export default function ProfilPage() {
 
     loadUserData()
   }, [])
-
-    const fetchUserData = async () => {
-      try {
-        const response = await apiFetch("/api/auth/me")
-        if (response.ok) {
-          const data = await response.json()
-          setUserData(data)
-          setFormData((prev) => ({ ...prev, login: data.login }))
-          
-          // Stocker le token CSRF si disponible
-          if (data.csrfToken) {
-            setCSRFToken(data.csrfToken)
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching user data:", error)
-      }
-    }
 
   const handleSave = async () => {
     setError("")
