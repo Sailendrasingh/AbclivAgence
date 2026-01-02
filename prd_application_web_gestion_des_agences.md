@@ -64,7 +64,7 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
 
 #### Dépendances principales (dependencies)
 
-* **@prisma/client** (^5.19.0) : Client Prisma pour l'accès à la base de données
+* **@prisma/client** (^5.22.0) : Client Prisma pour l'accès à la base de données
 * **@radix-ui/react-avatar** (^1.1.0) : Composant Avatar de Radix UI (utilisé par shadcn/ui)
 * **@radix-ui/react-dialog** (^1.1.0) : Composant Dialog de Radix UI (utilisé par shadcn/ui)
 * **@radix-ui/react-dropdown-menu** (^2.1.0) : Composant Dropdown Menu de Radix UI (utilisé par shadcn/ui)
@@ -81,30 +81,31 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
 * **clsx** (^2.1.1) : Utilitaire pour combiner des classes CSS conditionnellement (utilisé par shadcn/ui)
 * **exifr** (^7.1.3) : Bibliothèque d'extraction de métadonnées EXIF des images (utilisée pour récupérer la date de création originale des photos)
 * **lucide-react** (^0.427.0) : Bibliothèque d'icônes React (utilisée pour toutes les icônes de l'interface)
-* **next** (^14.2.0) : Framework Next.js
+* **next** (^16.1.1) : Framework Next.js
 * **otpauth** (^9.3.2) : Bibliothèque pour la génération de TOTP (Time-based One-Time Password) pour l'authentification à deux facteurs (2FA)
-* **prisma** (^5.19.0) : ORM Prisma
+* **prisma** (^5.22.0) : ORM Prisma
 * **qrcode** (^1.5.3) : Bibliothèque de génération de codes QR (utilisée pour afficher le QR code de l'authentification à deux facteurs)
-* **react** (^18.3.0) : Bibliothèque React
-* **react-dom** (^18.3.0) : Bibliothèque React DOM
+* **react** (^19.2.3) : Bibliothèque React
+* **react-dom** (^19.2.3) : Bibliothèque React DOM
 * **tailwind-merge** (^2.5.0) : Utilitaire pour fusionner intelligemment les classes Tailwind CSS (utilisé par shadcn/ui)
 * **tailwindcss-animate** (^1.0.7) : Plugin Tailwind CSS pour les animations (utilisé par shadcn/ui)
-* **validator** (^13.11.0) : Bibliothèque de validation de données (utilisée pour valider les adresses email selon la norme RFC)
+* **validator** (^13.12.0) : Bibliothèque de validation de données (utilisée pour valider les adresses email selon la norme RFC)
 * **yauzl** (^3.2.0) : Bibliothèque légère pour lire les archives ZIP (utilisée pour la restauration de sauvegardes)
+* **zod** (^4.3.4) : Bibliothèque de validation de schémas TypeScript (utilisée pour valider strictement toutes les entrées API)
 
 #### Dépendances de développement (devDependencies)
 
 * **@types/archiver** (^7.0.0) : Types TypeScript pour archiver
 * **@types/node** (^20.14.0) : Types TypeScript pour Node.js
 * **@types/qrcode** (^1.5.5) : Types TypeScript pour qrcode
-* **@types/react** (^18.3.0) : Types TypeScript pour React
-* **@types/react-dom** (^18.3.0) : Types TypeScript pour React DOM
+* **@types/react** (^19.0.6) : Types TypeScript pour React
+* **@types/react-dom** (^19.0.2) : Types TypeScript pour React DOM
 * **@types/uuid** (^10.0.0) : Types TypeScript pour uuid (si utilisé)
 * **@types/validator** (^13.15.10) : Types TypeScript pour validator
 * **@types/yauzl** (^2.10.3) : Types TypeScript pour yauzl
 * **autoprefixer** (^10.4.19) : Plugin PostCSS pour ajouter automatiquement les préfixes vendeurs CSS
 * **eslint** (^8.57.0) : Linter JavaScript/TypeScript
-* **eslint-config-next** (^14.2.0) : Configuration ESLint pour Next.js
+* **eslint-config-next** (^16.1.1) : Configuration ESLint pour Next.js
 * **postcss** (^8.4.38) : Outil de transformation CSS
 * **tailwindcss** (^3.4.4) : Framework CSS utility-first
 * **tsx** (^4.21.0) : Exécuteur TypeScript pour les scripts (utilisé pour exécuter les scripts de migration et d'initialisation)
@@ -811,7 +812,11 @@ Aucun autre type autorisé.
   * Secret affiché (format base32)
   * Librairie QR Code autorisée : `qrcode` (npm)
 * Protection CSRF / XSS
-* Validation stricte des entrées
+* **Validation stricte des entrées** :
+  * **Zod** : Utilisation de schémas Zod pour valider toutes les entrées API (users, contacts, agencies, addresses, pcs, etc.)
+  * **Validation côté serveur** : Toutes les routes API modifiantes utilisent un middleware de validation avec Zod
+  * **Messages d'erreur détaillés** : Les erreurs de validation retournent des messages explicites pour faciliter le débogage
+  * **Sanitization** : Après validation, toutes les entrées utilisateur sont sanitizées pour prévenir les attaques XSS
 * **Conformité OWASP Top 10 2021** : Voir section 16 pour les détails complets des mesures de sécurité implémentées
 
 ### 11.4 Gestion de la session et timeout d'inactivité
@@ -1015,7 +1020,7 @@ L'application doit être conforme aux standards de sécurité OWASP Top 10 2021.
 * **Vérification de session** : Toutes les routes API vérifient la session via `getSession()`
 * **Contrôle d'accès basé sur les rôles (RBAC)** : Implémenté avec vérification des rôles (Super Admin, Admin, User)
 * **Vérification des permissions** : Les actions sensibles vérifient le rôle (ex: historique, sauvegardes)
-* **Protection des routes** : Middleware protège les routes `/dashboard` et `/api`
+* **Protection des routes** : Proxy (anciennement middleware) protège les routes `/dashboard` et `/api`
 * **Protection path traversal** : Validation stricte des chemins de fichiers pour éviter l'accès non autorisé aux fichiers système
   * Dans `app/api/files/[...path]/route.ts` : Vérification que le chemin résolu est bien dans le dossier `uploads/`
   * Utilisation de `resolve()` pour normaliser les chemins et détecter les tentatives de path traversal
@@ -1040,8 +1045,11 @@ L'application doit être conforme aux standards de sécurité OWASP Top 10 2021.
 
 * **Prisma ORM** : Utilisation de Prisma protège contre les injections SQL
 * **Pas de requêtes SQL brutes** : Aucune utilisation de `$queryRaw` ou `$executeRaw`
-* **Validation des entrées** : Validation stricte avec regex pour les champs (poste, agent, ligne directe)
-* **Validation des emails** : Utilisation de `validator.isEmail()` (RFC compliant)
+* **Validation des entrées** :
+  * **Schémas Zod** : Validation stricte avec Zod pour tous les champs (users, contacts, agencies, addresses, pcs, etc.)
+  * **Validation regex** : Validation stricte avec regex pour les champs spécifiques (poste, agent, ligne directe)
+  * **Validation des emails** : Utilisation de `validator.isEmail()` (RFC compliant) combinée avec validation Zod
+* **Sanitization des entrées** : Toutes les entrées utilisateur sont sanitizées après validation pour prévenir les attaques XSS
 * **Sanitization des chemins** : Protection contre path traversal dans restauration de sauvegarde (`entry.fileName.includes("..")`)
 
 ### 16.4 A04:2021 – Insecure Design
@@ -1078,8 +1086,11 @@ L'application doit être conforme aux standards de sécurité OWASP Top 10 2021.
 ### 16.6 A06:2021 – Vulnerable and Outdated Components
 
 * **Dépendances récentes** : La plupart des dépendances sont à jour
-* **Next.js 14.2** : Version récente
-* **Prisma 5.19** : Version récente
+* **Next.js 16.1.1** : Version récente (migration depuis 15.5.9)
+* **React 19.2.3** : Version récente
+* **Prisma 5.22.0** : Version récente
+* **Migration middleware → proxy** : Le fichier `middleware.ts` a été remplacé par `proxy.ts` conformément aux conventions Next.js 16
+* **Routes API asynchrones** : Toutes les routes API avec paramètres dynamiques utilisent désormais `Promise<{ params }>` pour la compatibilité Next.js 16
 * **Recommandation** : Utiliser `npm audit` régulièrement et intégrer Snyk ou Dependabot
 
 ### 16.7 A07:2021 – Identification and Authentication Failures
