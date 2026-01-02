@@ -441,6 +441,46 @@ export default function AgencesPage() {
     }
   }, [selectedAgency, isMobile, showDetailsOnMobile])
 
+  // Initialiser les données d'édition après le chargement des détails en mode mobile
+  useEffect(() => {
+    if (isMobile && editing && fullAgencyData && selectedAgency?.id === fullAgencyData.id) {
+      setEditingTechnical(true)
+      if (fullAgencyData.technical) {
+        const notesToUse = latestTechnicalNotes !== null ? latestTechnicalNotes : (fullAgencyData.technical.technicalNotes || "")
+        setTechnicalData({
+          networkIp: fullAgencyData.technical.networkIp || "",
+          machineBrand: fullAgencyData.technical.machineBrand || "",
+          machineModel: fullAgencyData.technical.machineModel || "",
+          machineConnection: fullAgencyData.technical.machineConnection || "",
+          machineIp: fullAgencyData.technical.machineIp || "",
+          machineMac: fullAgencyData.technical.machineMac || "",
+          wifiRouterBrand: fullAgencyData.technical.wifiRouterBrand || "",
+          wifiRouterModel: fullAgencyData.technical.wifiRouterModel || "",
+          wifiRouterIp: fullAgencyData.technical.wifiRouterIp || "",
+          wifiRouterSerial: fullAgencyData.technical.wifiRouterSerial || "",
+          mainRouterBrand: fullAgencyData.technical.mainRouterBrand || "",
+          mainRouterModel: fullAgencyData.technical.mainRouterModel || "",
+          mainRouterIp: fullAgencyData.technical.mainRouterIp || "",
+          mainRouterSerial: fullAgencyData.technical.mainRouterSerial || "",
+          mainRouterLinkType: fullAgencyData.technical.mainRouterLinkType || "",
+          backupRouterBrand: fullAgencyData.technical.backupRouterBrand || "",
+          backupRouterModel: fullAgencyData.technical.backupRouterModel || "",
+          backupRouterIp: fullAgencyData.technical.backupRouterIp || "",
+          backupRouterSerial: fullAgencyData.technical.backupRouterSerial || "",
+          recorderBrand: fullAgencyData.technical.recorderBrand || "",
+          recorderModel: fullAgencyData.technical.recorderModel || "",
+          recorderSerial: fullAgencyData.technical.recorderSerial || "",
+          recorderMac: fullAgencyData.technical.recorderMac || "",
+          recorderIp: fullAgencyData.technical.recorderIp || "",
+          recorderStorage: fullAgencyData.technical.recorderStorage || "",
+          technicalNotes: notesToUse,
+        })
+      } else {
+        setTechnicalData({})
+      }
+    }
+  }, [isMobile, editing, fullAgencyData, selectedAgency, latestTechnicalNotes])
+
   // Initialiser l'onglet de type de photo sélectionné quand les photos changent
   useEffect(() => {
     if (fullAgencyData?.photos && fullAgencyData.photos.length > 0) {
@@ -833,11 +873,27 @@ export default function AgencesPage() {
     }
   }
 
-  const handleEditAgencyFromMaster = (agency: Agency) => {
+  const handleEditAgencyFromMaster = async (agency: Agency) => {
     setSelectedAgency(agency)
+    
+    // En mode mobile, charger les détails complets et ouvrir la vue des détails
+    if (isMobile) {
+      setShowDetailsOnMobile(true)
+      setLoadingDetails(true)
+      await loadAgencyDetails(agency.id)
+      setLoadingDetails(false)
+    }
+    
     setEditing(true)
     setEditedName(agency.name)
     setEditedState(agency.state as "OK" | "ALERTE" | "INFO" | "FERMÉE")
+    
+    // Attendre que les données complètes soient chargées avant d'initialiser
+    if (isMobile) {
+      // Les données seront initialisées après le chargement via useEffect
+      return
+    }
+    
     setEditedCodeAgence(fullAgencyData?.codeAgence || "")
     setEditedCodeRayon(fullAgencyData?.codeRayon || "")
     setEditedDateOuverture(fullAgencyData?.dateOuverture ? new Date(fullAgencyData.dateOuverture).toISOString().split('T')[0] : "")
@@ -2176,93 +2232,212 @@ export default function AgencesPage() {
           <div className={`flex-1 flex flex-col min-h-0 transition-opacity duration-300 ${loadingDetails ? 'opacity-60' : 'opacity-100'}`}>
           <>
             {/* En-tête avec nom et état - Fixe */}
-            <div ref={detailsHeaderRef} className="flex-shrink-0 bg-background pb-2 sm:pb-4 pt-3 sm:pt-6 px-3 sm:px-6 border-b flex items-center justify-between gap-2 sm:gap-4" style={{ backgroundColor: 'hsl(var(--background))' }}>
-              <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
-                {/* Bouton Retour sur mobile */}
-                {isMobile && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setShowDetailsOnMobile(false)
-                      setSelectedAgency(null)
-                    }}
-                    className="shrink-0"
-                  >
-                    <ArrowLeft className="h-4 w-4" />
-                  </Button>
-                )}
+            <div ref={detailsHeaderRef} className="flex-shrink-0 bg-background pb-2 sm:pb-4 pt-3 sm:pt-6 px-3 sm:px-6 border-b flex flex-col sm:flex-row items-center sm:items-center justify-between gap-2 sm:gap-4 relative" style={{ backgroundColor: 'hsl(var(--background))' }}>
+              {/* Bouton Retour sur mobile - positionné à gauche */}
+              {isMobile && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setShowDetailsOnMobile(false)
+                    setSelectedAgency(null)
+                  }}
+                  className="absolute left-3 top-3 sm:relative sm:left-auto sm:top-auto shrink-0"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+              )}
+              {/* Contenu centré en mobile, normal en desktop */}
+              <div className={`flex items-center gap-2 sm:gap-4 min-w-0 ${isMobile ? 'flex-col flex-1 w-full' : 'flex-1'}`}>
                 {editing ? (
                   <Input
                     value={editedName}
                     onChange={(e) => setEditedName(e.target.value)}
-                    className="text-base sm:text-2xl font-bold flex-1 min-w-0 min-h-[44px]"
+                    className={`text-base sm:text-2xl font-bold min-w-0 min-h-[44px] ${isMobile ? 'w-full text-center' : 'flex-1'}`}
                   />
                 ) : (
-                  <h2 className="text-base sm:text-2xl font-bold truncate">{fullAgencyData.name}</h2>
+                  <h2 className={`text-base sm:text-2xl font-bold ${isMobile ? 'text-center w-full mb-2' : 'truncate'}`}>{fullAgencyData.name}</h2>
                 )}
-                <Button
-                  onClick={toggleState}
-                  variant={
-                    editedState === "OK" 
-                      ? "default" 
-                      : editedState === "INFO"
-                      ? "secondary"
-                      : editedState === "FERMÉE"
-                      ? "outline"
-                      : "destructive"
-                  }
-                  size="sm"
-                  className={editing ? "" : "pointer-events-none"}
-                  style={
-                    editedState === "OK"
-                      ? { backgroundColor: "#22c55e", color: "#fff" }
-                      : editedState === "INFO" 
-                      ? { backgroundColor: "#fbbf24", color: "#000" }
-                      : editedState === "FERMÉE"
-                      ? { backgroundColor: "#9ca3af", color: "#fff" }
-                      : undefined
-                  }
-                >
-                  {editedState === "OK" 
-                    ? "✓ OK" 
-                    : editedState === "INFO"
-                    ? "ℹ INFO"
-                    : editedState === "FERMÉE"
-                    ? "🔒 FERMÉE"
-                    : "⚠ ALERTE"}
-                </Button>
-                {!editing && userRole === "Super Admin" && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={async () => {
-                      if (!selectedAgency) return
-                      setLoadingAgencyHistory(true)
-                      setIsAgencyHistoryDialogOpen(true)
-                      try {
-                        const response = await fetch(
-                          `/api/agencies/${selectedAgency.id}/history`
-                        )
-                        if (response.ok) {
-                          const data = await response.json()
-                          setAgencyHistory(data)
-                        }
-                      } catch (error) {
-                        console.error("Error loading agency history:", error)
-                      } finally {
-                        setLoadingAgencyHistory(false)
+                {/* En mode mobile : état + Historique + Modifier sur une ligne */}
+                {isMobile && !editing && (
+                  <div className="flex gap-2 w-full">
+                    <Button
+                      onClick={toggleState}
+                      variant={
+                        editedState === "OK" 
+                          ? "default" 
+                          : editedState === "INFO"
+                          ? "secondary"
+                          : editedState === "FERMÉE"
+                          ? "outline"
+                          : "destructive"
                       }
-                    }}
-                    className="gap-2"
-                  >
-                    <Clock className="h-4 w-4" />
-                    Historique
-                  </Button>
+                      size="sm"
+                      className="pointer-events-none flex-1"
+                      style={
+                        editedState === "OK"
+                          ? { backgroundColor: "#22c55e", color: "#fff" }
+                          : editedState === "INFO" 
+                          ? { backgroundColor: "#fbbf24", color: "#000" }
+                          : editedState === "FERMÉE"
+                          ? { backgroundColor: "#9ca3af", color: "#fff" }
+                          : undefined
+                      }
+                    >
+                      {editedState === "OK" 
+                        ? "✓ OK" 
+                        : editedState === "INFO"
+                        ? "ℹ INFO"
+                        : editedState === "FERMÉE"
+                        ? "🔒 FERMÉE"
+                        : "⚠ ALERTE"}
+                    </Button>
+                    {userRole === "Super Admin" && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                          if (!selectedAgency) return
+                          setLoadingAgencyHistory(true)
+                          setIsAgencyHistoryDialogOpen(true)
+                          try {
+                            const response = await fetch(
+                              `/api/agencies/${selectedAgency.id}/history`
+                            )
+                            if (response.ok) {
+                              const data = await response.json()
+                              setAgencyHistory(data)
+                            }
+                          } catch (error) {
+                            console.error("Error loading agency history:", error)
+                          } finally {
+                            setLoadingAgencyHistory(false)
+                          }
+                        }}
+                        className="gap-2 flex-1"
+                      >
+                        <Clock className="h-4 w-4" />
+                        <span className="hidden xs:inline">Historique</span>
+                      </Button>
+                    )}
+                    <Button
+                      onClick={() => {
+                        setEditing(true)
+                        setEditedName(fullAgencyData.name)
+                        setEditedState(fullAgencyData.state as "OK" | "ALERTE" | "INFO" | "FERMÉE")
+                        setEditedCodeAgence(fullAgencyData.codeAgence || "")
+                        setEditedCodeRayon(fullAgencyData.codeRayon || "")
+                        setEditedDateOuverture(fullAgencyData.dateOuverture ? new Date(fullAgencyData.dateOuverture).toISOString().split('T')[0] : "")
+                        setEditedDateFermeture(fullAgencyData.dateFermeture ? new Date(fullAgencyData.dateFermeture).toISOString().split('T')[0] : "")
+                        setEditingTechnical(true)
+                        if (fullAgencyData?.technical) {
+                          const notesToUse = latestTechnicalNotes !== null ? latestTechnicalNotes : (fullAgencyData.technical.technicalNotes || "")
+                          setTechnicalData({
+                            networkIp: fullAgencyData.technical.networkIp || "",
+                            machineBrand: fullAgencyData.technical.machineBrand || "",
+                            machineModel: fullAgencyData.technical.machineModel || "",
+                            machineConnection: fullAgencyData.technical.machineConnection || "",
+                            machineIp: fullAgencyData.technical.machineIp || "",
+                            machineMac: fullAgencyData.technical.machineMac || "",
+                            wifiRouterBrand: fullAgencyData.technical.wifiRouterBrand || "",
+                            wifiRouterModel: fullAgencyData.technical.wifiRouterModel || "",
+                            wifiRouterIp: fullAgencyData.technical.wifiRouterIp || "",
+                            wifiRouterSerial: fullAgencyData.technical.wifiRouterSerial || "",
+                            mainRouterBrand: fullAgencyData.technical.mainRouterBrand || "",
+                            mainRouterModel: fullAgencyData.technical.mainRouterModel || "",
+                            mainRouterIp: fullAgencyData.technical.mainRouterIp || "",
+                            mainRouterSerial: fullAgencyData.technical.mainRouterSerial || "",
+                            mainRouterLinkType: fullAgencyData.technical.mainRouterLinkType || "",
+                            backupRouterBrand: fullAgencyData.technical.backupRouterBrand || "",
+                            backupRouterModel: fullAgencyData.technical.backupRouterModel || "",
+                            backupRouterIp: fullAgencyData.technical.backupRouterIp || "",
+                            backupRouterSerial: fullAgencyData.technical.backupRouterSerial || "",
+                            recorderBrand: fullAgencyData.technical.recorderBrand || "",
+                            recorderModel: fullAgencyData.technical.recorderModel || "",
+                            recorderSerial: fullAgencyData.technical.recorderSerial || "",
+                            recorderMac: fullAgencyData.technical.recorderMac || "",
+                            recorderIp: fullAgencyData.technical.recorderIp || "",
+                            recorderStorage: fullAgencyData.technical.recorderStorage || "",
+                            technicalNotes: notesToUse,
+                          })
+                        } else {
+                          setTechnicalData({})
+                        }
+                      }}
+                      className="gap-2 flex-1"
+                    >
+                      <Edit className="h-4 w-4" />
+                      <span className="hidden xs:inline">Modifier</span>
+                    </Button>
+                  </div>
+                )}
+                {/* En mode desktop : layout horizontal normal */}
+                {!isMobile && (
+                  <>
+                    <Button
+                      onClick={toggleState}
+                      variant={
+                        editedState === "OK" 
+                          ? "default" 
+                          : editedState === "INFO"
+                          ? "secondary"
+                          : editedState === "FERMÉE"
+                          ? "outline"
+                          : "destructive"
+                      }
+                      size="sm"
+                      className={editing ? "" : "pointer-events-none"}
+                      style={
+                        editedState === "OK"
+                          ? { backgroundColor: "#22c55e", color: "#fff" }
+                          : editedState === "INFO" 
+                          ? { backgroundColor: "#fbbf24", color: "#000" }
+                          : editedState === "FERMÉE"
+                          ? { backgroundColor: "#9ca3af", color: "#fff" }
+                          : undefined
+                      }
+                    >
+                      {editedState === "OK" 
+                        ? "✓ OK" 
+                        : editedState === "INFO"
+                        ? "ℹ INFO"
+                        : editedState === "FERMÉE"
+                        ? "🔒 FERMÉE"
+                        : "⚠ ALERTE"}
+                    </Button>
+                    {!editing && userRole === "Super Admin" && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                          if (!selectedAgency) return
+                          setLoadingAgencyHistory(true)
+                          setIsAgencyHistoryDialogOpen(true)
+                          try {
+                            const response = await fetch(
+                              `/api/agencies/${selectedAgency.id}/history`
+                            )
+                            if (response.ok) {
+                              const data = await response.json()
+                              setAgencyHistory(data)
+                            }
+                          } catch (error) {
+                            console.error("Error loading agency history:", error)
+                          } finally {
+                            setLoadingAgencyHistory(false)
+                          }
+                        }}
+                        className="gap-2"
+                      >
+                        <Clock className="h-4 w-4" />
+                        Historique
+                      </Button>
+                    )}
+                  </>
                 )}
               </div>
-              {/* Bouton Modifier à droite en mode non-édition */}
-              {!editing && (
+              {/* Bouton Modifier à droite en mode desktop non-édition */}
+              {!editing && !isMobile && (
                 <div className="flex gap-2">
                   <Button
                     onClick={() => {
@@ -3888,22 +4063,24 @@ export default function AgencesPage() {
                             onValueChange={setSelectedPhotoTypeTab}
                             className="w-full"
                           >
-                            <TabsList className="bg-background w-full sm:w-auto mb-4 flex-wrap" style={{ backgroundColor: 'hsl(var(--background))' }}>
-                              {photoTypes.map((type) => (
-                                <TabsTrigger 
-                                  key={type} 
-                                  value={type}
-                                  className="text-sm sm:text-sm min-h-[44px]"
-                                >
-                                  {type} ({photosByType[type].length})
-                                </TabsTrigger>
-                              ))}
-                            </TabsList>
+                            <div className="w-full mb-4 clear-both">
+                              <TabsList className="bg-background w-full sm:w-auto flex flex-wrap gap-1 sm:gap-0 sm:inline-flex h-auto sm:h-10" style={{ backgroundColor: 'hsl(var(--background))' }}>
+                                {photoTypes.map((type) => (
+                                  <TabsTrigger 
+                                    key={type} 
+                                    value={type}
+                                    className="text-xs sm:text-sm min-h-[44px] flex-shrink-0"
+                                  >
+                                    {type} ({photosByType[type].length})
+                                  </TabsTrigger>
+                                ))}
+                              </TabsList>
+                            </div>
                             
                             {photoTypes.map((type) => {
                               const photos = photosByType[type]
                               return (
-                                <TabsContent key={type} value={type} className="mt-0">
+                                <TabsContent key={type} value={type} className="mt-0 clear-both">
                                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                                     {photos.map((photo, index) => {
                                       // Trouver le PhotoGroup qui contient cette photo

@@ -15,6 +15,7 @@ export function AgencyStats() {
   const [loading, setLoading] = useState(true)
   const [displayStats, setDisplayStats] = useState<AgencyStats>({ ok: 0, info: 0, alerte: 0, fermee: 0 })
   const [mounted, setMounted] = useState(false)
+  const [animationKey, setAnimationKey] = useState(0)
 
   useEffect(() => {
     setMounted(true)
@@ -65,6 +66,8 @@ export function AgencyStats() {
     if (!mounted) return
     const timer = setTimeout(() => {
       setDisplayStats(stats)
+      // Réinitialiser l'animation quand les stats changent
+      setAnimationKey(prev => prev + 1)
     }, 100)
     return () => clearTimeout(timer)
   }, [stats, mounted])
@@ -142,7 +145,7 @@ export function AgencyStats() {
   }
 
   return (
-    <div className="flex items-center gap-3 sm:gap-6">
+    <div className="flex items-center gap-2 sm:gap-3 md:gap-6 flex-wrap justify-center lg:justify-start w-full lg:w-auto min-w-0 max-w-full" key={animationKey}>
       <div className="flex items-center gap-2 agency-stat-item" style={{ animationDelay: '0ms' }}>
         <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 dark:text-green-400" />
         <span className="text-sm sm:text-base font-medium">

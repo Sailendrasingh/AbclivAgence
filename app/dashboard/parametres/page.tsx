@@ -576,7 +576,7 @@ function ParametresPageContent() {
   }
 
   return (
-      <div className="p-3 sm:p-6">
+      <div className="p-3 sm:p-6 w-full max-w-full min-w-0 overflow-x-hidden">
         <div className="flex justify-between items-center mb-4 sm:mb-6">
           <h1 className="text-xl sm:text-2xl font-bold">Paramètres</h1>
         </div>
@@ -589,7 +589,7 @@ function ParametresPageContent() {
           }} 
           className="w-full"
         >
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="hidden sm:grid w-full grid-cols-4">
             <TabsTrigger value="general" className="flex items-center gap-2">
               <Sliders className="h-4 w-4" />
               Général
@@ -764,7 +764,7 @@ function ParametresPageContent() {
 
           <TabsContent value="sauvegardes" className="mt-4">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4 sm:mb-6">
-              <h2 className="text-lg sm:text-xl font-semibold">Sauvegardes</h2>
+              <h2 className="text-lg sm:text-xl font-semibold break-words w-full sm:w-auto">Sauvegardes</h2>
               <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                 {backups.length > 0 && (
                   <Button
@@ -792,8 +792,8 @@ function ParametresPageContent() {
                 <CardContent className="pt-6">
                   <div className="text-center text-muted-foreground">
                     <HardDrive className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>Aucune sauvegarde disponible</p>
-                    <p className="text-sm mt-2">
+                    <p className="break-words">Aucune sauvegarde disponible</p>
+                    <p className="text-sm mt-2 break-words">
                       Cliquez sur &quot;Créer une sauvegarde&quot; pour créer votre première sauvegarde
                     </p>
                   </div>
@@ -815,9 +815,9 @@ function ParametresPageContent() {
                           <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
                             <HardDrive className="h-5 w-5 text-muted-foreground shrink-0" />
                             <div className="flex-1 min-w-0">
-                              <div className="font-medium truncate text-sm sm:text-base">{backup.filename}</div>
-                              <div className="text-xs sm:text-sm text-muted-foreground flex flex-wrap gap-1 sm:gap-0">
-                                <span>{new Date(backup.date).toLocaleString("fr-FR", {
+                              <div className="font-medium break-words text-sm sm:text-base">{backup.filename}</div>
+                              <div className="text-xs sm:text-sm text-muted-foreground flex flex-wrap gap-1 sm:gap-0 break-words">
+                                <span className="break-words">{new Date(backup.date).toLocaleString("fr-FR", {
                                   day: "2-digit",
                                   month: "2-digit",
                                   year: "numeric",
@@ -825,7 +825,7 @@ function ParametresPageContent() {
                                   minute: "2-digit",
                                 })}</span>
                                 <span className="hidden sm:inline"> • </span>
-                                <span>{backup.sizeFormatted}</span>
+                                <span className="break-words">{backup.sizeFormatted}</span>
                               </div>
                             </div>
                           </div>
@@ -852,16 +852,16 @@ function ParametresPageContent() {
                     <CardTitle>Informations</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2 text-sm text-muted-foreground">
-                    <p>
+                    <p className="break-words">
                       • Les sauvegardes sont créées automatiquement quotidiennement
                     </p>
-                    <p>
+                    <p className="break-words">
                       • Les sauvegardes de plus de 10 jours sont automatiquement supprimées
                     </p>
-                    <p>
+                    <p className="break-words">
                       • La restauration remplace complètement la base de données actuelle
                     </p>
-                    <p>
+                    <p className="break-words">
                       • Une sauvegarde de la base actuelle est créée avant chaque restauration
                     </p>
                   </CardContent>
@@ -906,12 +906,12 @@ function ParametresPageContent() {
                   logs.map((log) => (
                     <Card key={log.id}>
                       <CardContent className="p-4">
-                        <div className="font-semibold">{log.action}</div>
-                        <div className="text-sm text-muted-foreground">
+                        <div className="font-semibold break-words">{log.action}</div>
+                        <div className="text-sm text-muted-foreground break-words">
                           {new Date(log.createdAt).toLocaleString("fr-FR")} - {log.user?.login || "Anonyme"}
                         </div>
                         {log.details && (
-                          <div className="text-sm mt-2">{log.details}</div>
+                          <div className="text-sm mt-2 break-words">{log.details}</div>
                         )}
                       </CardContent>
                     </Card>
