@@ -246,7 +246,7 @@ export default function ProfilPage() {
                 id="login"
                 value={formData.login}
                 onChange={(e) =>
-                  setFormData({ ...formData, login: e.target.value })
+                  setFormData((prev) => ({ ...prev, login: e.target.value }))
                 }
                 disabled={!editing}
               />
@@ -261,7 +261,7 @@ export default function ProfilPage() {
                     type="password"
                     value={formData.password}
                     onChange={(e) =>
-                      setFormData({ ...formData, password: e.target.value })
+                      setFormData((prev) => ({ ...prev, password: e.target.value }))
                     }
                     placeholder="Laisser vide pour ne pas modifier"
                   />
@@ -274,10 +274,10 @@ export default function ProfilPage() {
                       type="password"
                       value={formData.confirmPassword}
                       onChange={(e) =>
-                        setFormData({
-                          ...formData,
+                        setFormData((prev) => ({
+                          ...prev,
                           confirmPassword: e.target.value,
-                        })
+                        }))
                       }
                     placeholder={formData.password ? "Confirmer le mot de passe" : "Laisser vide pour ne pas modifier"}
                     />

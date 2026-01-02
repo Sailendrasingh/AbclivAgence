@@ -1170,7 +1170,7 @@ function ParametresPageContent() {
                 <Input
                   value={userFormData.login}
                   onChange={(e) =>
-                    setUserFormData({ ...userFormData, login: e.target.value })
+                    setUserFormData((prev) => ({ ...prev, login: e.target.value }))
                   }
                   placeholder="Login"
                   required
@@ -1184,7 +1184,7 @@ function ParametresPageContent() {
                   type="password"
                   value={userFormData.password}
                   onChange={(e) =>
-                    setUserFormData({ ...userFormData, password: e.target.value })
+                    setUserFormData((prev) => ({ ...prev, password: e.target.value }))
                   }
                   placeholder="Mot de passe"
                   required={!selectedUser}
@@ -1195,7 +1195,7 @@ function ParametresPageContent() {
                 <Select
                   value={userFormData.role}
                   onValueChange={(value) =>
-                    setUserFormData({ ...userFormData, role: value })
+                    setUserFormData((prev) => ({ ...prev, role: value }))
                   }
                   disabled={selectedUser?.login === "Admin"}
                 >
@@ -1214,7 +1214,7 @@ function ParametresPageContent() {
                 <Switch
                   checked={userFormData.active}
                   onCheckedChange={(checked) =>
-                    setUserFormData({ ...userFormData, active: checked })
+                    setUserFormData((prev) => ({ ...prev, active: checked }))
                   }
                   disabled={selectedUser?.login === "Admin"}
                   title={selectedUser?.login === "Admin" ? "Le compte Admin ne peut pas être désactivé" : undefined}

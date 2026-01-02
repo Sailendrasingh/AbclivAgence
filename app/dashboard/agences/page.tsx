@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback, useMemo, startTransition } from "react"
+import React, { useState, useEffect, useRef, useCallback, useMemo, startTransition } from "react"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import {
@@ -582,7 +582,7 @@ export default function AgencesPage() {
     }
   }, [editing, fullAgencyData, latestTechnicalNotes])
 
-  const loadAgencyDetails = async (agencyId: string) => {
+  const loadAgencyDetails = useCallback(async (agencyId: string) => {
     // Ne pas réinitialiser fullAgencyData immédiatement pour garder l'ancien contenu visible
     setLoadingDetails(true)
     try {
@@ -663,7 +663,7 @@ export default function AgencesPage() {
     } finally {
       setLoadingDetails(false)
     }
-  }
+  }, [isMobile])
 
   const handleCreateAgency = async () => {
     if (!newAgencyName.trim()) {
@@ -840,17 +840,14 @@ export default function AgencesPage() {
     }
   }
 
-  const toggleState = () => {
-    if (editedState === "OK") {
-      setEditedState("ALERTE")
-    } else if (editedState === "ALERTE") {
-      setEditedState("INFO")
-    } else if (editedState === "INFO") {
-      setEditedState("FERMÉE")
-    } else {
-      setEditedState("OK")
-    }
-  }
+  const toggleState = useCallback(() => {
+    setEditedState((prev) => {
+      if (prev === "OK") return "ALERTE"
+      if (prev === "ALERTE") return "INFO"
+      if (prev === "INFO") return "FERMÉE"
+      return "OK"
+    })
+  }, [])
 
   const handleDeleteAgency = async (agencyId: string, agencyName: string) => {
     if (!confirm(`Êtes-vous sûr de vouloir supprimer l'agence "${agencyName}" ?`)) {
@@ -2013,6 +2010,35 @@ export default function AgencesPage() {
     }
   }
 
+  // Handlers mémorisés pour améliorer les performances
+  const handleOpenCreateDialog = useCallback(() => setIsCreateDialogOpen(true), [])
+  const handleClearSearch = useCallback(() => setSearch(""), [])
+  const handleSetFilterAll = useCallback(() => setFilter("ALL"), [])
+  const handleSetFilterOK = useCallback(() => setFilter("OK"), [])
+  const handleSetFilterINFO = useCallback(() => setFilter("INFO"), [])
+  const handleSetFilterALERTE = useCallback(() => setFilter("ALERTE"), [])
+  const handleSetFilterFERMEE = useCallback(() => setFilter("FERMÉE"), [])
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value), [])
+  
+  // Handler mémorisé pour la sélection d'agence
+  const handleSelectAgency = useCallback((agency: Agency) => {
+    startTransition(() => {
+      setSelectedAgency(agency)
+      setEditing(false)
+      setEditingTechnical(false)
+      setTechnicalData({})
+      setEditedCodeAgence("")
+      setEditedCodeRayon("")
+      setEditedDateOuverture("")
+      setEditedDateFermeture("")
+    })
+    // Sur mobile, afficher les détails (hors transition pour réactivité)
+    if (isMobile) {
+      setShowDetailsOnMobile(true)
+      loadAgencyDetails(agency.id)
+    }
+  }, [isMobile, loadAgencyDetails])
+
   return (
     <>
       <div ref={containerRef} className="flex h-full w-full max-w-full min-w-0 overflow-hidden">
@@ -2030,7 +2056,7 @@ export default function AgencesPage() {
             <h2 className="text-base sm:text-lg font-semibold truncate">Agences</h2>
             {(userRole === "Admin" || userRole === "Super Admin") && (
               <Button
-                onClick={() => setIsCreateDialogOpen(true)}
+                onClick={handleOpenCreateDialog}
                 size="sm"
                 className="gap-1 sm:gap-2 shrink-0"
               >
@@ -2045,13 +2071,13 @@ export default function AgencesPage() {
               type="text"
               placeholder="Rechercher..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={handleSearchChange}
                 className="w-full min-h-[44px] text-foreground pr-10"
               />
               {search && (
                 <button
                   type="button"
-                  onClick={() => setSearch("")}
+                  onClick={handleClearSearch}
                   className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-muted transition-colors min-h-[44px] flex items-center justify-center"
                   aria-label="Réinitialiser la recherche"
                 >
@@ -2061,7 +2087,7 @@ export default function AgencesPage() {
             </div>
             <div className="flex gap-1 sm:gap-2 overflow-x-auto pb-1 scrollbar-hide">
               <button
-                onClick={() => setFilter("ALL")}
+                onClick={handleSetFilterAll}
                 className={`px-3 sm:px-3 py-2 sm:py-1 text-sm sm:text-sm rounded whitespace-nowrap shrink-0 min-h-[44px] ${
                   filter === "ALL" ? "bg-primary text-primary-foreground" : "bg-muted"
                 }`}
@@ -2069,7 +2095,7 @@ export default function AgencesPage() {
                 Tous
               </button>
               <button
-                onClick={() => setFilter("OK")}
+                onClick={handleSetFilterOK}
                 className={`px-3 sm:px-3 py-2 sm:py-1 text-sm sm:text-sm rounded whitespace-nowrap shrink-0 min-h-[44px] ${
                   filter === "OK" ? "bg-primary text-primary-foreground" : "bg-muted"
                 }`}
@@ -2077,7 +2103,7 @@ export default function AgencesPage() {
                 OK
               </button>
               <button
-                onClick={() => setFilter("INFO")}
+                onClick={handleSetFilterINFO}
                 className={`px-3 sm:px-3 py-2 sm:py-1 text-sm sm:text-sm rounded whitespace-nowrap shrink-0 min-h-[44px] ${
                   filter === "INFO"
                     ? "bg-primary text-primary-foreground"
@@ -2087,7 +2113,7 @@ export default function AgencesPage() {
                 INFO
               </button>
               <button
-                onClick={() => setFilter("ALERTE")}
+                onClick={handleSetFilterALERTE}
                 className={`px-3 sm:px-3 py-2 sm:py-1 text-sm sm:text-sm rounded whitespace-nowrap shrink-0 min-h-[44px] ${
                   filter === "ALERTE"
                     ? "bg-primary text-primary-foreground"
@@ -2097,7 +2123,7 @@ export default function AgencesPage() {
                 ALERTE
               </button>
               <button
-                onClick={() => setFilter("FERMÉE")}
+                onClick={handleSetFilterFERMEE}
                 className={`px-3 sm:px-3 py-2 sm:py-1 text-sm sm:text-sm rounded whitespace-nowrap shrink-0 min-h-[44px] ${
                   filter === "FERMÉE"
                     ? "bg-primary text-primary-foreground"
@@ -2132,24 +2158,7 @@ export default function AgencesPage() {
                 >
                   <div className="flex items-center justify-between gap-1 sm:gap-2">
                   <div
-                    onClick={() => {
-                      // Utiliser startTransition pour rendre les mises à jour non-bloquantes et plus fluides
-                      startTransition(() => {
-                      setSelectedAgency(agency)
-                        setEditing(false)
-                      setEditingTechnical(false)
-                      setTechnicalData({})
-                      setEditedCodeAgence("")
-                      setEditedCodeRayon("")
-                      setEditedDateOuverture("")
-                      setEditedDateFermeture("")
-                      })
-                      // Sur mobile, afficher les détails (hors transition pour réactivité)
-                      if (isMobile) {
-                        setShowDetailsOnMobile(true)
-                        loadAgencyDetails(agency.id)
-                      }
-                    }}
+                    onClick={() => handleSelectAgency(agency)}
                     className="cursor-pointer flex-1 min-w-0"
                   >
                       <div className="font-semibold text-base sm:text-base truncate">{agency.name}</div>
@@ -3227,14 +3236,10 @@ export default function AgencesPage() {
                     <Card>
                       <CardHeader>
                         <CardTitle className="flex items-center gap-2">
-                          <Image 
+                          <img 
                             src="/machineAffranchir.png" 
                             alt="Machine à affranchir" 
-                            width={100}
-                            height={100}
-                            className="max-w-[100px] max-h-[100px] object-contain"
-                            style={{ width: "auto", height: "auto" }}
-                            unoptimized
+                            className="max-w-[100px] max-h-[100px] object-contain w-auto h-auto"
                           />
                         </CardTitle>
                       </CardHeader>
@@ -5262,7 +5267,7 @@ function PCDialogForm({
         <Label>Nom *</Label>
         <Input
           value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
           required
         />
       </div>
@@ -5271,35 +5276,35 @@ function PCDialogForm({
           <Label>IP</Label>
           <Input
             value={formData.ip}
-            onChange={(e) => setFormData({ ...formData, ip: e.target.value })}
+            onChange={(e) => setFormData((prev) => ({ ...prev, ip: e.target.value }))}
           />
         </div>
         <div className="space-y-2">
           <Label>MAC</Label>
           <Input
             value={formData.mac}
-            onChange={(e) => setFormData({ ...formData, mac: e.target.value })}
+            onChange={(e) => setFormData((prev) => ({ ...prev, mac: e.target.value }))}
           />
         </div>
         <div className="space-y-2">
           <Label>N° série</Label>
           <Input
             value={formData.serialNumber}
-            onChange={(e) => setFormData({ ...formData, serialNumber: e.target.value })}
+            onChange={(e) => setFormData((prev) => ({ ...prev, serialNumber: e.target.value }))}
           />
         </div>
         <div className="space-y-2">
           <Label>Marque</Label>
           <Input
             value={formData.brand}
-            onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+            onChange={(e) => setFormData((prev) => ({ ...prev, brand: e.target.value }))}
           />
         </div>
         <div className="space-y-2">
           <Label>Modèle</Label>
           <Input
             value={formData.model}
-            onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+            onChange={(e) => setFormData((prev) => ({ ...prev, model: e.target.value }))}
           />
         </div>
         <div className="space-y-2">
@@ -5307,7 +5312,7 @@ function PCDialogForm({
           <Input
             type="date"
             value={formData.purchaseDate}
-            onChange={(e) => setFormData({ ...formData, purchaseDate: e.target.value })}
+            onChange={(e) => setFormData((prev) => ({ ...prev, purchaseDate: e.target.value }))}
           />
         </div>
         <div className="space-y-2">
@@ -5315,7 +5320,7 @@ function PCDialogForm({
           <Input
             type="date"
             value={formData.warrantyDate}
-            onChange={(e) => setFormData({ ...formData, warrantyDate: e.target.value })}
+            onChange={(e) => setFormData((prev) => ({ ...prev, warrantyDate: e.target.value }))}
           />
         </div>
       </div>
@@ -5357,7 +5362,7 @@ function PrinterDialogForm({
         <Label>Nom *</Label>
         <Input
           value={formData.name}
-          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
           required
         />
       </div>
@@ -5366,35 +5371,35 @@ function PrinterDialogForm({
           <Label>IP</Label>
           <Input
             value={formData.ip}
-            onChange={(e) => setFormData({ ...formData, ip: e.target.value })}
+            onChange={(e) => setFormData((prev) => ({ ...prev, ip: e.target.value }))}
           />
         </div>
         <div className="space-y-2">
           <Label>MAC</Label>
           <Input
             value={formData.mac}
-            onChange={(e) => setFormData({ ...formData, mac: e.target.value })}
+            onChange={(e) => setFormData((prev) => ({ ...prev, mac: e.target.value }))}
           />
         </div>
         <div className="space-y-2">
           <Label>N° série</Label>
           <Input
             value={formData.serialNumber}
-            onChange={(e) => setFormData({ ...formData, serialNumber: e.target.value })}
+            onChange={(e) => setFormData((prev) => ({ ...prev, serialNumber: e.target.value }))}
           />
         </div>
         <div className="space-y-2">
           <Label>Marque</Label>
           <Input
             value={formData.brand}
-            onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+            onChange={(e) => setFormData((prev) => ({ ...prev, brand: e.target.value }))}
           />
         </div>
         <div className="space-y-2">
           <Label>Modèle</Label>
           <Input
             value={formData.model}
-            onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+            onChange={(e) => setFormData((prev) => ({ ...prev, model: e.target.value }))}
           />
         </div>
         <div className="space-y-2">
@@ -5402,7 +5407,7 @@ function PrinterDialogForm({
           <Input
             type="date"
             value={formData.purchaseDate}
-            onChange={(e) => setFormData({ ...formData, purchaseDate: e.target.value })}
+            onChange={(e) => setFormData((prev) => ({ ...prev, purchaseDate: e.target.value }))}
           />
         </div>
         <div className="space-y-2">
@@ -5410,7 +5415,7 @@ function PrinterDialogForm({
           <Input
             type="date"
             value={formData.warrantyDate}
-            onChange={(e) => setFormData({ ...formData, warrantyDate: e.target.value })}
+            onChange={(e) => setFormData((prev) => ({ ...prev, warrantyDate: e.target.value }))}
           />
         </div>
       </div>
@@ -5453,35 +5458,35 @@ function WifiAPDialogForm({
           <Label>Marque</Label>
           <Input
             value={formData.brand}
-            onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+            onChange={(e) => setFormData((prev) => ({ ...prev, brand: e.target.value }))}
           />
         </div>
         <div className="space-y-2">
           <Label>Modèle</Label>
           <Input
             value={formData.model}
-            onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+            onChange={(e) => setFormData((prev) => ({ ...prev, model: e.target.value }))}
           />
         </div>
         <div className="space-y-2">
           <Label>IP</Label>
           <Input
             value={formData.ip}
-            onChange={(e) => setFormData({ ...formData, ip: e.target.value })}
+            onChange={(e) => setFormData((prev) => ({ ...prev, ip: e.target.value }))}
           />
         </div>
         <div className="space-y-2">
           <Label>N° série</Label>
           <Input
             value={formData.serialNumber}
-            onChange={(e) => setFormData({ ...formData, serialNumber: e.target.value })}
+            onChange={(e) => setFormData((prev) => ({ ...prev, serialNumber: e.target.value }))}
           />
         </div>
         <div className="space-y-2">
           <Label>Nom SSID</Label>
           <Input
             value={formData.ssid}
-            onChange={(e) => setFormData({ ...formData, ssid: e.target.value })}
+            onChange={(e) => setFormData((prev) => ({ ...prev, ssid: e.target.value }))}
           />
         </div>
         <div className="space-y-2">
@@ -5489,7 +5494,7 @@ function WifiAPDialogForm({
           <Input
             type="password"
             value={formData.password}
-            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+            onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
             placeholder={wifiAP ? "Laisser vide pour ne pas modifier" : ""}
           />
         </div>
@@ -5529,28 +5534,28 @@ function CameraDialogForm({
           <Label>Marque</Label>
           <Input
             value={formData.brand}
-            onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+            onChange={(e) => setFormData((prev) => ({ ...prev, brand: e.target.value }))}
           />
         </div>
         <div className="space-y-2">
           <Label>Modèle</Label>
           <Input
             value={formData.model}
-            onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+            onChange={(e) => setFormData((prev) => ({ ...prev, model: e.target.value }))}
           />
         </div>
         <div className="space-y-2">
           <Label>Type</Label>
           <Input
             value={formData.type}
-            onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+            onChange={(e) => setFormData((prev) => ({ ...prev, type: e.target.value }))}
           />
         </div>
         <div className="space-y-2">
           <Label>IP (si applicable)</Label>
           <Input
             value={formData.ip}
-            onChange={(e) => setFormData({ ...formData, ip: e.target.value })}
+            onChange={(e) => setFormData((prev) => ({ ...prev, ip: e.target.value }))}
           />
         </div>
       </div>
@@ -5589,7 +5594,7 @@ function DynamicFieldDialogForm({
         <Label>Clé *</Label>
         <Input
           value={formData.key}
-          onChange={(e) => setFormData({ ...formData, key: e.target.value })}
+          onChange={(e) => setFormData((prev) => ({ ...prev, key: e.target.value }))}
           required
         />
       </div>
@@ -5597,7 +5602,7 @@ function DynamicFieldDialogForm({
         <Label>Valeur *</Label>
         <Input
           value={formData.value}
-          onChange={(e) => setFormData({ ...formData, value: e.target.value })}
+          onChange={(e) => setFormData((prev) => ({ ...prev, value: e.target.value }))}
           required
         />
       </div>
@@ -5606,7 +5611,7 @@ function DynamicFieldDialogForm({
         <Input
           type="number"
           value={formData.order}
-          onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) || 0 })}
+          onChange={(e) => setFormData((prev) => ({ ...prev, order: parseInt(e.target.value) || 0 }))}
         />
       </div>
       <DialogFooter>

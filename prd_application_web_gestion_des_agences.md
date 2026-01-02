@@ -46,14 +46,15 @@ Aucune autre finalité.
 
 ## 3. Stack technique (verrouillée)
 
-* Framework : **Next.js – App Router**
+* Framework : **Next.js 16.1.1 – App Router**
 * Langage : **TypeScript obligatoire**
+* React : **19.2.3**
 * UI : **shadcn/ui**
 
   * Thème clair et sombre fournis par shadcn/ui
 * CSS : Tailwind CSS
 * Base de données : SQLite
-* ORM : **Prisma (obligatoire)**
+* ORM : **Prisma 5.22.0 (obligatoire)**
 * API externe autorisée : **BAN uniquement**
 
 Aucune autre technologie n'est autorisée.
@@ -1175,6 +1176,42 @@ L'application doit être conforme aux standards de sécurité OWASP Top 10 2021.
     * Utilisation de `window.addEventListener('agencyStatsRefresh', handleRefresh)` dans le composant `AgencyStats`
     * Utilisation de `window.dispatchEvent(new CustomEvent('agencyStatsRefresh'))` après chaque action CRUD
     * Nettoyage de l'écouteur lors du démontage du composant
+
+---
+
+## 17. Optimisations de performance React
+
+### 17.1 Mémorisation des composants
+
+* **Composants mémorisés** :
+  * **Button** : Utilisation de `React.memo` pour éviter les re-renders inutiles
+  * **Input** : Utilisation de `React.memo` et `useMemo` pour mémoriser le className calculé
+* **Bénéfices** : Réduction significative des re-renders et amélioration de la réactivité de l'interface
+
+### 17.2 Optimisation des handlers
+
+* **Handlers mémorisés avec `useCallback`** :
+  * Tous les handlers de clic (boutons, filtres, sélection d'agence) sont mémorisés avec `useCallback`
+  * Handlers de recherche et de filtres mémorisés pour éviter les re-créations à chaque render
+* **Handlers `onChange` optimisés** :
+  * Utilisation de la forme fonctionnelle de `setState` : `setState((prev) => ({ ...prev, field: value }))`
+  * Évite les dépendances dans les closures et améliore les performances lors de la saisie
+* **Bénéfices** : Réduction de la latence lors de la saisie et des clics sur les boutons
+
+### 17.3 Optimisation des polices
+
+* **Configuration des polices Google** :
+  * Désactivation du préchargement automatique (`preload: false`) pour éviter les warnings du navigateur
+  * Utilisation de `display: 'swap'` pour améliorer les performances de chargement
+* **Bénéfices** : Suppression des warnings de console et amélioration du temps de chargement initial
+
+### 17.4 Optimisation des images
+
+* **Gestion des images statiques** :
+  * Utilisation de balises `<img>` standard pour les icônes statiques au lieu de `next/image`
+  * Classes Tailwind `w-auto h-auto` pour maintenir le ratio d'aspect
+  * Contraintes `max-w` et `max-h` pour limiter la taille sans affecter le ratio
+* **Bénéfices** : Suppression des warnings de console concernant les ratios d'aspect et meilleure flexibilité CSS
 
 ---
 

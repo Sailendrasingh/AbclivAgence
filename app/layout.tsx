@@ -2,7 +2,11 @@ import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
 
-const inter = Inter({ subsets: ["latin"] })
+const inter = Inter({ 
+  subsets: ["latin"],
+  preload: false, // Désactiver le préchargement pour éviter les warnings
+  display: 'swap', // Améliorer les performances de chargement
+})
 
 export const metadata: Metadata = {
   title: "Gestion des Agences",
