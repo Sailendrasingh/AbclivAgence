@@ -14,6 +14,19 @@ export async function PUT(
   }
 
   try {
+    // Vérifier si l'utilisateur est Admin avant toute modification
+    const existingUser = await prisma.user.findUnique({
+      where: { id: params.id },
+      select: { login: true },
+    })
+
+    if (existingUser?.login === "Admin") {
+      return NextResponse.json(
+        { error: "Le compte Admin ne peut pas être modifié" },
+        { status: 403 }
+      )
+    }
+
     const body = await request.json()
     const { login, password, role, active } = body
 
@@ -57,6 +70,19 @@ export async function DELETE(
   }
 
   try {
+    // Vérifier si l'utilisateur est Admin avant suppression
+    const existingUser = await prisma.user.findUnique({
+      where: { id: params.id },
+      select: { login: true },
+    })
+
+    if (existingUser?.login === "Admin") {
+      return NextResponse.json(
+        { error: "Le compte Admin ne peut pas être supprimé" },
+        { status: 403 }
+      )
+    }
+
     await prisma.user.delete({
       where: { id: params.id },
     })

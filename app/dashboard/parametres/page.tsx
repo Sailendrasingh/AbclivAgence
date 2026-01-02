@@ -340,6 +340,12 @@ function ParametresPageContent() {
   }
 
   const handleDeleteUser = async (userId: string, userLogin: string) => {
+    // Empêcher la suppression du compte Admin
+    if (userLogin === "Admin") {
+      alert("Le compte Admin ne peut pas être supprimé")
+      return
+    }
+
     if (!confirm(`Êtes-vous sûr de vouloir supprimer l'utilisateur "${userLogin}" ?`)) {
       return
     }
@@ -362,6 +368,12 @@ function ParametresPageContent() {
   }
 
   const handleToggleActive = async (user: any) => {
+    // Empêcher la désactivation du compte Admin
+    if (user.login === "Admin") {
+      alert("Le compte Admin ne peut pas être désactivé")
+      return
+    }
+
     try {
       const response = await fetch(`/api/users/${user.id}`, {
         method: "PUT",
@@ -391,6 +403,12 @@ function ParametresPageContent() {
       return
     }
 
+    // Empêcher la modification du login du compte Admin
+    if (selectedUser && selectedUser.login === "Admin" && userFormData.login !== "Admin") {
+      alert("Le login du compte Admin ne peut pas être modifié")
+      return
+    }
+
     if (!selectedUser && !userFormData.password) {
       alert("Le mot de passe est requis pour un nouvel utilisateur")
       return
@@ -399,6 +417,37 @@ function ParametresPageContent() {
     try {
       const url = selectedUser ? `/api/users/${selectedUser.id}` : "/api/users"
       const method = selectedUser ? "PUT" : "POST"
+
+      // Empêcher la modification du rôle et de l'état actif du compte Admin
+      if (selectedUser && selectedUser.login === "Admin") {
+        // Pour le compte Admin, on ne peut modifier que le mot de passe
+        const body: any = {}
+        if (userFormData.password) {
+          body.password = userFormData.password
+        }
+        
+        const response = await fetch(`/api/users/${selectedUser.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        })
+
+        if (response.ok) {
+          await loadUsers()
+          setIsUserDialogOpen(false)
+          setSelectedUser(null)
+          setUserFormData({
+            login: "",
+            password: "",
+            role: "User",
+            active: true,
+          })
+        } else {
+          const error = await response.json()
+          alert(error.error || "Erreur lors de la sauvegarde")
+        }
+        return
+      }
 
       const body: any = {
         login: userFormData.login,
@@ -706,7 +755,9 @@ function ParametresPageContent() {
                               variant="outline"
                               size="sm"
                               onClick={() => handleToggleActive(user)}
+                              disabled={user.login === "Admin"}
                               className="gap-2 flex-1 sm:flex-initial min-h-[44px]"
+                              title={user.login === "Admin" ? "Le compte Admin ne peut pas être désactivé" : undefined}
                             >
                               {user.active ? (
                                 <>
@@ -746,7 +797,9 @@ function ParametresPageContent() {
                               variant="destructive"
                               size="sm"
                               onClick={() => handleDeleteUser(user.id, user.login)}
+                              disabled={user.login === "Admin"}
                               className="gap-2 flex-1 sm:flex-initial min-h-[44px]"
+                              title={user.login === "Admin" ? "Le compte Admin ne peut pas être supprimé" : undefined}
                             >
                               <Trash2 className="h-4 w-4" />
                               <span className="hidden sm:inline">Supprimer</span>
@@ -1121,6 +1174,8 @@ function ParametresPageContent() {
                   }
                   placeholder="Login"
                   required
+                  disabled={selectedUser?.login === "Admin"}
+                  title={selectedUser?.login === "Admin" ? "Le login du compte Admin ne peut pas être modifié" : undefined}
                 />
               </div>
               <div className="space-y-2">
@@ -1142,6 +1197,7 @@ function ParametresPageContent() {
                   onValueChange={(value) =>
                     setUserFormData({ ...userFormData, role: value })
                   }
+                  disabled={selectedUser?.login === "Admin"}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -1160,6 +1216,8 @@ function ParametresPageContent() {
                   onCheckedChange={(checked) =>
                     setUserFormData({ ...userFormData, active: checked })
                   }
+                  disabled={selectedUser?.login === "Admin"}
+                  title={selectedUser?.login === "Admin" ? "Le compte Admin ne peut pas être désactivé" : undefined}
                 />
               </div>
             </div>

@@ -743,6 +743,54 @@ Aucun autre type autorisé.
   * Activation/désactivation du 2FA
 * **Affichage** : Liste des utilisateurs avec login, rôle, statut actif et état 2FA
 
+### 11.2.1 Protection du compte Admin
+
+* **Compte Admin protégé** : Le compte avec le login "Admin" (identifié par `login === "Admin"`) bénéficie de protections spéciales pour garantir la sécurité et la disponibilité du système
+* **Protections côté serveur** :
+  * **API PUT `/api/users/[id]`** : Empêche toute modification du compte Admin (désactivation, changement de rôle, changement de login)
+    * Vérification avant modification : Si l'utilisateur cible a le login "Admin", l'API retourne une erreur 403 avec le message "Le compte Admin ne peut pas être modifié"
+    * **Exception** : Seul le mot de passe peut être modifié pour le compte Admin
+  * **API DELETE `/api/users/[id]`** : Empêche la suppression du compte Admin
+    * Vérification avant suppression : Si l'utilisateur cible a le login "Admin", l'API retourne une erreur 403 avec le message "Le compte Admin ne peut pas être supprimé"
+* **Protections côté client** :
+  * **Bouton "Désactiver/Activer"** : Désactivé visuellement pour le compte Admin avec un tooltip explicatif "Le compte Admin ne peut pas être désactivé"
+  * **Bouton "Supprimer"** : Désactivé visuellement pour le compte Admin avec un tooltip explicatif "Le compte Admin ne peut pas être supprimé"
+  * **Formulaire d'édition** :
+    * **Champ "Login"** : Désactivé et non modifiable pour le compte Admin avec un tooltip "Le login du compte Admin ne peut pas être modifié"
+    * **Champ "Rôle"** : Désactivé et non modifiable pour le compte Admin
+    * **Switch "Actif"** : Désactivé et non modifiable pour le compte Admin avec un tooltip "Le compte Admin ne peut pas être désactivé"
+    * **Champ "Mot de passe"** : Reste modifiable (seul champ modifiable pour le compte Admin)
+  * **Fonction `handleToggleActive`** : Vérification préalable empêchant la désactivation avec un message d'alerte "Le compte Admin ne peut pas être désactivé"
+  * **Fonction `handleDeleteUser`** : Vérification préalable empêchant la suppression avec un message d'alerte "Le compte Admin ne peut pas être supprimé"
+  * **Fonction `handleSaveUser`** :
+    * Empêche la modification du login du compte Admin (vérification `selectedUser.login === "Admin" && userFormData.login !== "Admin"`)
+    * Pour le compte Admin, seule la modification du mot de passe est autorisée (les autres champs sont ignorés dans la requête API)
+* **Justification** : Ces protections garantissent qu'un compte administrateur principal reste toujours disponible pour la gestion du système, même en cas d'erreur ou de tentative malveillante
+
+### 11.2.2 Mon profil
+
+* **Compte Admin protégé** : Le compte avec le login "Admin" (identifié par `login === "Admin"`) bénéficie de protections spéciales pour garantir la sécurité et la disponibilité du système
+* **Protections côté serveur** :
+  * **API PUT `/api/users/[id]`** : Empêche toute modification du compte Admin (désactivation, changement de rôle, changement de login)
+    * Vérification avant modification : Si l'utilisateur cible a le login "Admin", l'API retourne une erreur 403 avec le message "Le compte Admin ne peut pas être modifié"
+    * **Exception** : Seul le mot de passe peut être modifié pour le compte Admin
+  * **API DELETE `/api/users/[id]`** : Empêche la suppression du compte Admin
+    * Vérification avant suppression : Si l'utilisateur cible a le login "Admin", l'API retourne une erreur 403 avec le message "Le compte Admin ne peut pas être supprimé"
+* **Protections côté client** :
+  * **Bouton "Désactiver/Activer"** : Désactivé visuellement pour le compte Admin avec un tooltip explicatif "Le compte Admin ne peut pas être désactivé"
+  * **Bouton "Supprimer"** : Désactivé visuellement pour le compte Admin avec un tooltip explicatif "Le compte Admin ne peut pas être supprimé"
+  * **Formulaire d'édition** :
+    * **Champ "Login"** : Désactivé et non modifiable pour le compte Admin avec un tooltip "Le login du compte Admin ne peut pas être modifié"
+    * **Champ "Rôle"** : Désactivé et non modifiable pour le compte Admin
+    * **Switch "Actif"** : Désactivé et non modifiable pour le compte Admin avec un tooltip "Le compte Admin ne peut pas être désactivé"
+    * **Champ "Mot de passe"** : Reste modifiable (seul champ modifiable pour le compte Admin)
+  * **Fonction `handleToggleActive`** : Vérification préalable empêchant la désactivation avec un message d'alerte "Le compte Admin ne peut pas être désactivé"
+  * **Fonction `handleDeleteUser`** : Vérification préalable empêchant la suppression avec un message d'alerte "Le compte Admin ne peut pas être supprimé"
+  * **Fonction `handleSaveUser`** :
+    * Empêche la modification du login du compte Admin (vérification `selectedUser.login === "Admin" && userFormData.login !== "Admin"`)
+    * Pour le compte Admin, seule la modification du mot de passe est autorisée (les autres champs sont ignorés dans la requête API)
+* **Justification** : Ces protections garantissent qu'un compte administrateur principal reste toujours disponible pour la gestion du système, même en cas d'erreur ou de tentative malveillante
+
 ### 11.2.1 Mon profil
 
 * **Page dédiée** : `/dashboard/profil` accessible depuis le bouton "Mon profil" dans la barre latérale
