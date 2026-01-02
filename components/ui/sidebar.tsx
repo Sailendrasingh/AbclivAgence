@@ -80,9 +80,25 @@ function SidebarContent() {
   }, []) // Dépendances vides = exécution unique au montage
 
   const handleLogout = useCallback(async () => {
-    await fetch("/api/auth/logout", { method: "POST" })
-    router.push("/login")
-    router.refresh()
+    try {
+      // Utiliser apiFetch pour envoyer le token CSRF si disponible
+      const { apiFetch } = await import("@/lib/api-client")
+      const { resetCSRF } = await import("@/lib/api-client")
+      
+      await apiFetch("/api/auth/logout", {
+        method: "POST",
+      })
+      
+      // Réinitialiser le token CSRF côté client
+      resetCSRF()
+    } catch (error) {
+      // Même en cas d'erreur, on continue la déconnexion
+      console.error("Error during logout:", error)
+    } finally {
+      // Toujours rediriger vers la page de login
+      router.push("/login")
+      router.refresh()
+    }
   }, [router])
 
   // Mémoriser menuItems pour éviter les recalculs

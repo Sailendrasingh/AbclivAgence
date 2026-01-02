@@ -4,6 +4,7 @@ import { join } from "path"
 import { getSession } from "@/lib/session"
 import { createLog } from "@/lib/logs"
 import exifr from "exifr"
+import { requireCSRF } from "@/lib/csrf-middleware"
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5 MB
 const ALLOWED_TYPES = ["image/jpeg", "image/png"]
@@ -34,7 +35,32 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // Pour FormData, on doit parser le FormData d'abord pour extraire le token CSRF
+    // car request.formData() ne peut être appelé qu'une seule fois
     const formData = await request.formData()
+    const csrfTokenFromForm = formData.get("_csrf")
+    const csrfTokenFromHeader = request.headers.get("x-csrf-token")
+    const csrfToken = (csrfTokenFromForm && typeof csrfTokenFromForm === "string" ? csrfTokenFromForm : null) || csrfTokenFromHeader
+    
+    console.log("[UPLOAD] CSRF Token from FormData:", csrfTokenFromForm ? "présent" : "absent")
+    console.log("[UPLOAD] CSRF Token from Header:", csrfTokenFromHeader ? "présent" : "absent")
+    console.log("[UPLOAD] CSRF Token final:", csrfToken ? "présent" : "absent")
+    
+    // Valider le token CSRF
+    const { verifyCSRFToken } = await import("@/lib/csrf")
+    const isValid = await verifyCSRFToken(csrfToken)
+    
+    console.log("[UPLOAD] CSRF Token validation:", isValid ? "valide" : "invalide")
+    
+    if (!isValid) {
+      return NextResponse.json(
+        { error: "Token CSRF invalide ou manquant" },
+        { status: 403 }
+      )
+    }
+    
+    // Retirer le token CSRF du FormData (il a été utilisé pour la validation)
+    formData.delete("_csrf")
     const file = formData.get("file") as File
 
     if (!file) {

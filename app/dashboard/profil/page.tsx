@@ -57,11 +57,16 @@ export default function ProfilPage() {
 
     const fetchUserData = async () => {
       try {
-        const response = await fetch("/api/auth/me")
+        const response = await apiFetch("/api/auth/me")
         if (response.ok) {
           const data = await response.json()
           setUserData(data)
           setFormData((prev) => ({ ...prev, login: data.login }))
+          
+          // Stocker le token CSRF si disponible
+          if (data.csrfToken) {
+            setCSRFToken(data.csrfToken)
+          }
         }
       } catch (error) {
         console.error("Error fetching user data:", error)
@@ -83,9 +88,8 @@ export default function ProfilPage() {
         updateData.password = formData.password
       }
 
-      const response = await fetch(`/api/auth/profile`, {
+      const response = await apiFetch(`/api/auth/profile`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updateData),
       })
 
@@ -109,7 +113,7 @@ export default function ProfilPage() {
     if (!userData?.id) return
 
     try {
-      const response = await fetch(`/api/users/${userData.id}/2fa`, {
+      const response = await apiFetch(`/api/users/${userData.id}/2fa`, {
         method: "POST",
       })
 
@@ -137,9 +141,8 @@ export default function ProfilPage() {
 
     try {
       // Vérifier le token
-      const verifyResponse = await fetch("/api/auth/verify-2fa", {
+      const verifyResponse = await apiFetch("/api/auth/verify-2fa", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: userData.id,
           token: twoFactorToken,
@@ -152,9 +155,8 @@ export default function ProfilPage() {
       }
 
       // Activer le 2FA
-      const response = await fetch(`/api/users/${userData.id}/2fa`, {
+      const response = await apiFetch(`/api/users/${userData.id}/2fa`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ enabled: true }),
       })
 
@@ -182,9 +184,8 @@ export default function ProfilPage() {
     }
 
     try {
-      const response = await fetch(`/api/users/${userData.id}/2fa`, {
+      const response = await apiFetch(`/api/users/${userData.id}/2fa`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ enabled: false }),
       })
 

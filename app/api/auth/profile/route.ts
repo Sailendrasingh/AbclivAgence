@@ -38,6 +38,12 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  // Vérifier le token CSRF
+  const csrfError = await requireCSRF(request)
+  if (csrfError) {
+    return csrfError
+  }
+
   const session = await getSession()
 
   if (!session) {

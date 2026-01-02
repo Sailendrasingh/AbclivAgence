@@ -3,11 +3,18 @@ import { prisma } from "@/lib/prisma"
 import { getSession } from "@/lib/session"
 import { createLog } from "@/lib/logs"
 import { hashPassword } from "@/lib/auth"
+import { requireCSRF } from "@/lib/csrf-middleware"
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  // Vérifier le token CSRF
+  const csrfError = await requireCSRF(request)
+  if (csrfError) {
+    return csrfError
+  }
+
   const session = await getSession()
   if (!session || session.role !== "Super Admin") {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
@@ -64,6 +71,12 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  // Vérifier le token CSRF
+  const csrfError = await requireCSRF(request)
+  if (csrfError) {
+    return csrfError
+  }
+
   const session = await getSession()
   if (!session || session.role !== "Super Admin") {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })

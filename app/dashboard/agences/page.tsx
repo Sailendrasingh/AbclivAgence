@@ -23,9 +23,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Plus, Save, MapPin, Mail, Phone, User, Settings, Camera, Edit, Trash2, X, ChevronLeft, ChevronRight, Eye, EyeOff, Clock, ChevronUp, ChevronDown, ArrowLeft, GripVertical } from "lucide-react"
+import { Plus, Save, MapPin, Mail, Phone, User, Settings, Camera, Edit, Trash2, X, ChevronLeft, ChevronRight, Eye, EyeOff, Clock, ChevronUp, ChevronDown, ArrowLeft, GripVertical, FileText } from "lucide-react"
 import { Search } from "lucide-react"
 import { AddressSearch } from "@/components/address-search"
+import { apiFetch } from "@/lib/api-client"
+import { fetchCSRFToken, setCSRFToken } from "@/lib/csrf-client"
 
 interface Agency {
   id: string
@@ -338,26 +340,35 @@ export default function AgencesPage() {
     selectedAgencyRef.current = selectedAgency
   }, [selectedAgency])
 
-  // Récupération du rôle utilisateur
+  // Récupération du rôle utilisateur et du token CSRF (prioritaire)
   useEffect(() => {
     if (!isMounted) return
 
     const fetchUserRole = async () => {
       try {
-        const response = await fetch("/api/auth/me", {
-          credentials: 'include'
-        })
+        // Récupérer le token CSRF en premier pour éviter les erreurs 403
+        const response = await apiFetch("/api/auth/me")
         if (response.ok) {
           const data = await response.json()
           setUserRole(data.role)
+          
+          // Stocker le token CSRF si disponible (prioritaire)
+          if (data.csrfToken) {
+            setCSRFToken(data.csrfToken)
+            console.log("[AGENCES] Token CSRF récupéré et stocké")
+          } else {
+            console.warn("[AGENCES] Aucun token CSRF reçu de /api/auth/me")
+          }
         }
       } catch (error) {
         console.error("Error fetching user role:", error)
       }
     }
 
-    fetchUserRole()
-    loadAgencies()
+    // Exécuter fetchUserRole en premier, puis loadAgencies
+    fetchUserRole().then(() => {
+      loadAgencies()
+    })
   }, [loadAgencies, isMounted])
 
   // Marquer le composant comme monté et charger masterWidth depuis localStorage
@@ -661,9 +672,8 @@ export default function AgencesPage() {
 
     setCreating(true)
     try {
-      const response = await fetch("/api/agencies", {
+      const response = await apiFetch("/api/agencies", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: newAgencyName,
           state: "ALERTE",
@@ -709,15 +719,21 @@ export default function AgencesPage() {
         validatedAt: new Date().toISOString(),
       }
 
-      const response = await fetch(`/api/agencies/${selectedAgency.id}`, {
+      const response = await apiFetch(`/api/agencies/${selectedAgency.id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(bodyData),
       })
 
       if (!response.ok) {
-        const error = await response.json()
-        alert(error.error || "Erreur lors de la sauvegarde de l'agence")
+        let errorMessage = "Erreur lors de la sauvegarde de l'agence"
+        try {
+          const error = await response.json()
+          errorMessage = error.error || errorMessage
+        } catch {
+          // Si la réponse n'est pas du JSON valide, utiliser le message par défaut
+          errorMessage = `Erreur serveur (${response.status})`
+        }
+        alert(errorMessage)
         return
       }
 
@@ -842,7 +858,7 @@ export default function AgencesPage() {
     }
 
     try {
-      const response = await fetch(`/api/agencies/${agencyId}`, {
+      const response = await apiFetch(`/api/agencies/${agencyId}`, {
         method: "DELETE",
       })
 
@@ -1000,7 +1016,7 @@ export default function AgencesPage() {
     if (!confirm("Êtes-vous sûr de vouloir supprimer cette adresse ?")) return
 
     try {
-      const response = await fetch(`/api/addresses/${addressId}`, {
+      const response = await apiFetch(`/api/addresses/${addressId}`, {
         method: "DELETE",
       })
 
@@ -1084,9 +1100,8 @@ export default function AgencesPage() {
         : "/api/addresses"
       const method = selectedAddress ? "PUT" : "POST"
 
-      const response = await fetch(url, {
+      const response = await apiFetch(url, {
         method,
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(addressData),
       })
 
@@ -1140,7 +1155,7 @@ export default function AgencesPage() {
     if (!confirm("Êtes-vous sûr de vouloir supprimer ce contact ?")) return
 
     try {
-      const response = await fetch(`/api/contacts/${contactId}`, {
+      const response = await apiFetch(`/api/contacts/${contactId}`, {
         method: "DELETE",
       })
 
@@ -1232,9 +1247,8 @@ export default function AgencesPage() {
         : "/api/contacts"
       const method = selectedContact ? "PUT" : "POST"
 
-      const response = await fetch(url, {
+      const response = await apiFetch(url, {
         method,
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(contactData),
       })
 
@@ -1498,7 +1512,7 @@ export default function AgencesPage() {
     if (!confirm("Êtes-vous sûr de vouloir supprimer ce groupe de photos ?")) return
 
     try {
-      const response = await fetch(`/api/photos/${photoGroupId}`, {
+      const response = await apiFetch(`/api/photos/${photoGroupId}`, {
         method: "DELETE",
       })
 
@@ -1556,11 +1570,8 @@ export default function AgencesPage() {
       })
 
       // Mettre à jour le groupe avec les photos modifiées
-      const response = await fetch(`/api/photos/${editingPhotoGroupId}`, {
+      const response = await apiFetch(`/api/photos/${editingPhotoGroupId}`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify({
           type: photoGroup.type,
           title: photoGroup.title,
@@ -1617,11 +1628,8 @@ export default function AgencesPage() {
       }
 
       // Mettre à jour le groupe avec les photos restantes
-      const response = await fetch(`/api/photos/${photoGroupId}`, {
+      const response = await apiFetch(`/api/photos/${photoGroupId}`, {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify({
           type: photoGroup.type,
           title: photoGroup.title,
@@ -1668,7 +1676,7 @@ export default function AgencesPage() {
           const formData = new FormData()
           formData.append("file", file)
 
-          const response = await fetch("/api/upload", {
+          const response = await apiFetch("/api/upload", {
             method: "POST",
             body: formData,
           })
@@ -1731,9 +1739,8 @@ export default function AgencesPage() {
         : "/api/photos"
       const method = selectedPhotoGroup ? "PUT" : "POST"
 
-      const response = await fetch(url, {
+      const response = await apiFetch(url, {
         method,
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(photoGroupData),
       })
 
@@ -1787,9 +1794,8 @@ export default function AgencesPage() {
 
       console.log("Saving technical data:", body)
       
-      const response = await fetch("/api/technical", {
+      const response = await apiFetch("/api/technical", {
         method: fullAgencyData?.technical ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       })
       
@@ -1877,7 +1883,7 @@ export default function AgencesPage() {
     if (!confirm("Êtes-vous sûr de vouloir supprimer ce PC ?")) return
 
     try {
-      const response = await fetch(`/api/pcs/${pcId}`, { method: "DELETE" })
+      const response = await apiFetch(`/api/pcs/${pcId}`, { method: "DELETE" })
       if (response.ok) {
         await loadAgencyDetails(selectedAgency!.id)
       } else {
@@ -1930,9 +1936,8 @@ export default function AgencesPage() {
       const url = selectedPC ? `/api/pcs/${selectedPC.id}` : "/api/pcs"
       const method = selectedPC ? "PUT" : "POST"
 
-      const response = await fetch(url, {
+      const response = await apiFetch(url, {
         method,
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           technicalId: technicalId,
           ...pcData,
@@ -1967,7 +1972,7 @@ export default function AgencesPage() {
     if (!confirm("Êtes-vous sûr de vouloir supprimer cette imprimante ?")) return
 
     try {
-      const response = await fetch(`/api/printers/${printerId}`, { method: "DELETE" })
+      const response = await apiFetch(`/api/printers/${printerId}`, { method: "DELETE" })
       if (response.ok) {
         await loadAgencyDetails(selectedAgency!.id)
       } else {
@@ -1986,9 +1991,8 @@ export default function AgencesPage() {
       const url = selectedPrinter ? `/api/printers/${selectedPrinter.id}` : "/api/printers"
       const method = selectedPrinter ? "PUT" : "POST"
 
-      const response = await fetch(url, {
+      const response = await apiFetch(url, {
         method,
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           technicalId: fullAgencyData.technical.id,
           ...printerData,
@@ -2526,7 +2530,10 @@ export default function AgencesPage() {
               {/* Onglets - Fixe */}
               <div ref={detailsTabsRef} className="flex-shrink-0 bg-background pb-2 px-3 sm:px-6 border-b overflow-x-auto" style={{ backgroundColor: 'hsl(var(--background))' }}>
                 <TabsList className="bg-background w-full sm:w-auto" style={{ backgroundColor: 'hsl(var(--background))' }}>
-                  <TabsTrigger value="general" className="text-sm sm:text-sm min-h-[44px]">Général</TabsTrigger>
+                  <TabsTrigger value="general" className="text-sm sm:text-sm min-h-[44px]">
+                    <FileText className="h-4 w-4 sm:h-4 sm:w-4 mr-2 sm:mr-2" />
+                    Général
+                  </TabsTrigger>
                   <TabsTrigger value="technical" className="text-sm sm:text-sm min-h-[44px]">
                     <Settings className="h-4 w-4 sm:h-4 sm:w-4 mr-2 sm:mr-2" />
                     <span className="hidden sm:inline">Technique</span>

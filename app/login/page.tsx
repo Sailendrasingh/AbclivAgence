@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { apiFetch } from "@/lib/api-client"
+import { setCSRFToken } from "@/lib/csrf-client"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -22,10 +24,9 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      const response = await fetch("/api/auth/login", {
+      const response = await apiFetch("/api/auth/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include", // Important pour envoyer/recevoir les cookies
+        skipCSRF: true, // Le login n'a pas besoin de CSRF
         body: JSON.stringify({ login, password, twoFactorToken }),
       })
 
@@ -43,6 +44,11 @@ export default function LoginPage() {
         setError(data.error || `Erreur de connexion (${response.status})`)
         setLoading(false)
         return
+      }
+
+      // Stocker le token CSRF reçu après connexion
+      if (data.csrfToken) {
+        setCSRFToken(data.csrfToken)
       }
 
       console.log("Login successful, redirecting...")

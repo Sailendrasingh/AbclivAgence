@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSession } from "@/lib/session"
 import { prisma } from "@/lib/prisma"
+import { requireCSRF } from "@/lib/csrf-middleware"
 
 export async function GET(request: NextRequest) {
   try {
@@ -48,6 +49,12 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  // Vérifier le token CSRF
+  const csrfError = await requireCSRF(request)
+  if (csrfError) {
+    return csrfError
+  }
+
   const session = await getSession()
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })

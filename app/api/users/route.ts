@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { getSession } from "@/lib/session"
 import { createLog } from "@/lib/logs"
 import { hashPassword } from "@/lib/auth"
+import { requireCSRF } from "@/lib/csrf-middleware"
 
 export async function GET(request: NextRequest) {
   const session = await getSession()
@@ -35,6 +36,12 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  // Vérifier le token CSRF
+  const csrfError = await requireCSRF(request)
+  if (csrfError) {
+    return csrfError
+  }
+
   const session = await getSession()
   if (!session || session.role !== "Super Admin") {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })

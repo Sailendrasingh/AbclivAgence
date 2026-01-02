@@ -25,6 +25,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
+import { apiFetch } from "@/lib/api-client"
+import { fetchCSRFToken } from "@/lib/csrf-client"
 
 interface Backup {
   filename: string
@@ -277,7 +279,7 @@ function ParametresPageContent() {
 
     setPurgingLogs(true)
     try {
-      const response = await fetch("/api/logs", {
+      const response = await apiFetch("/api/logs", {
         method: "DELETE",
       })
 
@@ -426,9 +428,8 @@ function ParametresPageContent() {
           body.password = userFormData.password
         }
         
-        const response = await fetch(`/api/users/${selectedUser.id}`, {
+        const response = await apiFetch(`/api/users/${selectedUser.id}`, {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         })
 
@@ -459,9 +460,8 @@ function ParametresPageContent() {
         body.password = userFormData.password
       }
 
-      const response = await fetch(url, {
+      const response = await apiFetch(url, {
         method,
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       })
 

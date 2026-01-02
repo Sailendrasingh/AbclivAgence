@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { verifyPassword, verifyTwoFactorToken } from "@/lib/auth"
 import { createLog } from "@/lib/logs"
 import { checkRateLimit, resetRateLimit } from "@/lib/rate-limit"
+import { createCSRFToken } from "@/lib/csrf"
 
 const MAX_FAILED_ATTEMPTS = 5
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000 // 15 minutes
@@ -221,20 +222,20 @@ export async function POST(request: NextRequest) {
     
     await createLog(user.id, "CONNEXION", null, request)
 
-    // Créer la réponse avec le cookie de session
-    const response = NextResponse.json({ success: true })
+    // Créer une session (userId comme sessionId pour l'instant)
+    const { createSession } = await import("@/lib/session")
+    await createSession(user.id)
     
-    // Définir le cookie de session dans la réponse
-    response.cookies.set("session", user.id, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/", // Important : définir le path pour que le cookie soit accessible partout
-      maxAge: 60 * 60 * 24 * 7, // 7 jours
+    // Créer un token CSRF pour cette session
+    const csrfToken = await createCSRFToken()
+
+    // Créer la réponse avec le token CSRF
+    const response = NextResponse.json({ 
+      success: true,
+      csrfToken // Retourner le token CSRF au client
     })
 
     console.log(`[LOGIN] Session créée pour l'utilisateur ${user.login} (${user.id})`)
-    console.log(`[LOGIN] Cookie défini: session=${user.id}`)
 
     return response
   } catch (error) {
