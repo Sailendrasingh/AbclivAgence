@@ -44,7 +44,11 @@ export function generateTwoFactorSecret(login: string): {
 }
 
 export async function generateQRCode(uri: string): Promise<string> {
-  return await QRCode.toDataURL(uri)
+  return await QRCode.toDataURL(uri, {
+    width: 600,
+    margin: 2,
+    errorCorrectionLevel: 'M'
+  })
 }
 
 export function verifyTwoFactorToken(

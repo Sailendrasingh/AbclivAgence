@@ -144,6 +144,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Vérifier si le 2FA est obligatoire pour les Super Admin
+    const isSuperAdmin = user.role === "Super Admin"
+    const twoFactorRequired = isSuperAdmin
+    const requiresTwoFactorSetup = twoFactorRequired && !user.twoFactorEnabled
+    
+    // Si 2FA obligatoire mais non activé, permettre la connexion mais indiquer qu'il faut configurer le 2FA
+    // On créera la session pour permettre l'accès à la page de configuration 2FA
+
+    // Si 2FA activé, vérifier le token
     if (user.twoFactorEnabled) {
       if (!twoFactorToken) {
         return NextResponse.json(
@@ -237,7 +246,8 @@ export async function POST(request: NextRequest) {
       // Créer la réponse avec le token CSRF
       const response = NextResponse.json({ 
         success: true,
-        csrfToken // Retourner le token CSRF au client
+        csrfToken, // Retourner le token CSRF au client
+        requiresTwoFactorSetup, // Indiquer si le 2FA doit être configuré
       })
 
       console.log(`[LOGIN] Session sécurisée créée pour l'utilisateur ${user.login} (${user.id}) avec token ${sessionToken.substring(0, 16)}...`)
@@ -262,7 +272,8 @@ export async function POST(request: NextRequest) {
 
         const response = NextResponse.json({ 
           success: true,
-          csrfToken
+          csrfToken,
+          requiresTwoFactorSetup, // Indiquer si le 2FA doit être configuré
         })
 
         return response

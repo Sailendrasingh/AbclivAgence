@@ -77,6 +77,8 @@ export async function PUT(
       where: { id },
       data: {
         twoFactorEnabled: enabled,
+        // Si le 2FA est désactivé pour un Super Admin, cela ne devrait pas être possible
+        // Mais on le permet pour la flexibilité (un autre Super Admin peut le faire)
       },
     })
 

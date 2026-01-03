@@ -23,6 +23,8 @@ model User {
   logs                Log[]
   sessions            Session[]
   technicalHistory    TechnicalHistory[]
+  createdTasks        Task[]             @relation("TaskCreator")
+  closedTasks         Task[]             @relation("TaskCloser")
 }
 
 model Session {
@@ -53,6 +55,7 @@ model Agency {
   contacts      Contact[]
   photos        PhotoGroup[]
   technical     Technical?
+  tasks         Task[]
 }
 
 model Address {
@@ -242,6 +245,22 @@ model Log {
   userAgent String?
   createdAt DateTime @default(now())
   user      User?    @relation(fields: [userId], references: [id])
+}
+
+model Task {
+  id          String    @id @default(cuid())
+  agencyId    String
+  title       String
+  createdAt   DateTime  @default(now())
+  createdBy   String
+  closedAt    DateTime?
+  closedBy    String?
+  notes       String
+  importance  String    @default("INFO") // URGENT, CRITIQUE, INFO
+  updatedAt   DateTime  @updatedAt
+  agency      Agency    @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  creator     User      @relation("TaskCreator", fields: [createdBy], references: [id])
+  closer      User?     @relation("TaskCloser", fields: [closedBy], references: [id])
 }
 
 model AppSettings {

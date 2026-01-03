@@ -4,11 +4,21 @@ import { getSession } from "@/lib/session"
 import { createLog } from "@/lib/logs"
 import { hashPassword } from "@/lib/auth"
 import { requireCSRF } from "@/lib/csrf-middleware"
+import { sanitize } from "@/lib/sanitize"
+import { validateRequest } from "@/lib/validation-middleware"
+import { createUserSchema } from "@/lib/validations"
 
 export async function GET(request: NextRequest) {
   const session = await getSession()
   if (!session || session.role !== "Super Admin") {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
+  }
+
+  // Vérifier que le 2FA est activé pour les Super Admin
+  const { requireTwoFactorForSuperAdmin } = await import("@/lib/require-two-factor")
+  const twoFactorError = await requireTwoFactorForSuperAdmin(request)
+  if (twoFactorError) {
+    return twoFactorError
   }
 
   try {

@@ -215,5 +215,18 @@
     }
   }
 
+  /* Style pour l'icône calendrier dans les inputs datetime-local et date */
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    opacity: 1;
+    cursor: pointer;
+    filter: brightness(0);
+  }
+
+  .dark input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+  .dark input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: brightness(0) invert(1);
+  }
+
 }
 

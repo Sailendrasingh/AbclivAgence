@@ -88,6 +88,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 })
   }
 
+  // Vérifier que le 2FA est activé pour les Super Admin
+  const { requireTwoFactorForSuperAdmin } = await import("@/lib/require-two-factor")
+  const twoFactorError = await requireTwoFactorForSuperAdmin(request)
+  if (twoFactorError) {
+    return twoFactorError
+  }
+
   try {
     const backupsDir = join(process.cwd(), "backups")
     const dbPath = join(process.cwd(), "prisma", "dev.db")
@@ -234,6 +241,13 @@ export async function DELETE(request: NextRequest) {
   // Seul le Super Admin peut purger toutes les sauvegardes
   if (session.role !== "Super Admin") {
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 })
+  }
+
+  // Vérifier que le 2FA est activé pour les Super Admin
+  const { requireTwoFactorForSuperAdmin } = await import("@/lib/require-two-factor")
+  const twoFactorError = await requireTwoFactorForSuperAdmin(request)
+  if (twoFactorError) {
+    return twoFactorError
   }
 
   try {

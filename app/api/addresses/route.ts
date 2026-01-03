@@ -4,6 +4,8 @@ import { getSession } from "@/lib/session"
 import { createLog } from "@/lib/logs"
 import { requireCSRF } from "@/lib/csrf-middleware"
 import { sanitize } from "@/lib/sanitize"
+import { validateRequest } from "@/lib/validation-middleware"
+import { createAddressSchema } from "@/lib/validations"
 
 export async function POST(request: NextRequest) {
   // Vérifier le token CSRF

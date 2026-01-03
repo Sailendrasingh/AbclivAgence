@@ -46,6 +46,16 @@ export default function LoginPage() {
 
       if (!response.ok) {
         console.error("Login error:", response.status, data)
+        
+        // Si le 2FA est requis mais non activé pour Super Admin, rediriger vers le profil
+        if (data.requiresTwoFactorSetup && data.userId) {
+          setError(data.error || "L'authentification à deux facteurs (2FA) est obligatoire pour les Super Admin. Veuillez activer le 2FA depuis votre profil.")
+          // Note: L'utilisateur ne peut pas se connecter, donc on ne peut pas rediriger automatiquement
+          // Il devra contacter un autre Super Admin ou utiliser un autre compte
+          setLoading(false)
+          return
+        }
+        
         setError(data.error || `Erreur de connexion (${response.status})`)
         setLoading(false)
         return
@@ -58,8 +68,13 @@ export default function LoginPage() {
 
       console.log("Login successful, redirecting...")
 
-      // Utiliser window.location pour forcer un rechargement complet et éviter les problèmes d'hydratation
-      window.location.href = "/dashboard/agences"
+      // Si le 2FA doit être configuré, rediriger vers la page de configuration
+      if (data.requiresTwoFactorSetup) {
+        window.location.href = "/dashboard/setup-2fa"
+      } else {
+        // Utiliser window.location pour forcer un rechargement complet et éviter les problèmes d'hydratation
+        window.location.href = "/dashboard/agences"
+      }
     } catch (err) {
       setError("Erreur de connexion")
     } finally {

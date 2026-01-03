@@ -6,11 +6,21 @@ const IV_LENGTH = 16 // 128 bits
 const SALT_LENGTH = 32
 const TAG_LENGTH = 16
 
+// Paramètres scrypt pour ASVS Niveau 3 (dérivation de clé sécurisée)
+const SCRYPT_N = 16384 // CPU/memory cost factor (2^14)
+const SCRYPT_R = 8     // Block size
+const SCRYPT_P = 1     // Parallelization factor
+
 /**
  * Génère une clé de chiffrement à partir d'une phrase secrète
+ * Utilise scrypt avec paramètres explicites pour ASVS Niveau 3
  */
 function deriveKey(password: string, salt: Buffer): Buffer {
-  return scryptSync(password, salt, KEY_LENGTH)
+  return scryptSync(password, salt, KEY_LENGTH, {
+    N: SCRYPT_N,
+    r: SCRYPT_R,
+    p: SCRYPT_P,
+  })
 }
 
 /**

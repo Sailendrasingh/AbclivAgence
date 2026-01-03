@@ -229,9 +229,9 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
 * **Zone Détails** :
   * **Structure en trois parties** :
     * **Partie fixe 1 (non scrollable)** : En-tête avec nom de l'agence, état, bouton Historique (Super Admin), boutons Annuler/Enregistrer (mode édition)
-    * **Partie fixe 2 (non scrollable)** : Onglets (Général, Technique, Photos)
+    * **Partie fixe 2 (non scrollable)** : Onglets (Général, Tâches, Technique, Photos)
     * **Partie scrollable** : Contenu des onglets avec ascenseur vertical qui commence en dessous des onglets
-  * Données agence organisées en onglets (Général, Technique, Photos)
+  * Données agence organisées en onglets (Général, Tâches, Technique, Photos)
   * **Onglet Général** :
     * **Groupe "Informations générales"** :
       * Photo principale de l'agence (centrée en haut)
@@ -243,8 +243,36 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
     * **Note** : Le champ "État" n'est pas affiché dans le groupe "Informations générales", mais reste visible et modifiable dans l'en-tête de la zone Détails (à droite du nom de l'agence)
     * Section Adresses
     * Section Contacts
+  * **Onglet Tâches** :
+    * Interface de gestion des tâches avec liste des tâches
+    * Colonnes affichées : Créée le, Créée par, Clôturée le, Clôturée par, Notes, Importance
+    * Actions disponibles : Modifier, Clôturer, Supprimer
+    * Bouton "Ajouter une tâche"
+    * Filtre par importance (URGENT, CRITIQUE, INFO, TOUS)
+    * Affichage en cartes (mobile et desktop)
+    * Tâches clôturées avec fond grisé et badge "Clôturée"
+    * Notes limitées à 5 lignes avec scrollbar pour les notes plus longues
+    * **Restrictions d'accès par rôle** :
+      * **Utilisateur de type User** :
+        * Les boutons "Modifier" et "Clôturer" ne sont **pas visibles** pour les utilisateurs de type **User**
+        * Les utilisateurs de type **User** ne peuvent que consulter les tâches (accès en lecture seule)
+        * Le bouton "Ajouter une tâche" est automatiquement désactivé car les utilisateurs de type **User** ne peuvent pas activer le mode édition d'une agence
+      * **Utilisateur de type Admin** :
+        * Les boutons "Modifier" et "Clôturer" sont visibles et utilisables
+        * Le bouton "Supprimer" n'est **pas visible** pour les utilisateurs de type **Admin**
+      * **Utilisateur de type Super Admin** :
+        * Tous les boutons sont visibles et utilisables (Modifier, Clôturer, Supprimer)
+    * **Restriction de suppression des notes** : Seul le **Super Admin** peut supprimer (vider) les notes des tâches existantes
+      * Les utilisateurs **Admin** peuvent modifier les notes des tâches mais ne peuvent pas les supprimer
+      * Les utilisateurs **User** ne peuvent pas modifier les tâches (boutons Modifier et Clôturer masqués)
+      * Si un utilisateur non-Super Admin tente de vider le champ de notes d'une tâche, une erreur est affichée et l'opération est bloquée
+      * La vérification est effectuée à la fois côté client (interface) et côté serveur (API)
+    * **Restriction de suppression des tâches** : Seul le **Super Admin** peut supprimer une tâche
+      * Le bouton "Supprimer" n'est **pas visible** pour les utilisateurs **Admin** et **User**
+      * Si un utilisateur non-Super Admin tente de supprimer une tâche via l'API, une erreur 403 est retournée avec le message "Seul le Super Admin peut supprimer une tâche"
+      * La vérification est effectuée à la fois côté client (interface) et côté serveur (API)
   * **Ascenseur vertical** : L'ascenseur vertical est uniquement dans la partie scrollable (contenu des onglets), les parties fixes (en-tête et onglets) restent toujours visibles
-  * **Conservation de l'onglet actif** : Lors du changement de sélection d'agence dans le Master, l'onglet actif (Général, Technique ou Photos) est conservé pour la nouvelle agence sélectionnée
+  * **Conservation de l'onglet actif** : Lors du changement de sélection d'agence dans le Master, l'onglet actif (Général, Tâches, Technique ou Photos) est conservé pour la nouvelle agence sélectionnée
   * **Boutons Annuler/Enregistrer** :
     * Positionnés au niveau du nom de l'agence, à droite
     * Visibles uniquement en mode édition
@@ -302,6 +330,10 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
     * Bouton "Supprimer" d'une agence : Disponible **uniquement** pour les utilisateurs avec le rôle **Super Admin**
     * Les utilisateurs avec le rôle **User** ne peuvent que consulter les agences (pas de création, modification ou suppression)
     * Les utilisateurs avec le rôle **Admin** peuvent créer et modifier des agences, mais ne peuvent pas les supprimer
+  * **Modification des détails d'une agence** :
+    * Les utilisateurs avec le rôle **User** ne peuvent **pas** modifier les détails d'une agence
+    * Le bouton "Modifier" dans la vue des détails d'une agence (mobile et desktop) n'est **pas visible** pour les utilisateurs de type **User**
+    * La fonction `handleEditAgencyFromMaster` retourne immédiatement si l'utilisateur est de type **User**, empêchant toute tentative d'édition
 
 ---
 
@@ -357,6 +389,18 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
 * **Optimisation du cache** : Les images sont mises en cache par le navigateur avec des en-têtes HTTP optimisés (voir section 9)
 * Bouton Google Maps par adresse (visible uniquement si coordonnées GPS disponibles)
 * Icône imposée : Spotlight (remplacée par Search dans l'implémentation)
+* **Affichage en cartes** :
+  * Chaque adresse est affichée dans une carte avec la même couleur de fond que les cartes Contact (`bg-slate-50` en thème clair, `bg-slate-800/50` en thème sombre)
+  * Structure de la carte :
+    * **CardHeader** : Contient le label de l'adresse (titre) et les boutons d'action (Modifier, Supprimer) en mode édition
+    * **CardContent** : Contient les informations de l'adresse (rue avec icône MapPin, code postal et ville, bouton "Voir sur Google Maps" si coordonnées GPS disponibles)
+  * **Grille responsive** : Les cartes sont affichées dans une grille qui s'ajuste automatiquement pour occuper toute la largeur disponible :
+    * **Mobile** : 1 colonne
+    * **Tablette** : 2 colonnes
+    * **Desktop** : Jusqu'à 3 colonnes maximum, avec ajustement automatique selon le nombre d'adresses
+    * Les cartes s'ajustent automatiquement pour occuper toute la largeur disponible (utilisation de `auto-fit` avec `minmax`)
+    * Largeur minimale de 300px par carte
+  * **Boutons d'action** : Les boutons Modifier et Supprimer sont visibles uniquement en mode édition de l'agence
 
 ---
 
@@ -401,6 +445,15 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
   * **Stockage** : Valeur par défaut `0` si non spécifiée
   * **Migration des contacts existants** : Un script de migration (`npm run migrate:contacts-order`) permet d'initialiser le champ `order` pour tous les contacts existants en se basant sur leur date de création (`createdAt`)
 * **Gestion d'erreurs** : Messages d'erreur explicites retournés par l'API en cas de validation échouée
+* **Affichage en cartes** :
+  * Chaque contact est affiché dans une carte avec une couleur de fond appropriée (`bg-slate-50` en thème clair, `bg-slate-800/50` en thème sombre)
+  * Structure de la carte :
+    * **CardHeader** : Contient le nom du contact (titre) et les boutons d'action (Modifier, Supprimer) en mode édition
+    * **CardContent** : Contient les informations du contact (poste, agent, ligne directe, emails, note)
+  * **Grille responsive** : Les cartes sont affichées dans une grille responsive :
+    * **Mobile** : 1 colonne
+    * **Tablette** : 2 colonnes
+    * **Desktop** : 3 colonnes maximum
 
 ---
 
@@ -513,6 +566,10 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
 * **Affichage visuel** : En mode lecture, les notes techniques sont affichées dans une zone avec fond coloré, padding et hauteur minimale pour une meilleure lisibilité
 * Historisation activée
 * **Historique consultable ET restaurable (max 100 versions)**
+* **Restriction de suppression** : Seul le **Super Admin** peut supprimer (vider) les notes techniques existantes
+  * Les utilisateurs **Admin** et **User** peuvent modifier les notes techniques mais ne peuvent pas les supprimer
+  * Si un utilisateur non-Super Admin tente de vider le champ de notes techniques, une erreur est affichée et l'opération est bloquée
+  * La vérification est effectuée à la fois côté client (interface) et côté serveur (API)
 
 ### 7.9 Champs dynamiques
 
@@ -931,8 +988,10 @@ Aucun autre type autorisé.
     * Ne peut pas supprimer des agences (bouton "Supprimer" masqué)
   * **User** :
     * Ne peut pas créer d'agences (bouton "Ajouter" masqué)
-    * Ne peut pas modifier d'agences (bouton "Modifier" masqué)
+    * Ne peut pas modifier d'agences (bouton "Modifier" masqué dans la liste et dans la vue des détails)
     * Ne peut pas supprimer d'agences (bouton "Supprimer" masqué)
+    * Ne peut pas modifier les détails d'une agence (bouton "Modifier" dans la vue des détails masqué en mode mobile et desktop)
+    * La fonction `handleEditAgencyFromMaster` empêche toute tentative d'édition pour les utilisateurs de type **User**
     * Accès en consultation seule
 
 ---

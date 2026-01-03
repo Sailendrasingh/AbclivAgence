@@ -24,6 +24,7 @@ interface UserData {
   login: string
   role: string
   twoFactorEnabled: boolean
+  requiresTwoFactorSetup?: boolean
 }
 
 export default function ProfilPage() {
@@ -329,12 +330,30 @@ export default function ProfilPage() {
             <CardTitle>Authentification à deux facteurs (2FA)</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {userData?.requiresTwoFactorSetup && userData?.role === "Super Admin" && (
+              <div className="rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 p-4 mb-4">
+                <div className="flex items-start gap-3">
+                  <Shield className="h-5 w-5 text-yellow-600 dark:text-yellow-400 mt-0.5" />
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-yellow-800 dark:text-yellow-200 mb-1">
+                      Le 2FA est obligatoire pour les Super Admin
+                    </h4>
+                    <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                      Vous devez activer l'authentification à deux facteurs pour accéder à toutes les fonctionnalités. 
+                      Veuillez activer le 2FA ci-dessous.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label htmlFor="2fa-switch">Activer le 2FA</Label>
                 <p className="text-sm text-muted-foreground">
                   {userData?.twoFactorEnabled
                     ? "Le 2FA est actuellement activé"
+                    : userData?.role === "Super Admin"
+                    ? "Le 2FA est obligatoire pour les Super Admin"
                     : "Le 2FA est actuellement désactivé"}
                 </p>
               </div>

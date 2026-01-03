@@ -93,7 +93,7 @@ function ParametresPageContent() {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const response = await fetch("/api/auth/me")
+        const response = await apiFetch("/api/auth/me")
         if (response.ok) {
           const data = await response.json()
           setUserRole(data.role)
@@ -109,7 +109,7 @@ function ParametresPageContent() {
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        const response = await fetch("/api/settings")
+        const response = await apiFetch("/api/settings")
         if (response.ok) {
           const data = await response.json()
           setSessionTimeout(data.sessionTimeout || 60)
@@ -137,7 +137,7 @@ function ParametresPageContent() {
   const loadBackups = async () => {
     setLoadingBackups(true)
     try {
-      const response = await fetch("/api/backups")
+      const response = await apiFetch("/api/backups")
       if (response.ok) {
         const data = await response.json()
         setBackups(Array.isArray(data) ? data : [])
@@ -157,7 +157,7 @@ function ParametresPageContent() {
   const handleCreateBackup = async () => {
     setCreating(true)
     try {
-      const response = await fetch("/api/backups", {
+      const response = await apiFetch("/api/backups", {
         method: "POST",
       })
 
@@ -186,7 +186,7 @@ function ParametresPageContent() {
 
     setRestoring(true)
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `/api/backups/${encodeURIComponent(selectedBackup.filename)}/restore`,
         {
           method: "POST",
@@ -221,7 +221,7 @@ function ParametresPageContent() {
 
     setPurging(true)
     try {
-      const response = await fetch("/api/backups", {
+      const response = await apiFetch("/api/backups", {
         method: "DELETE",
       })
 
@@ -246,7 +246,7 @@ function ParametresPageContent() {
   const loadLogs = async () => {
     setLoadingLogs(true)
     try {
-      const response = await fetch("/api/logs")
+      const response = await apiFetch("/api/logs")
       const data = await response.json()
       setLogs(data)
     } catch (error) {
@@ -258,7 +258,7 @@ function ParametresPageContent() {
 
   const exportLogs = async () => {
     try {
-      const response = await fetch("/api/logs/export")
+      const response = await apiFetch("/api/logs/export")
       const blob = await response.blob()
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement("a")
@@ -304,7 +304,7 @@ function ParametresPageContent() {
   const loadUsers = async () => {
     setLoadingUsers(true)
     try {
-      const response = await fetch("/api/users")
+      const response = await apiFetch("/api/users")
       if (response.ok) {
         const data = await response.json()
         setUsers(data)
@@ -353,7 +353,7 @@ function ParametresPageContent() {
     }
 
     try {
-      const response = await fetch(`/api/users/${userId}`, {
+      const response = await apiFetch(`/api/users/${userId}`, {
         method: "DELETE",
       })
 
@@ -377,9 +377,8 @@ function ParametresPageContent() {
     }
 
     try {
-      const response = await fetch(`/api/users/${user.id}`, {
+      const response = await apiFetch(`/api/users/${user.id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           login: user.login,
           role: user.role,
@@ -487,7 +486,7 @@ function ParametresPageContent() {
 
   const handleSetup2FA = async (userId: string) => {
     try {
-      const response = await fetch(`/api/users/${userId}/2fa`, {
+      const response = await apiFetch(`/api/users/${userId}/2fa`, {
         method: "POST",
       })
 
@@ -515,9 +514,8 @@ function ParametresPageContent() {
     }
 
     try {
-      const verifyResponse = await fetch("/api/auth/verify-2fa", {
+      const verifyResponse = await apiFetch("/api/auth/verify-2fa", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: current2FAUserId,
           token: twoFactorToken,
@@ -529,9 +527,8 @@ function ParametresPageContent() {
         return
       }
 
-      const response = await fetch(`/api/users/${current2FAUserId}/2fa`, {
+      const response = await apiFetch(`/api/users/${current2FAUserId}/2fa`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ enabled: true }),
       })
 
@@ -557,9 +554,8 @@ function ParametresPageContent() {
     }
 
     try {
-      const response = await fetch(`/api/users/${userId}/2fa`, {
+      const response = await apiFetch(`/api/users/${userId}/2fa`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ enabled: false }),
       })
 
@@ -583,11 +579,8 @@ function ParametresPageContent() {
 
     setSaving(true)
     try {
-      const response = await fetch("/api/settings", {
+      const response = await apiFetch("/api/settings", {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify({
           sessionTimeout: Number(sessionTimeout), // S'assurer que c'est un nombre
         }),

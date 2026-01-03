@@ -10,10 +10,9 @@ import { decryptFile, isEncryptedFile } from "@/lib/encryption"
 
 export async function POST(
   request: NextRequest,
-  props: Promise<{ params: { filename: string } }>
+  context: { params: Promise<{ filename: string }> }
 ) {
-  const { params } = await props
-  const { filename } = params
+  const { filename } = await context.params
   const session = await getSession()
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
@@ -22,6 +21,13 @@ export async function POST(
   // Vérifier que l'utilisateur est Super Admin
   if (session.role !== "Super Admin") {
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 })
+  }
+
+  // Vérifier que le 2FA est activé pour les Super Admin
+  const { requireTwoFactorForSuperAdmin } = await import("@/lib/require-two-factor")
+  const twoFactorError = await requireTwoFactorForSuperAdmin(request)
+  if (twoFactorError) {
+    return twoFactorError
   }
 
   try {

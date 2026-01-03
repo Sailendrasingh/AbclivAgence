@@ -122,6 +122,21 @@ export async function PUT(request: NextRequest) {
       )
     }
 
+    // Vérifier que seul le Super Admin peut supprimer les notes techniques
+    if ("technicalNotes" in updateData) {
+      const notesValue = updateData.technicalNotes
+      const isDeletingNotes = notesValue === "" || notesValue === null || notesValue === undefined
+      const hasExistingNotes = currentTechnical.technicalNotes && currentTechnical.technicalNotes.trim() !== ""
+      
+      // Si on tente de supprimer des notes existantes et que l'utilisateur n'est pas Super Admin
+      if (isDeletingNotes && hasExistingNotes && session.role !== "Super Admin") {
+        return NextResponse.json(
+          { error: "Seul le Super Admin peut supprimer les notes techniques" },
+          { status: 403 }
+        )
+      }
+    }
+
     // Convertir les chaînes vides en null pour tous les champs optionnels
     const cleanedData: any = {}
     for (const [key, value] of Object.entries(updateData)) {

@@ -65,6 +65,13 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 })
   }
 
+  // Vérifier que le 2FA est activé pour les Super Admin
+  const { requireTwoFactorForSuperAdmin } = await import("@/lib/require-two-factor")
+  const twoFactorError = await requireTwoFactorForSuperAdmin(request)
+  if (twoFactorError) {
+    return twoFactorError
+  }
+
   try {
     // Valider les données avec Zod
     const validation = await validateRequest(request, updateSettingsSchema)

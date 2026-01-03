@@ -25,6 +25,13 @@ export async function PUT(
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
   }
 
+  // Vérifier que le 2FA est activé pour les Super Admin
+  const { requireTwoFactorForSuperAdmin } = await import("@/lib/require-two-factor")
+  const twoFactorError = await requireTwoFactorForSuperAdmin(request)
+  if (twoFactorError) {
+    return twoFactorError
+  }
+
   try {
     // Vérifier si l'utilisateur est Admin avant toute modification
     const existingUser = await prisma.user.findUnique({
@@ -96,6 +103,13 @@ export async function DELETE(
   const session = await getSession()
   if (!session || session.role !== "Super Admin") {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
+  }
+
+  // Vérifier que le 2FA est activé pour les Super Admin
+  const { requireTwoFactorForSuperAdmin } = await import("@/lib/require-two-factor")
+  const twoFactorError = await requireTwoFactorForSuperAdmin(request)
+  if (twoFactorError) {
+    return twoFactorError
   }
 
   try {

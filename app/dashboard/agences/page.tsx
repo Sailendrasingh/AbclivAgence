@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Plus, Save, MapPin, Mail, Phone, User, Settings, Camera, Edit, Trash2, X, ChevronLeft, ChevronRight, Eye, EyeOff, Clock, ChevronUp, ChevronDown, ArrowLeft, GripVertical, FileText } from "lucide-react"
+import { Plus, Save, MapPin, Mail, Phone, User, Settings, Camera, Edit, Trash2, X, ChevronLeft, ChevronRight, Eye, EyeOff, Clock, ChevronUp, ChevronDown, ArrowLeft, GripVertical, FileText, CheckCircle, ListTodo } from "lucide-react"
 import { Search } from "lucide-react"
 import { AddressSearch } from "@/components/address-search"
 import { apiFetch } from "@/lib/api-client"
@@ -161,6 +161,26 @@ interface PhotoGroup {
   photos: string
 }
 
+interface Task {
+  id: string
+  agencyId: string
+  title: string
+  createdAt: string
+  createdBy: string
+  closedAt: string | null
+  closedBy: string | null
+  notes: string
+  importance: "URGENT" | "CRITIQUE" | "INFO"
+  creator: {
+    id: string
+    login: string
+  }
+  closer: {
+    id: string
+    login: string
+  } | null
+}
+
 export default function AgencesPage() {
   const [agencies, setAgencies] = useState<Agency[]>([])
   const [selectedAgency, setSelectedAgency] = useState<Agency | null>(null)
@@ -261,7 +281,21 @@ export default function AgencesPage() {
   const detailsTabsRef = useRef<HTMLDivElement>(null)
 
   // État pour mémoriser l'onglet actif
-  const [activeTab, setActiveTab] = useState<"general" | "technical" | "photos">("general")
+  const [activeTab, setActiveTab] = useState<"general" | "tasks" | "technical" | "photos">("general")
+  
+  // États pour les tâches
+  const [tasks, setTasks] = useState<Task[]>([])
+  const [loadingTasks, setLoadingTasks] = useState(false)
+  const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false)
+  const [isTaskEditDialogOpen, setIsTaskEditDialogOpen] = useState(false)
+  const [editingTask, setEditingTask] = useState<Task | null>(null)
+  const [taskFormData, setTaskFormData] = useState({
+    title: "",
+    createdAt: "",
+    notes: "",
+    importance: "INFO" as "URGENT" | "CRITIQUE" | "INFO",
+  })
+  const [taskFilter, setTaskFilter] = useState<"ALL" | "URGENT" | "CRITIQUE" | "INFO">("ALL")
 
   // États pour l'historique des notes techniques
   const [isNotesHistoryDialogOpen, setIsNotesHistoryDialogOpen] = useState(false)
@@ -616,6 +650,11 @@ export default function AgencesPage() {
       await new Promise(resolve => setTimeout(resolve, 100))
       setFullAgencyData(data)
       setEditedName(data.name)
+      
+      // Charger les tâches
+      if (agencyId) {
+        await loadTasks(agencyId)
+      }
       setEditedState(data.state as "OK" | "ALERTE" | "INFO" | "FERMÉE")
       setEditedCodeAgence(data.codeAgence || "")
       setEditedCodeRayon(data.codeRayon || "")
@@ -887,6 +926,11 @@ export default function AgencesPage() {
   }
 
   const handleEditAgencyFromMaster = async (agency: Agency) => {
+    // Empêcher les utilisateurs de type "User" d'éditer
+    if (userRole === "User") {
+      return
+    }
+    
     setSelectedAgency(agency)
     
     // En mode mobile, charger les détails complets et ouvrir la vue des détails
@@ -1080,7 +1124,8 @@ export default function AgencesPage() {
         postalCode: string
         latitude: number | null
         longitude: number | null
-        validatedAt?: string
+        banId?: string | null
+        country?: string
       } = {
         agencyId: selectedAgency.id,
         label: addressLabel,
@@ -1089,7 +1134,8 @@ export default function AgencesPage() {
         postalCode: addressMode === "ban" ? selectedBANAddress.postalCode : manualPostalCode.trim(),
         latitude: addressMode === "ban" ? selectedBANAddress.latitude : latitude,
         longitude: addressMode === "ban" ? selectedBANAddress.longitude : longitude,
-        validatedAt: new Date().toISOString(),
+        banId: addressMode === "ban" ? (selectedBANAddress.id || null) : null,
+        country: "France",
       }
 
       const url = selectedAddress
@@ -1269,6 +1315,175 @@ export default function AgencesPage() {
     } catch (error: any) {
       console.error("Error saving contact:", error)
       alert(error.message || "Erreur lors de la sauvegarde")
+    }
+  }
+
+  // Fonctions pour tâches
+  const loadTasks = async (agencyId: string) => {
+    setLoadingTasks(true)
+    try {
+      const response = await apiFetch(`/api/agencies/${agencyId}/tasks`)
+      if (response.ok) {
+        const data = await response.json()
+        setTasks(data)
+      } else {
+        console.error("Error loading tasks")
+        setTasks([])
+      }
+    } catch (error) {
+      console.error("Error loading tasks:", error)
+      setTasks([])
+    } finally {
+      setLoadingTasks(false)
+    }
+  }
+
+  const handleAddTask = () => {
+    setTaskFormData({
+      title: "",
+      createdAt: new Date().toISOString().slice(0, 16),
+      notes: "",
+      importance: "INFO",
+    })
+    setIsTaskDialogOpen(true)
+  }
+
+  const handleEditTask = (task: Task) => {
+    setEditingTask(task)
+    setTaskFormData({
+      title: task.title,
+      createdAt: new Date(task.createdAt).toISOString().slice(0, 16),
+      notes: task.notes,
+      importance: task.importance,
+    })
+    setIsTaskEditDialogOpen(true)
+  }
+
+  const handleSaveTask = async () => {
+    if (!selectedAgency || !taskFormData.title.trim()) {
+      alert("Veuillez remplir le titre")
+      return
+    }
+
+    if (!taskFormData.notes.trim()) {
+      alert("Veuillez remplir les notes")
+      return
+    }
+
+    try {
+      const response = await apiFetch(`/api/agencies/${selectedAgency.id}/tasks`, {
+        method: "POST",
+        body: JSON.stringify({
+          title: taskFormData.title,
+          createdAt: taskFormData.createdAt,
+          notes: taskFormData.notes,
+          importance: taskFormData.importance,
+        }),
+      })
+
+      if (response.ok) {
+        await loadTasks(selectedAgency.id)
+        setIsTaskDialogOpen(false)
+        setTaskFormData({
+          title: "",
+          createdAt: "",
+          notes: "",
+          importance: "INFO",
+        })
+      } else {
+        const error = await response.json()
+        alert(error.error || "Erreur lors de la création de la tâche")
+      }
+    } catch (error) {
+      console.error("Error saving task:", error)
+      alert("Erreur lors de la création de la tâche")
+    }
+  }
+
+  const handleUpdateTask = async () => {
+    if (!selectedAgency || !editingTask || !taskFormData.title.trim()) {
+      alert("Veuillez remplir le titre")
+      return
+    }
+
+    if (!taskFormData.notes.trim()) {
+      alert("Veuillez remplir les notes")
+      return
+    }
+
+    try {
+      const response = await apiFetch(`/api/agencies/${selectedAgency.id}/tasks/${editingTask.id}`, {
+        method: "PUT",
+        body: JSON.stringify({
+          title: taskFormData.title,
+          createdAt: taskFormData.createdAt,
+          notes: taskFormData.notes,
+          importance: taskFormData.importance,
+        }),
+      })
+
+      if (response.ok) {
+        await loadTasks(selectedAgency.id)
+        setIsTaskEditDialogOpen(false)
+        setEditingTask(null)
+        setTaskFormData({
+          title: "",
+          createdAt: "",
+          notes: "",
+          importance: "INFO",
+        })
+      } else {
+        const error = await response.json()
+        alert(error.error || "Erreur lors de la modification de la tâche")
+      }
+    } catch (error) {
+      console.error("Error updating task:", error)
+      alert("Erreur lors de la modification de la tâche")
+    }
+  }
+
+  const handleCloseTask = async (task: Task) => {
+    if (!selectedAgency) return
+
+    try {
+      const response = await apiFetch(`/api/agencies/${selectedAgency.id}/tasks/${task.id}/close`, {
+        method: "POST",
+        body: JSON.stringify({
+          closedAt: new Date().toISOString(),
+        }),
+      })
+
+      if (response.ok) {
+        await loadTasks(selectedAgency.id)
+      } else {
+        const error = await response.json()
+        alert(error.error || "Erreur lors de la clôture de la tâche")
+      }
+    } catch (error) {
+      console.error("Error closing task:", error)
+      alert("Erreur lors de la clôture de la tâche")
+    }
+  }
+
+  const handleDeleteTask = async (task: Task) => {
+    if (!confirm("Êtes-vous sûr de vouloir supprimer cette tâche ?")) return
+
+    if (!selectedAgency) return
+
+    try {
+      const response = await apiFetch(`/api/agencies/${selectedAgency.id}/tasks/${task.id}`, {
+        method: "DELETE",
+      })
+
+      if (response.ok) {
+        await loadTasks(selectedAgency.id)
+      } else {
+        const error = await response.json()
+        alert(error.error || "Erreur lors de la suppression de la tâche")
+      }
+    } catch (error) {
+      console.error("Error deleting task:", error)
+      alert("Erreur lors de la suppression de la tâche")
     }
   }
 
@@ -1771,6 +1986,15 @@ export default function AgencesPage() {
       const technicalNotesValue = technicalData.technicalNotes !== undefined 
         ? technicalData.technicalNotes 
         : (fullAgencyData?.technical?.technicalNotes ?? "")
+      
+      // Vérifier que seul le Super Admin peut supprimer les notes techniques
+      const hasExistingNotes = fullAgencyData?.technical?.technicalNotes && fullAgencyData.technical.technicalNotes.trim() !== ""
+      const isDeletingNotes = technicalNotesValue === "" || technicalNotesValue === null || technicalNotesValue === undefined
+      
+      if (isDeletingNotes && hasExistingNotes && userRole !== "Super Admin") {
+        alert("Seul le Super Admin peut supprimer les notes techniques")
+        return
+      }
       
       const dataToSend = {
         ...technicalData,
@@ -2333,55 +2557,57 @@ export default function AgencesPage() {
                         <span className="hidden xs:inline">Historique</span>
                       </Button>
                     )}
-                    <Button
-                      onClick={() => {
-                        setEditing(true)
-                        setEditedName(fullAgencyData.name)
-                        setEditedState(fullAgencyData.state as "OK" | "ALERTE" | "INFO" | "FERMÉE")
-                        setEditedCodeAgence(fullAgencyData.codeAgence || "")
-                        setEditedCodeRayon(fullAgencyData.codeRayon || "")
-                        setEditedDateOuverture(fullAgencyData.dateOuverture ? new Date(fullAgencyData.dateOuverture).toISOString().split('T')[0] : "")
-                        setEditedDateFermeture(fullAgencyData.dateFermeture ? new Date(fullAgencyData.dateFermeture).toISOString().split('T')[0] : "")
-                        setEditingTechnical(true)
-                        if (fullAgencyData?.technical) {
-                          const notesToUse = latestTechnicalNotes !== null ? latestTechnicalNotes : (fullAgencyData.technical.technicalNotes || "")
-                          setTechnicalData({
-                            networkIp: fullAgencyData.technical.networkIp || "",
-                            machineBrand: fullAgencyData.technical.machineBrand || "",
-                            machineModel: fullAgencyData.technical.machineModel || "",
-                            machineConnection: fullAgencyData.technical.machineConnection || "",
-                            machineIp: fullAgencyData.technical.machineIp || "",
-                            machineMac: fullAgencyData.technical.machineMac || "",
-                            wifiRouterBrand: fullAgencyData.technical.wifiRouterBrand || "",
-                            wifiRouterModel: fullAgencyData.technical.wifiRouterModel || "",
-                            wifiRouterIp: fullAgencyData.technical.wifiRouterIp || "",
-                            wifiRouterSerial: fullAgencyData.technical.wifiRouterSerial || "",
-                            mainRouterBrand: fullAgencyData.technical.mainRouterBrand || "",
-                            mainRouterModel: fullAgencyData.technical.mainRouterModel || "",
-                            mainRouterIp: fullAgencyData.technical.mainRouterIp || "",
-                            mainRouterSerial: fullAgencyData.technical.mainRouterSerial || "",
-                            mainRouterLinkType: fullAgencyData.technical.mainRouterLinkType || "",
-                            backupRouterBrand: fullAgencyData.technical.backupRouterBrand || "",
-                            backupRouterModel: fullAgencyData.technical.backupRouterModel || "",
-                            backupRouterIp: fullAgencyData.technical.backupRouterIp || "",
-                            backupRouterSerial: fullAgencyData.technical.backupRouterSerial || "",
-                            recorderBrand: fullAgencyData.technical.recorderBrand || "",
-                            recorderModel: fullAgencyData.technical.recorderModel || "",
-                            recorderSerial: fullAgencyData.technical.recorderSerial || "",
-                            recorderMac: fullAgencyData.technical.recorderMac || "",
-                            recorderIp: fullAgencyData.technical.recorderIp || "",
-                            recorderStorage: fullAgencyData.technical.recorderStorage || "",
-                            technicalNotes: notesToUse,
-                          })
-                        } else {
-                          setTechnicalData({})
-                        }
-                      }}
-                      className="gap-2 flex-1"
-                    >
-                      <Edit className="h-4 w-4" />
-                      <span className="hidden xs:inline">Modifier</span>
-                    </Button>
+                    {userRole !== "User" && (
+                      <Button
+                        onClick={() => {
+                          setEditing(true)
+                          setEditedName(fullAgencyData.name)
+                          setEditedState(fullAgencyData.state as "OK" | "ALERTE" | "INFO" | "FERMÉE")
+                          setEditedCodeAgence(fullAgencyData.codeAgence || "")
+                          setEditedCodeRayon(fullAgencyData.codeRayon || "")
+                          setEditedDateOuverture(fullAgencyData.dateOuverture ? new Date(fullAgencyData.dateOuverture).toISOString().split('T')[0] : "")
+                          setEditedDateFermeture(fullAgencyData.dateFermeture ? new Date(fullAgencyData.dateFermeture).toISOString().split('T')[0] : "")
+                          setEditingTechnical(true)
+                          if (fullAgencyData?.technical) {
+                            const notesToUse = latestTechnicalNotes !== null ? latestTechnicalNotes : (fullAgencyData.technical.technicalNotes || "")
+                            setTechnicalData({
+                              networkIp: fullAgencyData.technical.networkIp || "",
+                              machineBrand: fullAgencyData.technical.machineBrand || "",
+                              machineModel: fullAgencyData.technical.machineModel || "",
+                              machineConnection: fullAgencyData.technical.machineConnection || "",
+                              machineIp: fullAgencyData.technical.machineIp || "",
+                              machineMac: fullAgencyData.technical.machineMac || "",
+                              wifiRouterBrand: fullAgencyData.technical.wifiRouterBrand || "",
+                              wifiRouterModel: fullAgencyData.technical.wifiRouterModel || "",
+                              wifiRouterIp: fullAgencyData.technical.wifiRouterIp || "",
+                              wifiRouterSerial: fullAgencyData.technical.wifiRouterSerial || "",
+                              mainRouterBrand: fullAgencyData.technical.mainRouterBrand || "",
+                              mainRouterModel: fullAgencyData.technical.mainRouterModel || "",
+                              mainRouterIp: fullAgencyData.technical.mainRouterIp || "",
+                              mainRouterSerial: fullAgencyData.technical.mainRouterSerial || "",
+                              mainRouterLinkType: fullAgencyData.technical.mainRouterLinkType || "",
+                              backupRouterBrand: fullAgencyData.technical.backupRouterBrand || "",
+                              backupRouterModel: fullAgencyData.technical.backupRouterModel || "",
+                              backupRouterIp: fullAgencyData.technical.backupRouterIp || "",
+                              backupRouterSerial: fullAgencyData.technical.backupRouterSerial || "",
+                              recorderBrand: fullAgencyData.technical.recorderBrand || "",
+                              recorderModel: fullAgencyData.technical.recorderModel || "",
+                              recorderSerial: fullAgencyData.technical.recorderSerial || "",
+                              recorderMac: fullAgencyData.technical.recorderMac || "",
+                              recorderIp: fullAgencyData.technical.recorderIp || "",
+                              recorderStorage: fullAgencyData.technical.recorderStorage || "",
+                              technicalNotes: notesToUse,
+                            })
+                          } else {
+                            setTechnicalData({})
+                          }
+                        }}
+                        className="gap-2 flex-1"
+                      >
+                        <Edit className="h-4 w-4" />
+                        <span className="hidden xs:inline">Modifier</span>
+                      </Button>
+                    )}
                   </div>
                 )}
                 {/* En mode desktop : layout horizontal normal */}
@@ -2450,7 +2676,7 @@ export default function AgencesPage() {
                 )}
               </div>
               {/* Bouton Modifier à droite en mode desktop non-édition */}
-              {!editing && !isMobile && (
+              {!editing && !isMobile && userRole !== "User" && (
                 <div className="flex gap-2">
                   <Button
                     onClick={() => {
@@ -2533,7 +2759,7 @@ export default function AgencesPage() {
             {/* Onglets + contenu */}
             <Tabs
               value={activeTab}
-              onValueChange={(value) => setActiveTab(value as "general" | "technical" | "photos")}
+              onValueChange={(value) => setActiveTab(value as "general" | "tasks" | "technical" | "photos")}
               className="w-full flex-1 flex flex-col overflow-hidden min-h-0"
             >
               {/* Onglets - Fixe */}
@@ -2542,6 +2768,10 @@ export default function AgencesPage() {
                   <TabsTrigger value="general" className="text-sm sm:text-sm min-h-[44px]">
                     <FileText className="h-4 w-4 sm:h-4 sm:w-4 mr-2 sm:mr-2" />
                     Général
+                  </TabsTrigger>
+                  <TabsTrigger value="tasks" className="text-sm sm:text-sm min-h-[44px]">
+                    <ListTodo className="h-4 w-4 sm:h-4 sm:w-4 mr-2 sm:mr-2" />
+                    Tâches
                   </TabsTrigger>
                   <TabsTrigger value="technical" className="text-sm sm:text-sm min-h-[44px]">
                     <Settings className="h-4 w-4 sm:h-4 sm:w-4 mr-2 sm:mr-2" />
@@ -2700,16 +2930,43 @@ export default function AgencesPage() {
                   </CardHeader>
                   <CardContent className="p-4 sm:p-6">
                     {fullAgencyData.addresses && fullAgencyData.addresses.length > 0 ? (
-                      <div className="space-y-2 sm:space-y-4">
+                      <div className="grid gap-3 sm:gap-4 auto-rows-fr" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))' }}>
                         {fullAgencyData.addresses.map((address) => (
-                          <div key={address.id} className="border p-3 sm:p-4 rounded">
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <div className="font-semibold">{address.label}</div>
-                                <div className="text-sm text-muted-foreground">
-                                  {address.street}
+                          <Card key={address.id} className="bg-slate-50 dark:bg-slate-800/50 w-full h-full flex flex-col">
+                            <CardHeader className="p-3 sm:p-4">
+                              <div className="flex items-start justify-between">
+                                <CardTitle className="text-base font-semibold flex-1">
+                                  {address.label}
+                                </CardTitle>
+                                {editing && (
+                                  <div className="flex gap-1 shrink-0">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleEditAddress(address)}
+                                      className="h-8 w-8 p-0"
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleDeleteAddress(address.id)}
+                                      className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+                            </CardHeader>
+                            <CardContent className="p-3 sm:p-4 pt-0 flex-1 flex flex-col">
+                              <div className="space-y-2 text-sm flex-1">
+                                <div className="flex items-center gap-2">
+                                  <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
+                                  <span className="text-muted-foreground">{address.street}</span>
                                 </div>
-                                <div className="text-sm text-muted-foreground">
+                                <div className="text-muted-foreground">
                                   {address.postalCode} {address.city}
                                 </div>
                                 {address.latitude && address.longitude && (
@@ -2729,26 +2986,8 @@ export default function AgencesPage() {
                                   </Button>
                                 )}
                               </div>
-                              {editing && (
-                                <div className="flex gap-2">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleEditAddress(address)}
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleDeleteAddress(address.id)}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              )}
-                            </div>
-                          </div>
+                            </CardContent>
+                          </Card>
                         ))}
                       </div>
                     ) : (
@@ -2774,14 +3013,13 @@ export default function AgencesPage() {
                   </CardHeader>
                   <CardContent className="p-4 sm:p-6">
                     {fullAgencyData.contacts && fullAgencyData.contacts.length > 0 ? (
-                      <div className="space-y-2 sm:space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                         {(() => {
                           const sortedContacts = [...fullAgencyData.contacts].sort((a, b) => (a.order || 0) - (b.order || 0))
-                          const contactsLength = sortedContacts.length
                           return sortedContacts.map((contact, index) => {
                             const emails = JSON.parse(contact.emails || "[]")
                             return (
-                              <div
+                              <Card
                                 key={contact.id}
                                 draggable={editing}
                                 onDragStart={(e) => {
@@ -2808,56 +3046,93 @@ export default function AgencesPage() {
                                   }
                                   setDraggedContactId(null)
                                 }}
-                                className={`border p-3 sm:p-4 rounded ${
+                                className={`bg-slate-50 dark:bg-slate-800/50 ${
                                   draggedContactId === contact.id ? "opacity-50" : ""
                                 } ${
                                   dragOverContactIndex === index ? "border-primary border-2" : ""
                                 } ${editing ? "cursor-move" : ""}`}
                               >
-                                <div className="flex items-start justify-between">
-                                  {editing && (
-                                    <div className="mr-2 text-muted-foreground cursor-move">
-                                      <GripVertical className="h-5 w-5" />
-                                    </div>
-                                  )}
-                                  <div className="flex-1">
-                                    <div className="font-semibold">{contact.managerName}</div>
-                                    <div className="text-sm space-y-1 mt-2">
-                                      {contact.postNumber && <div>Poste: {contact.postNumber}</div>}
-                                      {contact.agentNumber && <div>Agent: {contact.agentNumber}</div>}
-                                      <div>Ligne directe: {contact.directLine}</div>
-                                      {emails.length > 0 && (
-                                        <div>
-                                          Emails: {emails.join(", ")}
-                                        </div>
-                                      )}
-                                      {contact.note && (
-                                        <div className="mt-2 text-muted-foreground">
-                                          Note: {contact.note}
-                                        </div>
-                                      )}
-                                    </div>
+                                <CardHeader className="p-3 sm:p-4">
+                                  <div className="flex items-start justify-between gap-2">
+                                    {editing && (
+                                      <div className="text-muted-foreground cursor-move shrink-0">
+                                        <GripVertical className="h-4 w-4" />
+                                      </div>
+                                    )}
+                                    <CardTitle className="text-base font-semibold flex-1">
+                                      {contact.managerName}
+                                    </CardTitle>
+                                    {editing && (
+                                      <div className="flex gap-1 shrink-0">
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => handleEditContact(contact)}
+                                          className="h-8 w-8 p-0"
+                                        >
+                                          <Edit className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => handleDeleteContact(contact.id)}
+                                          className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </div>
+                                    )}
                                   </div>
-                                  {editing && (
-                                    <div className="flex gap-2">
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => handleEditContact(contact)}
-                                      >
-                                        <Edit className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => handleDeleteContact(contact.id)}
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
+                                </CardHeader>
+                                <CardContent className="p-3 sm:p-4 pt-0">
+                                  <div className="space-y-2 text-sm">
+                                    {contact.postNumber && (
+                                      <div className="flex items-center gap-2">
+                                        <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
+                                        <span><strong>Poste:</strong> {contact.postNumber}</span>
+                                      </div>
+                                    )}
+                                    {contact.agentNumber && (
+                                      <div className="flex items-center gap-2">
+                                        <User className="h-4 w-4 text-muted-foreground shrink-0" />
+                                        <span><strong>Agent:</strong> {contact.agentNumber}</span>
+                                      </div>
+                                    )}
+                                    {contact.directLine && (
+                                      <div className="flex items-center gap-2">
+                                        <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
+                                        <span><strong>Ligne directe:</strong> {contact.directLine}</span>
+                                      </div>
+                                    )}
+                                    {emails.length > 0 && (
+                                      <div className="flex items-start gap-2">
+                                        <Mail className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                                        <div className="flex-1">
+                                          <strong>Emails:</strong>
+                                          <div className="mt-1 space-y-1">
+                                            {emails.map((email: string, emailIndex: number) => (
+                                              <div key={emailIndex} className="text-muted-foreground break-all">
+                                                {email}
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )}
+                                    {contact.note && (
+                                      <div className="mt-3 pt-3 border-t">
+                                        <div className="flex items-start gap-2">
+                                          <FileText className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                                          <div className="flex-1">
+                                            <strong>Note:</strong>
+                                            <p className="text-muted-foreground mt-1 whitespace-pre-wrap">{contact.note}</p>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </CardContent>
+                              </Card>
                             )
                           })
                         })()}
@@ -2869,6 +3144,474 @@ export default function AgencesPage() {
                     )}
                   </CardContent>
                 </Card>
+              </TabsContent>
+
+              <TabsContent value="tasks" className="space-y-2 sm:space-y-4 pt-2 sm:pt-4 mt-0">
+                {/* Bouton Ajouter - Pleine largeur sur mobile */}
+                <Button 
+                  onClick={handleAddTask} 
+                  disabled={!editing}
+                  className="w-full sm:w-auto gap-2 mb-4 bg-green-600 hover:bg-green-700 text-white"
+                >
+                  <Plus className="h-4 w-4" />
+                  Ajouter une tâche
+                </Button>
+
+                {/* Filtres - Visibles uniquement sur mobile */}
+                <div className="sm:hidden mb-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-sm font-medium">Filtres :</span>
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    <button
+                      onClick={() => setTaskFilter("URGENT")}
+                      className={`px-3 py-1 rounded-full text-xs font-semibold border ${
+                        taskFilter === "URGENT"
+                          ? "bg-red-100 text-red-800 border-red-500 dark:bg-red-900/30 dark:text-red-400"
+                          : "bg-white text-red-600 border-red-300 dark:bg-gray-800 dark:text-red-400"
+                      }`}
+                    >
+                      URGENT
+                    </button>
+                    <button
+                      onClick={() => setTaskFilter("CRITIQUE")}
+                      className={`px-3 py-1 rounded-full text-xs font-semibold border ${
+                        taskFilter === "CRITIQUE"
+                          ? "bg-orange-100 text-orange-800 border-orange-500 dark:bg-orange-900/30 dark:text-orange-400"
+                          : "bg-white text-orange-600 border-orange-300 dark:bg-gray-800 dark:text-orange-400"
+                      }`}
+                    >
+                      CRITIQUE
+                    </button>
+                    <button
+                      onClick={() => setTaskFilter("INFO")}
+                      className={`px-3 py-1 rounded-full text-xs font-semibold border ${
+                        taskFilter === "INFO"
+                          ? "bg-gray-100 text-gray-800 border-gray-500 dark:bg-gray-700 dark:text-gray-300"
+                          : "bg-white text-gray-600 border-gray-300 dark:bg-gray-800 dark:text-gray-400"
+                      }`}
+                    >
+                      INFO
+                    </button>
+                    <button
+                      onClick={() => setTaskFilter("ALL")}
+                      className={`px-3 py-1 rounded-full text-xs font-semibold border ${
+                        taskFilter === "ALL"
+                          ? "bg-blue-100 text-blue-800 border-blue-500 dark:bg-blue-900/30 dark:text-blue-400"
+                          : "bg-white text-blue-600 border-blue-300 dark:bg-gray-800 dark:text-blue-400"
+                      }`}
+                    >
+                      TOUS
+                    </button>
+                  </div>
+                </div>
+
+                {loadingTasks ? (
+                  <div className="text-center py-8 text-muted-foreground">Chargement...</div>
+                ) : tasks.filter(t => taskFilter === "ALL" || t.importance === taskFilter).length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">Aucune tâche</div>
+                ) : (
+                  <>
+                    {/* Vue mobile - Cartes */}
+                    <div className="sm:hidden space-y-4">
+                      {tasks
+                        .filter(t => taskFilter === "ALL" || t.importance === taskFilter)
+                        .map((task) => {
+                          const isClosed = !!task.closedAt
+                          const createdAt = new Date(task.createdAt)
+                          const closedAt = task.closedAt ? new Date(task.closedAt) : null
+                          
+                          const getInitials = (name: string) => {
+                            return name
+                              .split(" ")
+                              .map((n) => n[0])
+                              .join("")
+                              .toUpperCase()
+                              .slice(0, 2)
+                          }
+
+                          const getAvatarColor = (name: string) => {
+                            const colors = [
+                              "bg-blue-500",
+                              "bg-green-500",
+                              "bg-yellow-500",
+                              "bg-purple-500",
+                              "bg-pink-500",
+                              "bg-indigo-500",
+                              "bg-red-500",
+                              "bg-orange-500",
+                            ]
+                            const index = name.charCodeAt(0) % colors.length
+                            return colors[index]
+                          }
+
+                          const importanceColor = task.importance === "URGENT" 
+                            ? "bg-red-500" 
+                            : task.importance === "CRITIQUE" 
+                            ? "bg-orange-500" 
+                            : "bg-gray-500"
+
+                          return (
+                            <div
+                              key={task.id}
+                              className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
+                            >
+                              {/* Barre colorée à gauche */}
+                              <div className="flex">
+                                <div className={`w-1 ${importanceColor}`} />
+                                <div className="flex-1 p-4">
+                                  {/* En-tête avec badges */}
+                                  <div className="flex items-start justify-between mb-3">
+                                    <h3 className="font-bold text-base flex-1 pr-2">{task.title}</h3>
+                                    <div className="flex gap-2 flex-shrink-0">
+                                      <span
+                                        className={`px-2 py-1 rounded-full text-xs font-semibold text-white ${
+                                          task.importance === "URGENT"
+                                            ? "bg-red-500"
+                                            : task.importance === "CRITIQUE"
+                                            ? "bg-orange-500"
+                                            : "bg-gray-500"
+                                        }`}
+                                      >
+                                        {task.importance}
+                                      </span>
+                                      {isClosed && (
+                                        <span className="px-2 py-1 rounded-full text-xs font-semibold bg-green-500 text-white">
+                                          Clôturée
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Description */}
+                                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{task.notes}</p>
+
+                                  {/* Informations de création */}
+                                  {!isClosed ? (
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <div className={`w-8 h-8 rounded-full ${getAvatarColor(task.creator.login)} text-white text-xs flex items-center justify-center font-semibold`}>
+                                        {getInitials(task.creator.login)}
+                                      </div>
+                                      <div className="flex-1">
+                                        <div className="text-sm font-medium">{task.creator.login}</div>
+                                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                                          {createdAt.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" })} {createdAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                                        </div>
+                                      </div>
+                                      <span className="text-xs text-gray-400 dark:text-gray-500">Non clôturée</span>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-start gap-4 flex-wrap">
+                                      <div className="flex-1 min-w-[200px]">
+                                        <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Créée par :</div>
+                                        <div className="flex items-center gap-2">
+                                          <div className={`w-6 h-6 rounded-full ${getAvatarColor(task.creator.login)} text-white text-xs flex items-center justify-center font-semibold`}>
+                                            {getInitials(task.creator.login)}
+                                          </div>
+                                          <span className="text-sm">{task.creator.login}</span>
+                                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                                            {createdAt.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" })} {createdAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                                          </span>
+                                        </div>
+                                      </div>
+                                      {task.closer && closedAt && (
+                                        <div className="flex-1 min-w-[200px]">
+                                          <div className="text-xs text-green-600 dark:text-green-400 mb-1">Clôturée par :</div>
+                                          <div className="flex items-center gap-2">
+                                            <div className={`w-6 h-6 rounded-full ${getAvatarColor(task.closer.login)} text-white text-xs flex items-center justify-center font-semibold`}>
+                                              {getInitials(task.closer.login)}
+                                            </div>
+                                            <span className="text-sm">{task.closer.login}</span>
+                                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                                              {closedAt.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" })} {closedAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+
+                                  {/* Boutons d'action */}
+                                  <div className="flex gap-2 mt-4">
+                                    {userRole !== "User" && (
+                                      <>
+                                        <Button
+                                          variant="default"
+                                          size="sm"
+                                          onClick={() => handleEditTask(task)}
+                                          disabled={isClosed || !editing}
+                                          className="flex-1"
+                                        >
+                                          <Edit className="h-4 w-4 mr-1" />
+                                          Modifier
+                                        </Button>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => handleCloseTask(task)}
+                                          disabled={isClosed || !editing}
+                                          className="flex-1 bg-green-50 hover:bg-green-100 text-green-700 border-green-300"
+                                        >
+                                          <CheckCircle className="h-4 w-4 mr-1" />
+                                          Clôturer
+                                        </Button>
+                                      </>
+                                    )}
+                                    {userRole === "Super Admin" && (
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleDeleteTask(task)}
+                                        disabled={!editing}
+                                        className="flex-1 bg-red-50 hover:bg-red-100 text-red-700 border-red-300"
+                                      >
+                                        <Trash2 className="h-4 w-4 mr-1" />
+                                        Supprimer
+                                      </Button>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      <div className="text-center text-sm text-gray-500 dark:text-gray-400 py-4">
+                        Faites défiler pour voir plus de tâches
+                        <ChevronDown className="h-4 w-4 mx-auto mt-1" />
+                      </div>
+                    </div>
+
+                    {/* Vue desktop - Cartes */}
+                    <div className="hidden sm:block">
+                      {/* Filtres Desktop */}
+                      <div className="mb-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-sm font-medium">Filtres :</span>
+                        </div>
+                        <div className="flex gap-2 flex-wrap">
+                          <button
+                            onClick={() => setTaskFilter("URGENT")}
+                            className={`px-3 py-1 rounded-full text-xs font-semibold border ${
+                              taskFilter === "URGENT"
+                                ? "bg-red-100 text-red-800 border-red-500 dark:bg-red-900/30 dark:text-red-400"
+                                : "bg-white text-red-600 border-red-300 dark:bg-gray-800 dark:text-red-400"
+                            }`}
+                          >
+                            URGENT
+                          </button>
+                          <button
+                            onClick={() => setTaskFilter("CRITIQUE")}
+                            className={`px-3 py-1 rounded-full text-xs font-semibold border ${
+                              taskFilter === "CRITIQUE"
+                                ? "bg-orange-100 text-orange-800 border-orange-500 dark:bg-orange-900/30 dark:text-orange-400"
+                                : "bg-white text-orange-600 border-orange-300 dark:bg-gray-800 dark:text-orange-400"
+                            }`}
+                          >
+                            CRITIQUE
+                          </button>
+                          <button
+                            onClick={() => setTaskFilter("INFO")}
+                            className={`px-3 py-1 rounded-full text-xs font-semibold border ${
+                              taskFilter === "INFO"
+                                ? "bg-gray-100 text-gray-800 border-gray-500 dark:bg-gray-700 dark:text-gray-300"
+                                : "bg-white text-gray-600 border-gray-300 dark:bg-gray-800 dark:text-gray-400"
+                            }`}
+                          >
+                            INFO
+                          </button>
+                          <button
+                            onClick={() => setTaskFilter("ALL")}
+                            className={`px-3 py-1 rounded-full text-xs font-semibold border ${
+                              taskFilter === "ALL"
+                                ? "bg-blue-100 text-blue-800 border-blue-500 dark:bg-blue-900/30 dark:text-blue-400"
+                                : "bg-white text-blue-600 border-blue-300 dark:bg-gray-800 dark:text-blue-400"
+                            }`}
+                          >
+                            TOUS
+                          </button>
+                        </div>
+                      </div>
+                      <div className="space-y-4">
+                        {tasks
+                          .filter(t => taskFilter === "ALL" || t.importance === taskFilter)
+                          .map((task) => {
+                            const isClosed = !!task.closedAt
+                            const createdAt = new Date(task.createdAt)
+                            const closedAt = task.closedAt ? new Date(task.closedAt) : null
+                            
+                            const getInitials = (name: string) => {
+                              return name
+                                .split(" ")
+                                .map((n) => n[0])
+                                .join("")
+                                .toUpperCase()
+                                .slice(0, 2)
+                            }
+
+                            const getAvatarColor = (name: string) => {
+                              const colors = [
+                                "bg-blue-500",
+                                "bg-green-500",
+                                "bg-yellow-500",
+                                "bg-purple-500",
+                                "bg-pink-500",
+                                "bg-indigo-500",
+                                "bg-red-500",
+                                "bg-orange-500",
+                              ]
+                              const index = name.charCodeAt(0) % colors.length
+                              return colors[index]
+                            }
+
+                            const importanceColor = task.importance === "URGENT" 
+                              ? "bg-red-500" 
+                              : task.importance === "CRITIQUE" 
+                              ? "bg-orange-500" 
+                              : "bg-gray-500"
+
+                            return (
+                              <div
+                                key={task.id}
+                                className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
+                              >
+                                {/* Barre colorée à gauche */}
+                                <div className="flex">
+                                  <div className={`w-1 ${importanceColor}`} />
+                                  <div className="flex-1 p-4">
+                                    {/* En-tête avec badges */}
+                                    <div className="flex items-start justify-between mb-3">
+                                      <h3 className="font-bold text-base flex-1 pr-2">{task.title}</h3>
+                                      <div className="flex gap-2 flex-shrink-0">
+                                        <span
+                                          className={`px-2 py-1 rounded-full text-xs font-semibold text-white ${
+                                            task.importance === "URGENT"
+                                              ? "bg-red-500"
+                                              : task.importance === "CRITIQUE"
+                                              ? "bg-orange-500"
+                                              : "bg-gray-500"
+                                          }`}
+                                        >
+                                          {task.importance}
+                                        </span>
+                                        {isClosed && (
+                                          <span className="px-2 py-1 rounded-full text-xs font-semibold bg-green-500 text-white">
+                                            Clôturée
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* Description */}
+                                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 max-h-[5rem] overflow-y-auto pr-2" style={{ lineHeight: '1.25rem' }}>
+                                      {task.notes}
+                                    </p>
+
+                                    {/* Informations de création */}
+                                    {!isClosed ? (
+                                      <div className="flex items-center gap-2 mb-2">
+                                        <div className={`w-8 h-8 rounded-full ${getAvatarColor(task.creator.login)} text-white text-xs flex items-center justify-center font-semibold`}>
+                                          {getInitials(task.creator.login)}
+                                        </div>
+                                        <div className="flex-1">
+                                          <div className="text-sm font-medium">{task.creator.login}</div>
+                                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                                            {createdAt.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" })} {createdAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                                          </div>
+                                        </div>
+                                        <span className="text-xs text-gray-400 dark:text-gray-500">Non clôturée</span>
+                                      </div>
+                                    ) : (
+                                      <div className="flex items-start gap-4 flex-wrap">
+                                        <div className="flex-1 min-w-[200px]">
+                                          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Créée par :</div>
+                                          <div className="flex items-center gap-2">
+                                            <div className={`w-6 h-6 rounded-full ${getAvatarColor(task.creator.login)} text-white text-xs flex items-center justify-center font-semibold`}>
+                                              {getInitials(task.creator.login)}
+                                            </div>
+                                            <span className="text-sm">{task.creator.login}</span>
+                                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                                              {createdAt.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" })} {createdAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                                            </span>
+                                          </div>
+                                        </div>
+                                        {task.closer && closedAt && (
+                                          <div className="flex-1 min-w-[200px]">
+                                            <div className="text-xs text-green-600 dark:text-green-400 mb-1">Clôturée par :</div>
+                                            <div className="flex items-center gap-2">
+                                              <div className={`w-6 h-6 rounded-full ${getAvatarColor(task.closer.login)} text-white text-xs flex items-center justify-center font-semibold`}>
+                                                {getInitials(task.closer.login)}
+                                              </div>
+                                              <span className="text-sm">{task.closer.login}</span>
+                                              <span className="text-xs text-gray-500 dark:text-gray-400">
+                                                {closedAt.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" })} {closedAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+
+                                    {/* Boutons d'action */}
+                                    <div className="flex gap-2 mt-4">
+                                      {userRole !== "User" && (
+                                        <>
+                                          <Button
+                                            variant="default"
+                                            size="sm"
+                                            onClick={() => handleEditTask(task)}
+                                            disabled={isClosed || !editing}
+                                            className="flex-1"
+                                          >
+                                            <Edit className="h-4 w-4 mr-1" />
+                                            Modifier
+                                          </Button>
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => handleCloseTask(task)}
+                                            disabled={isClosed || !editing}
+                                            className="flex-1 bg-green-50 hover:bg-green-100 text-green-700 border-green-300"
+                                          >
+                                            <CheckCircle className="h-4 w-4 mr-1" />
+                                            Clôturer
+                                          </Button>
+                                        </>
+                                      )}
+                                      {userRole === "Super Admin" && (
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => handleDeleteTask(task)}
+                                          disabled={!editing}
+                                          className="flex-1 bg-red-50 hover:bg-red-100 text-red-700 border-red-300"
+                                        >
+                                          <Trash2 className="h-4 w-4 mr-1" />
+                                          Supprimer
+                                        </Button>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            )
+                          })}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Légende - Desktop uniquement */}
+                <div className="hidden sm:flex mt-4 flex-wrap gap-4 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-1 rounded bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400 font-semibold">URGENT</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-1 rounded bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400 font-semibold">CRITIQUE</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-1 rounded bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300 font-semibold">INFO</span>
+                  </div>
+                </div>
               </TabsContent>
 
               <TabsContent value="technical" className="space-y-2 sm:space-y-4 pt-2 sm:pt-4 mt-0">
@@ -3869,9 +4612,16 @@ export default function AgencesPage() {
                         {editing || editingTechnical ? (
                           <Textarea
                             value={technicalData.technicalNotes || ""}
-                            onChange={(e) =>
-                              setTechnicalData({ ...technicalData, technicalNotes: e.target.value })
-                            }
+                            onChange={(e) => {
+                              const newValue = e.target.value
+                              // Empêcher les non-Super Admin de vider les notes si elles existent déjà
+                              const hasExistingNotes = fullAgencyData?.technical?.technicalNotes && fullAgencyData.technical.technicalNotes.trim() !== ""
+                              if (newValue === "" && hasExistingNotes && userRole !== "Super Admin") {
+                                alert("Seul le Super Admin peut supprimer les notes techniques")
+                                return
+                              }
+                              setTechnicalData({ ...technicalData, technicalNotes: newValue })
+                            }}
                             placeholder="Notes techniques..."
                             rows={6}
                           />
@@ -5010,6 +5760,146 @@ export default function AgencesPage() {
           </div>
         </div>
       )}
+
+      {/* Dialog Création Tâche */}
+      <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nouvelle tâche</DialogTitle>
+            <DialogDescription>
+              Créez une nouvelle tâche pour cette agence
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="task-title">Titre *</Label>
+              <Input
+                id="task-title"
+                value={taskFormData.title}
+                onChange={(e) => setTaskFormData((prev) => ({ ...prev, title: e.target.value }))}
+                placeholder="Titre de la tâche..."
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="task-createdAt">Créée le</Label>
+              <Input
+                id="task-createdAt"
+                type="datetime-local"
+                value={taskFormData.createdAt}
+                onChange={(e) => setTaskFormData((prev) => ({ ...prev, createdAt: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="task-notes">Notes *</Label>
+              <Textarea
+                id="task-notes"
+                value={taskFormData.notes}
+                onChange={(e) => setTaskFormData((prev) => ({ ...prev, notes: e.target.value }))}
+                placeholder="Notes de la tâche..."
+                rows={4}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="task-importance">Importance</Label>
+              <Select
+                value={taskFormData.importance}
+                onValueChange={(value: "URGENT" | "CRITIQUE" | "INFO") =>
+                  setTaskFormData((prev) => ({ ...prev, importance: value }))
+                }
+              >
+                <SelectTrigger id="task-importance">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="URGENT">URGENT</SelectItem>
+                  <SelectItem value="CRITIQUE">CRITIQUE</SelectItem>
+                  <SelectItem value="INFO">INFO</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsTaskDialogOpen(false)}>
+              Annuler
+            </Button>
+            <Button onClick={handleSaveTask}>Enregistrer</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Modification Tâche */}
+      <Dialog open={isTaskEditDialogOpen} onOpenChange={setIsTaskEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Modifier la tâche</DialogTitle>
+            <DialogDescription>
+              Modifiez les informations de la tâche
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="task-edit-title">Titre *</Label>
+              <Input
+                id="task-edit-title"
+                value={taskFormData.title}
+                onChange={(e) => setTaskFormData((prev) => ({ ...prev, title: e.target.value }))}
+                placeholder="Titre de la tâche..."
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="task-edit-createdAt">Créée le</Label>
+              <Input
+                id="task-edit-createdAt"
+                type="datetime-local"
+                value={taskFormData.createdAt}
+                onChange={(e) => setTaskFormData((prev) => ({ ...prev, createdAt: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="task-edit-notes">Notes *</Label>
+              <Textarea
+                id="task-edit-notes"
+                value={taskFormData.notes}
+                onChange={(e) => setTaskFormData((prev) => ({ ...prev, notes: e.target.value }))}
+                placeholder="Notes de la tâche..."
+                rows={4}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="task-edit-importance">Importance</Label>
+              <Select
+                value={taskFormData.importance}
+                onValueChange={(value: "URGENT" | "CRITIQUE" | "INFO") =>
+                  setTaskFormData((prev) => ({ ...prev, importance: value }))
+                }
+              >
+                <SelectTrigger id="task-edit-importance">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="URGENT">URGENT</SelectItem>
+                  <SelectItem value="CRITIQUE">CRITIQUE</SelectItem>
+                  <SelectItem value="INFO">INFO</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setIsTaskEditDialogOpen(false)
+              setEditingTask(null)
+              setTaskFormData({
+                createdAt: "",
+                notes: "",
+                importance: "INFO",
+              })
+            }}>
+              Annuler
+            </Button>
+            <Button onClick={handleUpdateTask}>Enregistrer</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog Historique Notes techniques */}
       <Dialog open={isNotesHistoryDialogOpen} onOpenChange={setIsNotesHistoryDialogOpen}>
