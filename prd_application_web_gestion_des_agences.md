@@ -820,6 +820,10 @@ Aucun autre type autorisé.
 * Hash mot de passe : **argon2**
 * **2FA : Google Authenticator uniquement**
   * QR Code affiché (format data URL complet retourné par `qrcode.toDataURL()`)
+    * **Génération** : QR Code généré à 600px de largeur avec marge de 2 et niveau de correction d'erreur 'M'
+    * **Affichage dans la page de configuration obligatoire** : 
+      * Desktop : 500px × 500px (taille fixe optimale pour le scan)
+      * Mobile/Tablette : 85% de la largeur de la fenêtre (responsive)
   * Secret affiché (format base32)
   * Librairie QR Code autorisée : `qrcode` (npm)
   * **2FA obligatoire pour Super Admin** :
@@ -1297,6 +1301,12 @@ L'application doit être conforme aux standards de sécurité OWASP Top 10 2021.
 * **Layout spécial** : N'affiche pas la sidebar ni le header normal (layout dédié)
 * **Fonctionnalités** :
   * Génération du QR Code 2FA
+    * **Taille de génération** : QR Code généré à 600px de largeur avec marge de 2 et niveau de correction d'erreur 'M' (dans `lib/auth.ts`)
+    * **Affichage responsive** : 
+      * Desktop : 500px × 500px (taille fixe optimale pour le scan)
+      * Mobile/Tablette : 85% de la largeur de la fenêtre (s'adapte automatiquement pour éviter le débordement)
+      * Utilisation de `min(500px, 85vw)` pour garantir une taille suffisante tout en restant dans les limites de l'écran
+    * **Conteneur** : Bordure arrondie avec fond blanc/gris foncé selon le thème, ombre portée pour améliorer la visibilité
   * Affichage du secret (pour saisie manuelle)
   * Saisie du code de vérification depuis Google Authenticator
   * Activation automatique du 2FA après validation
