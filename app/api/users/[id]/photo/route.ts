@@ -5,6 +5,8 @@ import { getSession } from "@/lib/session"
 import { prisma } from "@/lib/prisma"
 import { createLog } from "@/lib/logs"
 import { requireCSRF } from "@/lib/csrf-middleware"
+import { quarantineFile, scanQuarantinedFile, releaseFromQuarantine, removeFromQuarantine } from "@/lib/quarantine"
+import { processImageSecurely } from "@/lib/image-sandbox"
 
 const MAX_FILE_SIZE = 1 * 1024 * 1024 // 1 MB
 const ALLOWED_TYPES = ["image/jpeg", "image/png"]
@@ -100,6 +102,68 @@ export async function POST(
       )
     }
 
+    // ÉTAPE 1: Mettre le fichier en quarantaine
+    const quarantineInfo = await quarantineFile(buffer, file.name)
+    console.log(`[PHOTO] Fichier mis en quarantaine: ${quarantineInfo.filePath}`)
+
+    // ÉTAPE 2: Scanner le fichier en quarantaine
+    const scanResult = await scanQuarantinedFile(quarantineInfo, buffer)
+
+    if (!scanResult.clean) {
+      // Fichier malveillant détecté, le supprimer de la quarantaine
+      await removeFromQuarantine(quarantineInfo.filePath)
+      
+      await createLog(session.id, "PHOTO_PROFIL_REJETEE", {
+        userId: id,
+        reason: scanResult.threat || "Fichier suspect détecté",
+        engine: scanResult.engine,
+      }, request)
+
+      return NextResponse.json(
+        { 
+          error: "Fichier rejeté pour des raisons de sécurité. Veuillez utiliser une image valide.",
+          details: scanResult.threat 
+        },
+        { status: 403 }
+      )
+    }
+
+    console.log(`[PHOTO] Fichier approuvé par scan: ${scanResult.engine} - Propre`)
+
+    // ÉTAPE 3: Traiter l'image dans un sandbox (redimensionnement)
+    let processedBuffer: Buffer
+    try {
+      processedBuffer = await processImageSecurely(buffer, {
+        width: PROFILE_PHOTO_SIZE,
+        height: PROFILE_PHOTO_SIZE,
+        fit: "cover",
+        position: "center",
+      })
+    } catch (error: any) {
+      // Si le traitement échoue, supprimer de la quarantaine
+      await removeFromQuarantine(quarantineInfo.filePath)
+      return NextResponse.json(
+        { error: "Erreur lors du traitement de l'image" },
+        { status: 500 }
+      )
+    }
+
+    // ÉTAPE 4: Générer le nom de fichier final et libérer depuis la quarantaine
+    const timestamp = Date.now()
+    const random = Math.random().toString(36).substring(2, 15)
+    const extension = isValidJPEG ? "jpg" : "png"
+    const filename = `profile-${id}-${timestamp}-${random}.${extension}`
+    const finalFilePath = join(userPhotosDir, filename)
+    const relativePath = `/uploads/user-photos/${filename}`
+
+    // Écrire l'image traitée directement (le fichier en quarantaine n'est plus nécessaire)
+    await writeFile(finalFilePath, processedBuffer)
+    
+    // Supprimer le fichier de la quarantaine (déjà traité)
+    await removeFromQuarantine(quarantineInfo.filePath)
+    
+    console.log(`[PHOTO] Fichier traité et sauvegardé: ${finalFilePath}`)
+
     // Récupérer l'ancienne photo pour la supprimer
     const user = await prisma.user.findUnique({
       where: { id },
@@ -114,23 +178,6 @@ export async function POST(
         // Ignorer si le fichier n'existe pas
       }
     }
-
-    // Générer un nom de fichier unique
-    const timestamp = Date.now()
-    const random = Math.random().toString(36).substring(2, 15)
-    const extension = isValidJPEG ? "jpg" : "png"
-    const filename = `profile-${id}-${timestamp}-${random}.${extension}`
-    const filepath = join(userPhotosDir, filename)
-    const relativePath = `/uploads/user-photos/${filename}`
-
-    // Redimensionner et sauvegarder l'image en carré 100x100px
-    const sharp = (await import("sharp")).default
-    await sharp(buffer)
-      .resize(PROFILE_PHOTO_SIZE, PROFILE_PHOTO_SIZE, {
-        fit: "cover",
-        position: "center",
-      })
-      .toFile(filepath)
 
     // Mettre à jour l'utilisateur avec le chemin de la photo
     await prisma.user.update({

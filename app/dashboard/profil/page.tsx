@@ -275,12 +275,26 @@ export default function ProfilPage() {
         setUserPhotoPreview(null)
         await fetchUserData()
       } else {
-        const error = await photoResponse.json()
-        setError(error.error || "Erreur lors de l'upload de la photo")
+        // Vérifier si le body peut être lu
+        let errorMessage = "Erreur lors de l'upload de la photo"
+        try {
+          const errorData = await photoResponse.json()
+          errorMessage = errorData.error || errorData.details || errorMessage
+        } catch (jsonError) {
+          // Si le body ne peut pas être lu, utiliser le message d'erreur par défaut
+          console.warn("Impossible de lire le body de la réponse:", jsonError)
+          // Essayer de récupérer le message depuis le status
+          if (photoResponse.status === 403) {
+            errorMessage = "Accès refusé. Vérifiez vos permissions."
+          } else if (photoResponse.status === 400) {
+            errorMessage = "Fichier invalide. Vérifiez le format et la taille."
+          }
+        }
+        setError(errorMessage)
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error uploading photo:", error)
-      setError("Erreur lors de l'upload de la photo")
+      setError(error.message || "Erreur lors de l'upload de la photo")
     }
   }
 

@@ -16,7 +16,8 @@
     "check:data": "node scripts/verify-data.js",
     "restore:admin": "node scripts/restore-admin.js",
     "reset:admin": "node scripts/reset-admin-password.js",
-    "disable:2fa:admin": "node scripts/disable-2fa-admin.js"
+    "disable:2fa:admin": "node scripts/disable-2fa-admin.js",
+    "clean:quarantine": "node scripts/clean-quarantine.js"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

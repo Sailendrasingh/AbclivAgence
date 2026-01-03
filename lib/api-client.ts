@@ -77,7 +77,9 @@ export async function apiFetch(
 
   // Si erreur 403 avec message CSRF, réessayer avec un nouveau token
   if (response.status === 403 && !skipCSRF) {
-    const errorData = await response.json().catch(() => ({}))
+    // Cloner la réponse pour pouvoir lire le body sans le consommer
+    const clonedResponse = response.clone()
+    const errorData = await clonedResponse.json().catch(() => ({}))
     if (errorData.error?.includes("CSRF") || errorData.error?.includes("csrf")) {
       // Réessayer avec un nouveau token
       const newToken = await fetchCSRFToken()

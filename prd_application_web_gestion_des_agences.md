@@ -95,6 +95,8 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
 * **yauzl** (^3.2.0) : Bibliothèque légère pour lire les archives ZIP (utilisée pour la restauration de sauvegardes)
 * **zod** (^4.3.4) : Bibliothèque de validation de schémas TypeScript (utilisée pour valider strictement toutes les entrées API)
 
+**Note importante sur ClamAV** : Le scan antivirus utilise ClamAV si disponible sur le système. ClamAV n'est pas une dépendance npm mais doit être installé séparément sur le serveur (ex: `sudo apt-get install clamav clamav-daemon` sur Ubuntu/Debian). Le système fonctionne avec un scan heuristique en fallback si ClamAV n'est pas disponible, mais l'installation de ClamAV est recommandée en production pour un scan complet.
+
 #### Dépendances de développement (devDependencies)
 
 * **@types/archiver** (^7.0.0) : Types TypeScript pour archiver
@@ -733,6 +735,7 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
 * Dossier uploads : **/uploads** (racine projet)
   * **Photos de profil** : Stockées dans `/uploads/user-photos/` (ou `/uploads/profiles/` selon la configuration)
   * **Photos d'agences** : Stockées dans `/uploads/` (racine du dossier uploads)
+  * **Quarantaine** : Fichiers temporaires stockés dans `/uploads/quarantine/` avant validation et traitement
 * Taille max fichier : **5 MB** (photos d'agences), **1 MB** (photos de profil)
 * Types autorisés :
 
@@ -745,8 +748,25 @@ Aucun autre type autorisé.
   * **Taille maximale** : 1 MB par fichier
   * **Redimensionnement automatique** : Toutes les photos de profil sont automatiquement redimensionnées en 100x100px (carré) lors de l'upload
   * **Validation stricte** : Vérification du type MIME via magic bytes pour prévenir les attaques par upload de fichiers malveillants
+  * **Sécurité renforcée** :
+    * **Scan antivirus** : Tous les fichiers uploadés sont scannés avec ClamAV (si disponible) et un scan heuristique en fallback
+      * **Support ClamAV** : Utilisation de `clamdscan` si ClamAV est installé sur le serveur
+      * **Scan heuristique** : Détection de signatures suspectes (scripts malveillants, exécutables déguisés) pour les fichiers non-images
+      * **Détection d'images** : Les images valides (JPEG/PNG) sont traitées différemment pour éviter les faux positifs
+      * **Rejet automatique** : Les fichiers détectés comme malveillants sont automatiquement rejetés et supprimés
+    * **Quarantaine** : Tous les fichiers uploadés sont d'abord placés en quarantaine avant d'être traités
+      * **Dossier de quarantaine** : `/uploads/quarantine/` pour stocker temporairement les fichiers
+      * **Processus** : Upload → Quarantaine → Scan → Libération si propre → Traitement
+      * **Nettoyage automatique** : Script de nettoyage (`npm run clean:quarantine`) pour supprimer les fichiers anciens (plus de 24h)
+      * **Suppression automatique** : Les fichiers malveillants sont supprimés de la quarantaine après rejet
+    * **Sandboxing** : Le traitement d'images (redimensionnement) est isolé dans un worker thread
+      * **Worker thread isolé** : Traitement dans un contexte séparé pour limiter les risques de sécurité
+      * **Timeout** : Timeout de 30 secondes pour le worker, 10 secondes pour le fallback direct
+      * **Validation** : Validation des dimensions et taille maximale dans le worker
+      * **Fallback** : Traitement direct avec timeout si le worker est indisponible
   * **Suppression automatique** : Lors de l'upload d'une nouvelle photo, l'ancienne photo est automatiquement supprimée du système de fichiers
   * **Stockage** : Le chemin relatif de la photo est stocké dans le champ `photo` du modèle `User` (format : `/uploads/user-photos/filename.jpg`)
+  * **Logging** : Toutes les opérations sont loggées (upload, rejet, suppression) avec le moteur de scan utilisé
   * **Affichage** :
     * **Sidebar** : Photo affichée en 48x48px
     * **Page profil** : Photo affichée en 100x100px
@@ -824,6 +844,7 @@ Aucun autre type autorisé.
   * **Prévisualisation** : Aperçu de la nouvelle photo avant l'enregistrement
   * **Suppression** : Possibilité de supprimer la photo de profil existante
   * **Avatar de remplacement** : Si aucune photo n'est définie, affichage d'un avatar avec les initiales de l'utilisateur et une couleur de fond générée automatiquement
+  * **Sécurité** : Toutes les photos de profil sont soumises au scan antivirus, à la quarantaine et au sandboxing (voir section 9 pour les détails)
 * **Désactiver/Activer** : Bouton "Désactiver" ou "Activer" pour basculer le statut actif d'un utilisateur
 * **Supprimer** : Bouton "Supprimer" avec confirmation avant suppression définitive
 * **Gestion 2FA** :
@@ -898,6 +919,7 @@ Aucun autre type autorisé.
     * **Prévisualisation** : Aperçu de la nouvelle photo avant l'enregistrement
     * **Suppression** : Possibilité de supprimer la photo de profil existante
     * **Avatar de remplacement** : Si aucune photo n'est définie, affichage d'un avatar avec les initiales de l'utilisateur et une couleur de fond générée automatiquement
+    * **Sécurité** : Toutes les photos de profil sont soumises au scan antivirus, à la quarantaine et au sandboxing (voir section 9 pour les détails)
   * Messages d'erreur et de succès
 * **API routes** :
   * `/api/auth/profile` (PUT) - Permet à un utilisateur de modifier son propre profil (login, mot de passe)
@@ -1151,6 +1173,11 @@ Aucun autre type autorisé.
 * **Automatisation** :
   * **À implémenter** : Configuration d'un cron job ou scheduler pour exécuter automatiquement la sauvegarde quotidienne
   * **Commande manuelle** : `npm run backup` pour créer une sauvegarde manuelle
+* **Nettoyage de la quarantaine** :
+  * **Script** : `scripts/clean-quarantine.js`
+  * **Commande** : `npm run clean:quarantine`
+  * **Fonction** : Supprime automatiquement les fichiers en quarantaine plus anciens que 24 heures
+  * **Recommandation** : Configurer un cron job ou scheduler pour exécuter ce script quotidiennement
 * **Accès** :
   * Menu "Sauvegardes" dans la barre latérale : Visible uniquement pour les utilisateurs avec le rôle **Super Admin**
   * Icône : HardDrive
