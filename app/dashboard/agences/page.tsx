@@ -3207,6 +3207,55 @@ export default function AgencesPage() {
                   </div>
                 </div>
 
+                {/* Filtres Desktop */}
+                <div className="hidden sm:block mb-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-sm font-medium">Filtres :</span>
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    <button
+                      onClick={() => setTaskFilter("URGENT")}
+                      className={`px-3 py-1 rounded-full text-xs font-semibold border ${
+                        taskFilter === "URGENT"
+                          ? "bg-red-100 text-red-800 border-red-500 dark:bg-red-900/30 dark:text-red-400"
+                          : "bg-white text-red-600 border-red-300 dark:bg-gray-800 dark:text-red-400"
+                      }`}
+                    >
+                      URGENT
+                    </button>
+                    <button
+                      onClick={() => setTaskFilter("CRITIQUE")}
+                      className={`px-3 py-1 rounded-full text-xs font-semibold border ${
+                        taskFilter === "CRITIQUE"
+                          ? "bg-orange-100 text-orange-800 border-orange-500 dark:bg-orange-900/30 dark:text-orange-400"
+                          : "bg-white text-orange-600 border-orange-300 dark:bg-gray-800 dark:text-orange-400"
+                      }`}
+                    >
+                      CRITIQUE
+                    </button>
+                    <button
+                      onClick={() => setTaskFilter("INFO")}
+                      className={`px-3 py-1 rounded-full text-xs font-semibold border ${
+                        taskFilter === "INFO"
+                          ? "bg-gray-100 text-gray-800 border-gray-500 dark:bg-gray-700 dark:text-gray-300"
+                          : "bg-white text-gray-600 border-gray-300 dark:bg-gray-800 dark:text-gray-400"
+                      }`}
+                    >
+                      INFO
+                    </button>
+                    <button
+                      onClick={() => setTaskFilter("ALL")}
+                      className={`px-3 py-1 rounded-full text-xs font-semibold border ${
+                        taskFilter === "ALL"
+                          ? "bg-blue-100 text-blue-800 border-blue-500 dark:bg-blue-900/30 dark:text-blue-400"
+                          : "bg-white text-blue-600 border-blue-300 dark:bg-gray-800 dark:text-blue-400"
+                      }`}
+                    >
+                      TOUS
+                    </button>
+                  </div>
+                </div>
+
                 {loadingTasks ? (
                   <div className="text-center py-8 text-muted-foreground">Chargement...</div>
                 ) : tasks.filter(t => taskFilter === "ALL" || t.importance === taskFilter).length === 0 ? (
@@ -3255,7 +3304,7 @@ export default function AgencesPage() {
                           return (
                             <div
                               key={task.id}
-                              className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
+                              className="bg-card dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
                             >
                               {/* Barre colorée à gauche */}
                               <div className="flex">
@@ -3384,54 +3433,6 @@ export default function AgencesPage() {
 
                     {/* Vue desktop - Cartes */}
                     <div className="hidden sm:block">
-                      {/* Filtres Desktop */}
-                      <div className="mb-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-sm font-medium">Filtres :</span>
-                        </div>
-                        <div className="flex gap-2 flex-wrap">
-                          <button
-                            onClick={() => setTaskFilter("URGENT")}
-                            className={`px-3 py-1 rounded-full text-xs font-semibold border ${
-                              taskFilter === "URGENT"
-                                ? "bg-red-100 text-red-800 border-red-500 dark:bg-red-900/30 dark:text-red-400"
-                                : "bg-white text-red-600 border-red-300 dark:bg-gray-800 dark:text-red-400"
-                            }`}
-                          >
-                            URGENT
-                          </button>
-                          <button
-                            onClick={() => setTaskFilter("CRITIQUE")}
-                            className={`px-3 py-1 rounded-full text-xs font-semibold border ${
-                              taskFilter === "CRITIQUE"
-                                ? "bg-orange-100 text-orange-800 border-orange-500 dark:bg-orange-900/30 dark:text-orange-400"
-                                : "bg-white text-orange-600 border-orange-300 dark:bg-gray-800 dark:text-orange-400"
-                            }`}
-                          >
-                            CRITIQUE
-                          </button>
-                          <button
-                            onClick={() => setTaskFilter("INFO")}
-                            className={`px-3 py-1 rounded-full text-xs font-semibold border ${
-                              taskFilter === "INFO"
-                                ? "bg-gray-100 text-gray-800 border-gray-500 dark:bg-gray-700 dark:text-gray-300"
-                                : "bg-white text-gray-600 border-gray-300 dark:bg-gray-800 dark:text-gray-400"
-                            }`}
-                          >
-                            INFO
-                          </button>
-                          <button
-                            onClick={() => setTaskFilter("ALL")}
-                            className={`px-3 py-1 rounded-full text-xs font-semibold border ${
-                              taskFilter === "ALL"
-                                ? "bg-blue-100 text-blue-800 border-blue-500 dark:bg-blue-900/30 dark:text-blue-400"
-                                : "bg-white text-blue-600 border-blue-300 dark:bg-gray-800 dark:text-blue-400"
-                            }`}
-                          >
-                            TOUS
-                          </button>
-                        </div>
-                      </div>
                       <div className="space-y-4">
                         {tasks
                           .filter(t => taskFilter === "ALL" || t.importance === taskFilter)
@@ -3473,7 +3474,7 @@ export default function AgencesPage() {
                             return (
                               <div
                                 key={task.id}
-                                className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
+                                className="bg-card dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
                               >
                                 {/* Barre colorée à gauche */}
                                 <div className="flex">

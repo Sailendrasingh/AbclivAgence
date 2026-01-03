@@ -127,6 +127,7 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
   * Couleur principale : **Orange** (HSL: 25 95% 50%)
   * Dégradé de marque : Orange → Blanc
   * Surfaces très lisibles (fonds blancs / très clairs)
+  * **Accentuation des sections** : Les Cards et sections utilisent un fond légèrement accentué (`--card: 0 0% 97%`) pour se distinguer du fond de page (`--background: 0 0% 100%`), améliorant la lisibilité et la distinction visuelle
   * Tokens avec teintes orange subtiles
 * **Thème sombre** :
   * Ambiance aérée et moderne avec **Bleu ciel sombre** (Dark Sky Blue)
@@ -252,6 +253,9 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
     * Actions disponibles : Modifier, Clôturer, Supprimer
     * Bouton "Ajouter une tâche"
     * Filtre par importance (URGENT, CRITIQUE, INFO, TOUS)
+      * **Visibilité permanente** : Les boutons de filtre restent toujours visibles même s'il n'y a pas de tâches correspondantes au filtre sélectionné
+      * Permet de changer de filtre même quand aucun résultat n'est affiché
+      * Filtres disponibles sur mobile et desktop
     * Affichage en cartes (mobile et desktop)
     * Tâches clôturées avec fond grisé et badge "Clôturée"
     * Notes limitées à 5 lignes avec scrollbar pour les notes plus longues
@@ -997,10 +1001,60 @@ Aucun autre type autorisé.
   * **Durée de session** :
     * Champ de saisie numérique pour définir la durée d'inactivité avant déconnexion automatique (en minutes)
     * **Valeur minimale** : 1 minute
+  * **Gestion des fichiers orphelins** (onglet Général) :
+    * **Fonctionnalité** : Scan du dossier uploads pour trouver les images non référencées dans la base de données
+    * **Processus** :
+      * Bouton "Scanner les fichiers orphelins" pour lancer le scan
+      * Vérification de toutes les références dans la base de données :
+        * Photos de profil (`User.photo`)
+        * Photos d'agences (`Agency.photo`)
+        * Photos dans les groupes (`PhotoGroup.photos`)
+        * Photos et fichiers des imprimantes (`Printer.photos`, `Printer.files`)
+      * Affichage de la liste des fichiers orphelins trouvés avec :
+        * Chemin du fichier
+        * Taille formatée
+        * Date de modification
+    * **Sélection multiple** : Cases à cocher pour sélectionner les fichiers à supprimer
+    * **Actions** :
+      * Bouton "Tout sélectionner" / "Tout désélectionner"
+      * Bouton "Supprimer" avec confirmation pour supprimer les fichiers sélectionnés
+    * **Sécurité** :
+      * Accès réservé aux Super Admin
+      * Protection CSRF sur l'API de suppression
+      * Validation des chemins (protection path traversal)
+      * Logging des suppressions
+    * **API** :
+      * `GET /api/files/orphaned` : Scanne et retourne la liste des fichiers orphelins
+      * `DELETE /api/files/orphaned` : Supprime les fichiers orphelins sélectionnés
     * **Valeur par défaut** : 1 minute (60 secondes)
     * **Validation** : Validation côté client et serveur pour s'assurer que la valeur est un nombre positif d'au moins 1 minute
     * **Enregistrement** : Les paramètres sont sauvegardés dans la base de données (modèle `AppSettings`)
     * **Application immédiate** : La nouvelle durée de session est appliquée immédiatement après enregistrement pour tous les utilisateurs connectés via le composant `SessionTimeoutWrapper` qui recharge la durée depuis l'API
+  * **Gestion des fichiers orphelins** (onglet Général) :
+    * **Fonctionnalité** : Scan du dossier uploads pour trouver les images non référencées dans la base de données
+    * **Processus** :
+      * Bouton "Scanner les fichiers orphelins" pour lancer le scan
+      * Vérification de toutes les références dans la base de données :
+        * Photos de profil (`User.photo`)
+        * Photos d'agences (`Agency.photo`)
+        * Photos dans les groupes (`PhotoGroup.photos`)
+        * Photos et fichiers des imprimantes (`Printer.photos`, `Printer.files`)
+      * Affichage de la liste des fichiers orphelins trouvés avec :
+        * Chemin du fichier
+        * Taille formatée
+        * Date de modification
+    * **Sélection multiple** : Cases à cocher pour sélectionner les fichiers à supprimer
+    * **Actions** :
+      * Bouton "Tout sélectionner" / "Tout désélectionner"
+      * Bouton "Supprimer" avec confirmation pour supprimer les fichiers sélectionnés
+    * **Sécurité** :
+      * Accès réservé aux Super Admin
+      * Protection CSRF sur l'API de suppression
+      * Validation des chemins (protection path traversal)
+      * Logging des suppressions
+    * **API** :
+      * `GET /api/files/orphaned` : Scanne et retourne la liste des fichiers orphelins
+      * `DELETE /api/files/orphaned` : Supprime les fichiers orphelins sélectionnés
 * **API Routes** :
   * **GET `/api/settings`** : Récupère les paramètres de l'application
     * Vérification du rôle Super Admin

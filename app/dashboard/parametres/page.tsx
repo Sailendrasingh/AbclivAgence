@@ -15,7 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Save, Plus, RotateCcw, HardDrive, AlertTriangle, Trash2, Download, Edit, Shield, ShieldOff, Sliders, Users, FileText } from "lucide-react"
+import { Save, Plus, RotateCcw, HardDrive, AlertTriangle, Trash2, Download, Edit, Shield, ShieldOff, Sliders, Users, FileText, Search, CheckSquare, Square } from "lucide-react"
 import Image from "next/image"
 import {
   Select,
@@ -91,6 +91,12 @@ function ParametresPageContent() {
   } | null>(null)
   const [twoFactorToken, setTwoFactorToken] = useState("")
   const [current2FAUserId, setCurrent2FAUserId] = useState<string | null>(null)
+  
+  // États pour les fichiers orphelins
+  const [orphanedFiles, setOrphanedFiles] = useState<Array<{ path: string; size: number; sizeFormatted: string; modified: string }>>([])
+  const [scanningOrphaned, setScanningOrphaned] = useState(false)
+  const [deletingOrphaned, setDeletingOrphaned] = useState(false)
+  const [selectedOrphanedFiles, setSelectedOrphanedFiles] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -624,6 +630,82 @@ function ParametresPageContent() {
     }
   }
 
+  const handleScanOrphanedFiles = async () => {
+    setScanningOrphaned(true)
+    setOrphanedFiles([])
+    setSelectedOrphanedFiles(new Set())
+    try {
+      const response = await apiFetch("/api/files/orphaned")
+      if (response.ok) {
+        const data = await response.json()
+        setOrphanedFiles(data.orphanedFiles || [])
+      } else {
+        const error = await response.json()
+        alert(error.error || "Erreur lors du scan des fichiers orphelins")
+      }
+    } catch (error) {
+      console.error("Error scanning orphaned files:", error)
+      alert("Erreur lors du scan des fichiers orphelins")
+    } finally {
+      setScanningOrphaned(false)
+    }
+  }
+
+  const handleDeleteOrphanedFiles = async () => {
+    if (selectedOrphanedFiles.size === 0) {
+      alert("Veuillez sélectionner au moins un fichier à supprimer")
+      return
+    }
+
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer ${selectedOrphanedFiles.size} fichier(s) orphelin(s) ? Cette action est irréversible.`)) {
+      return
+    }
+
+    setDeletingOrphaned(true)
+    try {
+      const response = await apiFetch("/api/files/orphaned", {
+        method: "DELETE",
+        body: JSON.stringify({
+          paths: Array.from(selectedOrphanedFiles),
+        }),
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        alert(`${data.deletedCount} fichier(s) supprimé(s) avec succès`)
+        // Re-scanner pour mettre à jour la liste
+        await handleScanOrphanedFiles()
+        setSelectedOrphanedFiles(new Set())
+      } else {
+        const error = await response.json()
+        alert(error.error || "Erreur lors de la suppression des fichiers")
+      }
+    } catch (error) {
+      console.error("Error deleting orphaned files:", error)
+      alert("Erreur lors de la suppression des fichiers")
+    } finally {
+      setDeletingOrphaned(false)
+    }
+  }
+
+  const toggleOrphanedFileSelection = (path: string) => {
+    const newSelection = new Set(selectedOrphanedFiles)
+    if (newSelection.has(path)) {
+      newSelection.delete(path)
+    } else {
+      newSelection.add(path)
+    }
+    setSelectedOrphanedFiles(newSelection)
+  }
+
+  const selectAllOrphanedFiles = () => {
+    if (selectedOrphanedFiles.size === orphanedFiles.length) {
+      setSelectedOrphanedFiles(new Set())
+    } else {
+      setSelectedOrphanedFiles(new Set(orphanedFiles.map((f) => f.path)))
+    }
+  }
+
   const handleSave = async () => {
     if (sessionTimeout < 1) {
       alert("La durée de session doit être d'au moins 1 minute")
@@ -732,36 +814,151 @@ function ParametresPageContent() {
             {loading ? (
               <div>Chargement...</div>
             ) : (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Sliders className="h-5 w-5" />
-                    Paramètres de l&apos;application
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="session-timeout">
-                      Durée de session (en minutes)
-                    </Label>
-                    <Input
-                      id="session-timeout"
-                      type="number"
-                      min="1"
-                      value={sessionTimeout}
-                      onChange={(e) => setSessionTimeout(parseInt(e.target.value) || 60)}
-                      placeholder="60"
-                    />
+              <>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Sliders className="h-5 w-5" />
+                      Paramètres de l&apos;application
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="session-timeout">
+                        Durée de session (en minutes)
+                      </Label>
+                      <Input
+                        id="session-timeout"
+                        type="number"
+                        min="1"
+                        value={sessionTimeout}
+                        onChange={(e) => setSessionTimeout(parseInt(e.target.value) || 60)}
+                        placeholder="60"
+                      />
+                      <p className="text-sm text-muted-foreground">
+                        Durée d&apos;inactivité avant déconnexion automatique (minimum 1 minute)
+                      </p>
+                    </div>
+                    <Button onClick={handleSave} disabled={saving} className="gap-2">
+                      <Save className="h-4 w-4" />
+                      {saving ? "Enregistrement..." : "Enregistrer"}
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                {/* Section Fichiers orphelins */}
+                {userRole === "Super Admin" && (
+                  <div className="mt-12">
+                    <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <FileText className="h-5 w-5" />
+                      Fichiers orphelins
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
                     <p className="text-sm text-muted-foreground">
-                      Durée d&apos;inactivité avant déconnexion automatique (minimum 1 minute)
+                      Scanne le dossier uploads pour trouver les images non référencées dans la base de données.
                     </p>
+                    <Button
+                      onClick={handleScanOrphanedFiles}
+                      disabled={scanningOrphaned}
+                      className="gap-2"
+                      variant="outline"
+                    >
+                      <Search className="h-4 w-4" />
+                      {scanningOrphaned ? "Scan en cours..." : "Scanner les fichiers orphelins"}
+                    </Button>
+
+                    {orphanedFiles.length > 0 && (
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-medium">
+                            {orphanedFiles.length} fichier(s) orphelin(s) trouvé(s)
+                          </p>
+                          <div className="flex gap-2">
+                            <Button
+                              onClick={selectAllOrphanedFiles}
+                              variant="outline"
+                              size="sm"
+                              className="gap-2"
+                            >
+                              {selectedOrphanedFiles.size === orphanedFiles.length ? (
+                                <>
+                                  <CheckSquare className="h-4 w-4" />
+                                  Tout désélectionner
+                                </>
+                              ) : (
+                                <>
+                                  <Square className="h-4 w-4" />
+                                  Tout sélectionner
+                                </>
+                              )}
+                            </Button>
+                            <Button
+                              onClick={handleDeleteOrphanedFiles}
+                              disabled={deletingOrphaned || selectedOrphanedFiles.size === 0}
+                              variant="destructive"
+                              size="sm"
+                              className="gap-2"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              {deletingOrphaned
+                                ? "Suppression..."
+                                : `Supprimer (${selectedOrphanedFiles.size})`}
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="border rounded-lg max-h-96 overflow-y-auto">
+                          <div className="divide-y">
+                            {orphanedFiles.map((file) => (
+                              <div
+                                key={file.path}
+                                className="p-3 hover:bg-muted/50 flex items-center gap-3"
+                              >
+                                <button
+                                  onClick={() => toggleOrphanedFileSelection(file.path)}
+                                  className="shrink-0"
+                                >
+                                  {selectedOrphanedFiles.has(file.path) ? (
+                                    <CheckSquare className="h-5 w-5 text-primary" />
+                                  ) : (
+                                    <Square className="h-5 w-5 text-muted-foreground" />
+                                  )}
+                                </button>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate">{file.path}</p>
+                                  <div className="flex gap-4 text-xs text-muted-foreground mt-1">
+                                    <span>{file.sizeFormatted}</span>
+                                    <span>
+                                      {new Date(file.modified).toLocaleDateString("fr-FR", {
+                                        year: "numeric",
+                                        month: "short",
+                                        day: "numeric",
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      })}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {orphanedFiles.length === 0 && !scanningOrphaned && (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        Aucun fichier orphelin trouvé. Cliquez sur &quot;Scanner les fichiers orphelins&quot; pour lancer une recherche.
+                      </p>
+                    )}
+                  </CardContent>
+                    </Card>
                   </div>
-                  <Button onClick={handleSave} disabled={saving} className="gap-2">
-                    <Save className="h-4 w-4" />
-                    {saving ? "Enregistrement..." : "Enregistrer"}
-                  </Button>
-                </CardContent>
-              </Card>
+                )}
+              </>
             )}
           </TabsContent>
 
