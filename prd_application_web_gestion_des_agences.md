@@ -723,10 +723,21 @@ Aucun autre type autorisé.
 * **Gestion du 2FA** :
   * Si l'utilisateur a le 2FA activé (`twoFactorEnabled = true`), l'API retourne `{ needsTwoFactor: true }` avec un status 200
   * Le formulaire de connexion affiche automatiquement un champ "Code 2FA" lorsque `needsTwoFactor` est détecté
+  * **2FA obligatoire pour Super Admin** : Les comptes Super Admin doivent configurer le 2FA lors de la première connexion
+    * **Connexion autorisée** : Les Super Admin peuvent se connecter avec login/mot de passe même si le 2FA n'est pas activé
+    * **Session créée** : Une session est créée pour permettre l'accès à la page de configuration 2FA
+    * **Redirection automatique** : Après connexion réussie, redirection automatique vers `/dashboard/setup-2fa` si `requiresTwoFactorSetup: true`
+    * **Page de configuration obligatoire** : Page dédiée `/dashboard/setup-2fa` pour configurer le 2FA avant d'accéder au reste de l'application
+    * **Protection automatique** : Le composant `Require2FASetup` vérifie et redirige automatiquement les Super Admin sans 2FA vers la page de configuration
+    * **Vérification sur routes protégées** : Toutes les routes nécessitant les privilèges Super Admin vérifient que le 2FA est activé
+    * **Avertissement dans le profil** : Avertissement visuel pour les Super Admin qui n'ont pas activé le 2FA (si accès au profil)
+    * **Le 2FA ne peut pas être désactivé** : Le 2FA ne peut pas être désactivé pour les Super Admin (bouton désactivé dans l'interface)
   * L'utilisateur doit saisir le code à 6 chiffres depuis Google Authenticator
   * Le code est validé côté serveur avant de créer la session
   * Si le code est incorrect, un message d'erreur est affiché et l'utilisateur peut réessayer
-* **Création de session** : La session n'est créée qu'après validation complète (mot de passe + code 2FA si activé)
+* **Création de session** : 
+  * Pour les utilisateurs normaux : La session n'est créée qu'après validation complète (mot de passe + code 2FA si activé)
+  * Pour les Super Admin sans 2FA : La session est créée après validation du mot de passe pour permettre l'accès à la page de configuration 2FA
 
 ### 11.2 Utilisateurs
 
@@ -807,12 +818,32 @@ Aucun autre type autorisé.
 ### 11.3 Sécurité obligatoire
 
 * Hash mot de passe : **argon2**
-* 2FA : **Google Authenticator uniquement**
-
+* **2FA : Google Authenticator uniquement**
   * QR Code affiché (format data URL complet retourné par `qrcode.toDataURL()`)
   * Secret affiché (format base32)
   * Librairie QR Code autorisée : `qrcode` (npm)
-* Protection CSRF / XSS
+  * **2FA obligatoire pour Super Admin** :
+    * **Configuration forcée lors de la connexion** : Les Super Admin doivent configurer le 2FA lors de leur première connexion
+    * **Connexion autorisée** : Les Super Admin peuvent se connecter avec login/mot de passe, mais sont redirigés vers `/dashboard/setup-2fa`
+    * **Page de configuration dédiée** : Page `/dashboard/setup-2fa` avec interface complète pour générer le QR Code et activer le 2FA
+    * **Layout spécial** : La page de configuration 2FA utilise un layout spécial sans sidebar ni header
+    * **Protection automatique** : Le composant `Require2FASetup` redirige automatiquement les Super Admin sans 2FA vers la page de configuration
+    * **Vérification sur routes protégées** : Toutes les routes nécessitant les privilèges Super Admin vérifient que le 2FA est activé via `requireTwoFactorForSuperAdmin()`
+    * **Middleware et fonctions utilitaires** : 
+      * `lib/two-factor-required.ts` : Fonctions pour vérifier si le 2FA est obligatoire
+      * `lib/require-two-factor.ts` : Middleware pour vérifier le 2FA sur les routes protégées
+    * **Avertissement dans le profil** : Avertissement visuel (bannière jaune) pour les Super Admin qui n'ont pas activé le 2FA (si accès au profil)
+    * **Bouton "Activer (Obligatoire)"** : Bouton mis en évidence pour les Super Admin dans le profil
+    * **Le 2FA ne peut pas être désactivé** : Le 2FA ne peut pas être désactivé pour les Super Admin (bouton "Obligatoire" désactivé)
+* **Protection CSRF / XSS** :
+  * **Utilisation systématique de `apiFetch`** : Toutes les requêtes API côté client utilisent `apiFetch` au lieu de `fetch` natif
+    * `apiFetch` ajoute automatiquement le token CSRF dans les headers (`x-csrf-token`) et dans le body (pour FormData)
+    * `apiFetch` inclut automatiquement les credentials (cookies de session)
+    * `apiFetch` gère automatiquement le retry en cas d'erreur CSRF (récupération d'un nouveau token)
+    * `apiFetch` configure automatiquement les headers `Content-Type` pour JSON
+    * **Fichiers concernés** : Tous les fichiers dans `app/dashboard/` utilisent `apiFetch` pour les requêtes vers `/api/*`
+  * **Middleware CSRF** : Validation du token CSRF sur toutes les routes modifiantes (POST, PUT, DELETE, PATCH)
+  * **Sanitization XSS** : Toutes les entrées utilisateur sont sanitizées après validation
 * **Validation stricte des entrées** :
   * **Zod** : Utilisation de schémas Zod pour valider toutes les entrées API (users, contacts, agencies, addresses, pcs, etc.)
   * **Validation côté serveur** : Toutes les routes API modifiantes utilisent un middleware de validation avec Zod
@@ -1052,6 +1083,18 @@ L'application doit être conforme aux standards de sécurité OWASP Top 10 2021.
 
 * **Hachage des mots de passe** : Utilisation d'**argon2** (algorithme moderne et sécurisé)
 * **2FA** : Implémenté avec TOTP (Google Authenticator)
+* **2FA obligatoire pour Super Admin** :
+  * **Configuration forcée lors de la connexion** : Les Super Admin doivent configurer le 2FA lors de leur première connexion
+  * **Connexion autorisée** : Les Super Admin peuvent se connecter avec login/mot de passe, mais sont redirigés vers `/dashboard/setup-2fa`
+  * **Page de configuration dédiée** : Page `/dashboard/setup-2fa` avec interface complète pour générer le QR Code et activer le 2FA
+  * **Layout spécial** : La page de configuration 2FA utilise un layout spécial sans sidebar ni header (`app/dashboard/setup-2fa/layout.tsx`)
+  * **Protection automatique** : Le composant `Require2FASetup` redirige automatiquement les Super Admin sans 2FA vers la page de configuration
+  * **Vérification sur routes protégées** : Toutes les routes nécessitant les privilèges Super Admin vérifient que le 2FA est activé via `requireTwoFactorForSuperAdmin()`
+  * **Middleware et fonctions utilitaires** : 
+    * `lib/two-factor-required.ts` : Fonctions pour vérifier si le 2FA est obligatoire
+    * `lib/require-two-factor.ts` : Middleware pour vérifier le 2FA sur les routes protégées
+  * **Avertissement dans le profil** : Avertissement visuel pour les Super Admin qui n'ont pas activé le 2FA (si accès au profil)
+  * **Le 2FA ne peut pas être désactivé** : Le 2FA ne peut pas être désactivé pour les Super Admin (bouton désactivé dans l'interface)
 * **Secrets 2FA** : Stockés en base32, jamais exposés en clair
 * **Cookies sécurisés** : `httpOnly: true`, `secure: true` en production, `sameSite: "lax"`
 * **Clé de chiffrement WiFi** : 
@@ -1239,7 +1282,80 @@ L'application doit être conforme aux standards de sécurité OWASP Top 10 2021.
 
 ---
 
-## 18. Clause finale (bloquante)
+## 18. Configuration 2FA obligatoire pour Super Admin
+
+### 18.1 Flux de connexion
+
+* **Connexion initiale** : Les Super Admin peuvent se connecter avec login/mot de passe même si le 2FA n'est pas activé
+* **Création de session** : Une session est créée pour permettre l'accès à la page de configuration 2FA
+* **Redirection automatique** : Après connexion réussie, si `requiresTwoFactorSetup: true`, redirection automatique vers `/dashboard/setup-2fa`
+
+### 18.2 Page de configuration 2FA obligatoire
+
+* **Route** : `/dashboard/setup-2fa`
+* **Accès** : Accessible uniquement pour les Super Admin qui n'ont pas activé le 2FA
+* **Layout spécial** : N'affiche pas la sidebar ni le header normal (layout dédié)
+* **Fonctionnalités** :
+  * Génération du QR Code 2FA
+  * Affichage du secret (pour saisie manuelle)
+  * Saisie du code de vérification depuis Google Authenticator
+  * Activation automatique du 2FA après validation
+  * Redirection vers `/dashboard/agences` après activation réussie
+* **Protection** : 
+  * Vérification automatique que l'utilisateur est Super Admin
+  * Redirection si le 2FA est déjà activé
+  * Redirection si ce n'est pas un Super Admin
+
+### 18.3 Composant de protection automatique
+
+* **Composant** : `Require2FASetup` dans `components/require-2fa-setup.tsx`
+* **Intégration** : Intégré dans le layout du dashboard (`app/dashboard/layout.tsx`)
+* **Fonctionnement** :
+  * Vérifie automatiquement si le Super Admin doit configurer le 2FA
+  * Redirige vers `/dashboard/setup-2fa` si nécessaire
+  * Ne vérifie pas sur la page de configuration elle-même (évite les boucles)
+* **Vérification** : Appelle `/api/auth/me` pour vérifier `requiresTwoFactorSetup`
+
+### 18.4 Routes API concernées
+
+* **Routes de configuration 2FA** : `/api/users/[id]/2fa` (POST, PUT) - Accessibles sans vérification 2FA pour permettre la configuration initiale
+* **Route de vérification** : `/api/auth/verify-2fa` (POST) - Accessible sans vérification 2FA
+* **Autres routes Super Admin** : Toutes les autres routes nécessitant Super Admin vérifient que le 2FA est activé via `requireTwoFactorForSuperAdmin()`
+
+---
+
+## 19. Utilisation systématique de `apiFetch` pour la protection CSRF
+
+### 19.1 Principe
+
+* **Obligation** : Toutes les requêtes API côté client vers `/api/*` doivent utiliser `apiFetch` au lieu de `fetch` natif
+* **Raison** : Garantir la protection CSRF automatique et la cohérence dans toute l'application
+
+### 19.2 Fonctionnalités de `apiFetch`
+
+* **Ajout automatique du token CSRF** :
+  * Pour les requêtes modifiantes (POST, PUT, DELETE, PATCH) : ajout du token dans le header `x-csrf-token`
+  * Pour FormData : ajout du token dans le FormData (`_csrf`) ET dans le header
+  * Récupération automatique du token depuis `/api/auth/me` si non disponible
+* **Gestion des credentials** : Inclusion automatique des cookies de session (`credentials: "include"`)
+* **Retry automatique** : En cas d'erreur 403 CSRF, réessai automatique avec un nouveau token
+* **Headers automatiques** : Configuration automatique de `Content-Type: application/json` pour les requêtes JSON
+
+### 19.3 Fichiers concernés
+
+* **Fichiers modifiés** :
+  * `app/dashboard/parametres/page.tsx` : Tous les `fetch` remplacés par `apiFetch`
+  * Tous les autres fichiers dans `app/dashboard/` doivent également utiliser `apiFetch`
+* **Import requis** : `import { apiFetch } from "@/lib/api-client"`
+
+### 19.4 Exceptions
+
+* **Requêtes publiques** : Les requêtes vers `/api/auth/login` peuvent utiliser `skipCSRF: true` avec `apiFetch`
+* **APIs externes** : Les requêtes vers des APIs externes (ex: BAN) peuvent utiliser `fetch` natif
+
+---
+
+## 20. Clause finale (bloquante)
 
 ❗ **Toute implémentation qui dépasse ce PRD est NON CONFORME.**
 
