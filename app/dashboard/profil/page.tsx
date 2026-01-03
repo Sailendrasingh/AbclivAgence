@@ -15,7 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Switch } from "@/components/ui/switch"
-import { Save, Shield, ShieldOff } from "lucide-react"
+import { Save, Shield, ShieldOff, Trash2 } from "lucide-react"
 import { apiFetch } from "@/lib/api-client"
 import { setCSRFToken } from "@/lib/csrf-client"
 
@@ -25,6 +25,7 @@ interface UserData {
   role: string
   twoFactorEnabled: boolean
   requiresTwoFactorSetup?: boolean
+  photo?: string | null
 }
 
 export default function ProfilPage() {
@@ -45,6 +46,33 @@ export default function ProfilPage() {
     qrCode?: string
   } | null>(null)
   const [twoFactorToken, setTwoFactorToken] = useState("")
+  const [userPhotoFile, setUserPhotoFile] = useState<File | null>(null)
+  const [userPhotoPreview, setUserPhotoPreview] = useState<string | null>(null)
+
+  // Fonctions pour les avatars
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2)
+  }
+
+  const getAvatarColor = (name: string) => {
+    const colors = [
+      "bg-blue-500",
+      "bg-green-500",
+      "bg-yellow-500",
+      "bg-purple-500",
+      "bg-pink-500",
+      "bg-indigo-500",
+      "bg-red-500",
+      "bg-orange-500",
+    ]
+    const index = name.charCodeAt(0) % colors.length
+    return colors[index]
+  }
 
   const fetchUserData = async () => {
     try {
@@ -205,6 +233,87 @@ export default function ProfilPage() {
     }
   }
 
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      // Vérifier la taille (1 MB max)
+      if (file.size > 1 * 1024 * 1024) {
+        setError("La photo ne doit pas dépasser 1 MB")
+        return
+      }
+
+      // Vérifier le type
+      if (!file.type.startsWith("image/")) {
+        setError("Le fichier doit être une image")
+        return
+      }
+
+      setUserPhotoFile(file)
+      setUserPhotoPreview(URL.createObjectURL(file))
+      setError("")
+    }
+  }
+
+  const handleUploadPhoto = async () => {
+    if (!userData?.id || !userPhotoFile) return
+
+    setError("")
+    setSuccess("")
+
+    try {
+      const photoFormData = new FormData()
+      photoFormData.append("file", userPhotoFile)
+
+      const photoResponse = await apiFetch(`/api/users/${userData.id}/photo`, {
+        method: "POST",
+        body: photoFormData,
+      })
+
+      if (photoResponse.ok) {
+        setSuccess("Photo de profil mise à jour avec succès")
+        setUserPhotoFile(null)
+        setUserPhotoPreview(null)
+        await fetchUserData()
+      } else {
+        const error = await photoResponse.json()
+        setError(error.error || "Erreur lors de l'upload de la photo")
+      }
+    } catch (error) {
+      console.error("Error uploading photo:", error)
+      setError("Erreur lors de l'upload de la photo")
+    }
+  }
+
+  const handleDeletePhoto = async () => {
+    if (!userData?.id) return
+
+    if (!confirm("Êtes-vous sûr de vouloir supprimer la photo de profil ?")) {
+      return
+    }
+
+    setError("")
+    setSuccess("")
+
+    try {
+      const response = await apiFetch(`/api/users/${userData.id}/photo`, {
+        method: "DELETE",
+      })
+
+      if (response.ok) {
+        setSuccess("Photo de profil supprimée avec succès")
+        setUserPhotoFile(null)
+        setUserPhotoPreview(null)
+        await fetchUserData()
+      } else {
+        const error = await response.json()
+        setError(error.error || "Erreur lors de la suppression de la photo")
+      }
+    } catch (error) {
+      console.error("Error deleting photo:", error)
+      setError("Erreur lors de la suppression de la photo")
+    }
+  }
+
   if (loading) {
     return (
       <div className="p-6">
@@ -223,15 +332,92 @@ export default function ProfilPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {error && (
-              <div className="p-3 bg-red-50 text-red-700 rounded-md text-sm">
+              <div className="p-3 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 rounded-md text-sm">
                 {error}
               </div>
             )}
             {success && (
-              <div className="p-3 bg-green-50 text-green-700 rounded-md text-sm">
+              <div className="p-3 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 rounded-md text-sm">
                 {success}
               </div>
             )}
+
+            {/* Photo de profil */}
+            <div className="space-y-2">
+              <Label>Photo de profil</Label>
+              <div className="flex items-center gap-4">
+                {userPhotoPreview ? (
+                  <Image
+                    src={userPhotoPreview}
+                    alt="Aperçu"
+                    width={100}
+                    height={100}
+                    className="rounded-full object-cover"
+                    unoptimized
+                  />
+                ) : userData?.photo ? (
+                  <Image
+                    src={userData.photo}
+                    alt="Photo actuelle"
+                    width={100}
+                    height={100}
+                    className="rounded-full object-cover"
+                    unoptimized
+                  />
+                ) : (
+                  <div className={`w-[100px] h-[100px] rounded-full ${getAvatarColor(userData?.login || "")} text-white text-2xl flex items-center justify-center font-semibold`}>
+                    {getInitials(userData?.login || "")}
+                  </div>
+                )}
+                <div className="flex-1 space-y-2">
+                  <Input
+                    type="file"
+                    accept="image/jpeg,image/png"
+                    onChange={handlePhotoChange}
+                    className="cursor-pointer"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Maximum 1 MB. La photo sera redimensionnée en 100x100px.
+                  </p>
+                  {userPhotoFile && (
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="default"
+                        size="sm"
+                        onClick={handleUploadPhoto}
+                        className="flex-1"
+                      >
+                        Enregistrer la photo
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setUserPhotoFile(null)
+                          setUserPhotoPreview(null)
+                        }}
+                      >
+                        Annuler
+                      </Button>
+                    </div>
+                  )}
+                  {userData?.photo && !userPhotoFile && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleDeletePhoto}
+                      className="w-full"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Supprimer la photo
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
 
             <div className="space-y-2">
               <Label htmlFor="role">Rôle</Label>

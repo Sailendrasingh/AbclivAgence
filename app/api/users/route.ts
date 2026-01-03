@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
         id: true,
         login: true,
         role: true,
+        photo: true,
         twoFactorEnabled: true,
         active: true,
         createdAt: true,

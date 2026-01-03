@@ -26,6 +26,7 @@ function SidebarContent() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [userRole, setUserRole] = useState<string | null>(null)
   const [userLogin, setUserLogin] = useState<string | null>(null)
+  const [userPhoto, setUserPhoto] = useState<string | null>(null)
   const [parametresOpen, setParametresOpen] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
@@ -70,6 +71,7 @@ function SidebarContent() {
           const data = await response.json()
           setUserRole(data.role)
           setUserLogin(data.login)
+          setUserPhoto(data.photo || null)
         }
       } catch (error) {
         console.error("Error fetching user data:", error)
@@ -254,8 +256,24 @@ function SidebarContent() {
           {/* Section utilisateur en bas */}
           <div className="mt-auto pt-4 border-t border-border/30 space-y-1">
             {userLogin && (
-              <div className="px-4 py-2 text-xs font-medium text-muted-foreground break-words uppercase tracking-wide">
-                {userLogin}
+              <div className="px-4 py-2 flex items-center gap-2">
+                {userPhoto ? (
+                  <Image
+                    src={userPhoto}
+                    alt={userLogin}
+                    width={48}
+                    height={48}
+                    className="rounded-full shrink-0 w-12 h-12 object-cover"
+                    unoptimized
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                    <User className="h-6 w-6 text-primary" />
+                  </div>
+                )}
+                <span className="text-xs font-medium text-muted-foreground break-words uppercase tracking-wide">
+                  {userLogin}
+                </span>
               </div>
             )}
             <div className="border-b border-border/30 my-2"></div>

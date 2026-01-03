@@ -81,6 +81,8 @@ function ParametresPageContent() {
     role: "User",
     active: true,
   })
+  const [userPhotoFile, setUserPhotoFile] = useState<File | null>(null)
+  const [userPhotoPreview, setUserPhotoPreview] = useState<string | null>(null)
   const [is2FADialogOpen, setIs2FADialogOpen] = useState(false)
   const [twoFactorData, setTwoFactorData] = useState<{
     secret?: string
@@ -327,6 +329,8 @@ function ParametresPageContent() {
       role: "User",
       active: true,
     })
+    setUserPhotoFile(null)
+    setUserPhotoPreview(null)
     setIsUserDialogOpen(true)
   }
 
@@ -338,6 +342,8 @@ function ParametresPageContent() {
       role: user.role,
       active: user.active,
     })
+    setUserPhotoFile(null)
+    setUserPhotoPreview(user.photo || null)
     setIsUserDialogOpen(true)
   }
 
@@ -465,6 +471,25 @@ function ParametresPageContent() {
       })
 
       if (response.ok) {
+        const savedUser = await response.json()
+        const userId = selectedUser ? selectedUser.id : savedUser.id
+        
+        // Uploader la photo si un fichier est sélectionné
+        if (userPhotoFile) {
+          const photoFormData = new FormData()
+          photoFormData.append("file", userPhotoFile)
+          
+          const photoResponse = await apiFetch(`/api/users/${userId}/photo`, {
+            method: "POST",
+            body: photoFormData,
+          })
+
+          if (!photoResponse.ok) {
+            const error = await photoResponse.json()
+            alert(error.error || "Erreur lors de l'upload de la photo")
+          }
+        }
+        
         await loadUsers()
         setIsUserDialogOpen(false)
         setSelectedUser(null)
@@ -474,6 +499,8 @@ function ParametresPageContent() {
           role: "User",
           active: true,
         })
+        setUserPhotoFile(null)
+        setUserPhotoPreview(null)
       } else {
         const error = await response.json()
         alert(error.error || "Erreur lors de la sauvegarde")
@@ -481,6 +508,32 @@ function ParametresPageContent() {
     } catch (error) {
       console.error("Error saving user:", error)
       alert("Erreur lors de la sauvegarde")
+    }
+  }
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      // Vérifier la taille (1 MB max)
+      if (file.size > 1 * 1024 * 1024) {
+        alert("La photo ne doit pas dépasser 1 MB")
+        return
+      }
+
+      // Vérifier le type
+      if (!file.type.startsWith("image/")) {
+        alert("Le fichier doit être une image")
+        return
+      }
+
+      setUserPhotoFile(file)
+      
+      // Créer une preview
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setUserPhotoPreview(reader.result as string)
+      }
+      reader.readAsDataURL(file)
     }
   }
 
@@ -602,6 +655,31 @@ function ParametresPageContent() {
     }
   }
 
+  // Fonctions utilitaires pour les avatars
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2)
+  }
+
+  const getAvatarColor = (name: string) => {
+    const colors = [
+      "bg-blue-500",
+      "bg-green-500",
+      "bg-yellow-500",
+      "bg-purple-500",
+      "bg-pink-500",
+      "bg-indigo-500",
+      "bg-red-500",
+      "bg-orange-500",
+    ]
+    const index = name.charCodeAt(0) % colors.length
+    return colors[index]
+  }
+
   // Vérifier que l'utilisateur est Super Admin
   if (userRole !== "Super Admin") {
     return (
@@ -710,12 +788,28 @@ function ParametresPageContent() {
                     </CardContent>
                   </Card>
                 ) : (
-                  users.map((user) => (
+                  users.map((user) => {
+                    return (
                     <Card key={user.id}>
                       <CardHeader>
                         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
-                          <div className="flex-1">
-                            <CardTitle>{user.login}</CardTitle>
+                          <div className="flex-1 flex items-center gap-3">
+                            {user.photo ? (
+                              <Image
+                                src={user.photo}
+                                alt={user.login}
+                                width={40}
+                                height={40}
+                                className="rounded-full shrink-0"
+                                unoptimized
+                              />
+                            ) : (
+                              <div className={`w-10 h-10 rounded-full ${getAvatarColor(user.login)} text-white text-sm flex items-center justify-center font-semibold shrink-0`}>
+                                {getInitials(user.login)}
+                              </div>
+                            )}
+                            <div className="flex-1">
+                              <CardTitle>{user.login}</CardTitle>
                             <div className="text-xs sm:text-sm text-muted-foreground mt-1 flex flex-wrap gap-1 sm:gap-0">
                               <span>Rôle: {user.role}</span>
                               <span className="hidden sm:inline"> | </span>
@@ -799,10 +893,12 @@ function ParametresPageContent() {
                               <span className="sm:hidden">Suppr.</span>
                             </Button>
                           </div>
+                          </div>
                         </div>
                       </CardHeader>
                     </Card>
-                  ))
+                    )
+                  })
                 )}
               </div>
             )}
@@ -1213,6 +1309,78 @@ function ParametresPageContent() {
                   title={selectedUser?.login === "Admin" ? "Le compte Admin ne peut pas être désactivé" : undefined}
                 />
               </div>
+              {selectedUser && (
+                <div className="space-y-2">
+                  <Label>Photo de profil</Label>
+                  <div className="flex items-center gap-4">
+                    {userPhotoPreview ? (
+                      <Image
+                        src={userPhotoPreview}
+                        alt="Preview"
+                        width={100}
+                        height={100}
+                        className="rounded-full object-cover"
+                        unoptimized
+                      />
+                    ) : selectedUser.photo ? (
+                      <Image
+                        src={selectedUser.photo}
+                        alt="Photo actuelle"
+                        width={100}
+                        height={100}
+                        className="rounded-full object-cover"
+                        unoptimized
+                      />
+                    ) : (
+                      <div className={`w-[100px] h-[100px] rounded-full ${getAvatarColor(selectedUser.login)} text-white text-2xl flex items-center justify-center font-semibold`}>
+                        {getInitials(selectedUser.login)}
+                      </div>
+                    )}
+                    <div className="flex-1 space-y-2">
+                      <Input
+                        type="file"
+                        accept="image/jpeg,image/png"
+                        onChange={handlePhotoChange}
+                        className="cursor-pointer"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Maximum 1 MB. La photo sera redimensionnée en 100x100px.
+                      </p>
+                      {selectedUser.photo && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={async () => {
+                            if (!confirm("Êtes-vous sûr de vouloir supprimer la photo de profil ?")) {
+                              return
+                            }
+                            try {
+                              const response = await apiFetch(`/api/users/${selectedUser.id}/photo`, {
+                                method: "DELETE",
+                              })
+                              if (response.ok) {
+                                setUserPhotoPreview(null)
+                                await loadUsers()
+                              } else {
+                                const error = await response.json()
+                                alert(error.error || "Erreur lors de la suppression")
+                              }
+                            } catch (error) {
+                              console.error("Error deleting photo:", error)
+                              alert("Erreur lors de la suppression")
+                            }
+                          }}
+                          className="w-full"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Supprimer la photo
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsUserDialogOpen(false)}>

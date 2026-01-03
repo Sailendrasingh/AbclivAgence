@@ -233,7 +233,12 @@ export async function POST(request: NextRequest) {
     await createLog(user.id, "CONNEXION", null, request)
 
     // Vérifier et créer la table Session si nécessaire
-    await ensureSessionTable()
+    try {
+      await ensureSessionTable()
+    } catch (ensureError: any) {
+      console.error("[LOGIN] Erreur lors de ensureSessionTable:", ensureError)
+      // Continuer quand même, le fallback prendra le relais
+    }
 
     // Créer une session sécurisée avec token aléatoire
     try {
@@ -254,6 +259,7 @@ export async function POST(request: NextRequest) {
 
       return response
     } catch (sessionError: any) {
+      console.error("[LOGIN] Erreur lors de createSecureSession:", sessionError)
       // Si le modèle Session n'est pas disponible, utiliser l'ancien système temporairement
       if (sessionError?.code === 'P2021' || sessionError?.message?.includes('Session') || sessionError?.message?.includes('Prisma') || sessionError?.message?.includes('does not exist')) {
         // Ne logger qu'une seule fois pour éviter le spam
@@ -263,27 +269,38 @@ export async function POST(request: NextRequest) {
           ;(global as any).__loginFallbackLogged = true
         }
         
-        // Fallback temporaire : utiliser l'ancien système de session
-        const { createSession } = await import("@/lib/session")
-        await createSession(user.id)
-        
-        // Créer un token CSRF pour cette session
-        const csrfToken = await createCSRFToken()
+        try {
+          // Fallback temporaire : utiliser l'ancien système de session
+          const { createSession } = await import("@/lib/session")
+          await createSession(user.id)
+          
+          // Créer un token CSRF pour cette session
+          const csrfToken = await createCSRFToken()
 
-        const response = NextResponse.json({ 
-          success: true,
-          csrfToken,
-          requiresTwoFactorSetup, // Indiquer si le 2FA doit être configuré
-        })
+          const response = NextResponse.json({ 
+            success: true,
+            csrfToken,
+            requiresTwoFactorSetup, // Indiquer si le 2FA doit être configuré
+          })
 
-        return response
+          return response
+        } catch (fallbackError: any) {
+          console.error("[LOGIN] Erreur lors du fallback:", fallbackError)
+          throw fallbackError
+        }
       }
       throw sessionError
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("Login error:", error)
+    console.error("Login error stack:", error?.stack)
+    console.error("Login error message:", error?.message)
+    console.error("Login error code:", error?.code)
     return NextResponse.json(
-      { error: "Erreur serveur" },
+      { 
+        error: "Erreur serveur",
+        details: process.env.NODE_ENV === "development" ? error?.message : undefined
+      },
       { status: 500 }
     )
   }

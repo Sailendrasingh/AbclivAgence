@@ -88,6 +88,7 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
 * **qrcode** (^1.5.3) : Bibliothèque de génération de codes QR (utilisée pour afficher le QR code de l'authentification à deux facteurs)
 * **react** (^19.2.3) : Bibliothèque React
 * **react-dom** (^19.2.3) : Bibliothèque React DOM
+* **sharp** (^0.33.0) : Bibliothèque de traitement d'images haute performance (utilisée pour redimensionner les photos de profil en 100x100px)
 * **tailwind-merge** (^2.5.0) : Utilitaire pour fusionner intelligemment les classes Tailwind CSS (utilisé par shadcn/ui)
 * **tailwindcss-animate** (^1.0.7) : Plugin Tailwind CSS pour les animations (utilisé par shadcn/ui)
 * **validator** (^13.12.0) : Bibliothèque de validation de données (utilisée pour valider les adresses email selon la norme RFC)
@@ -291,6 +292,7 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
     * **Sauvegardes** : Icône HardDrive (visible uniquement pour Super Admin)
     * **Paramètres** : Icône Settings (visible uniquement pour Super Admin)
   * **Section utilisateur en bas** :
+    * **Photo de profil** : Photo de l'utilisateur affichée en 48x48px (ou avatar avec initiales si aucune photo)
     * Nom de l'utilisateur (login) affiché
     * Bouton "Mon profil" (icône User) - lien vers `/dashboard/profil`
     * Bouton "Déconnexion" (icône LogOut)
@@ -729,13 +731,27 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
   * **Modification manuelle** : La date de création peut être modifiée manuellement lors de l'édition d'une photo via le dialog de modification (champ de date au format "YYYY-MM-DD")
   * **Migration des photos existantes** : Un script de migration (`npm run migrate:photos`) permet de mettre à jour toutes les photos existantes avec leur date de création réelle depuis les métadonnées EXIF ou le système de fichiers
 * Dossier uploads : **/uploads** (racine projet)
-* Taille max fichier : **5 MB**
+  * **Photos de profil** : Stockées dans `/uploads/user-photos/` (ou `/uploads/profiles/` selon la configuration)
+  * **Photos d'agences** : Stockées dans `/uploads/` (racine du dossier uploads)
+* Taille max fichier : **5 MB** (photos d'agences), **1 MB** (photos de profil)
 * Types autorisés :
 
   * Photos : jpeg, png
   * Fichiers : jpeg, png
+  * **Photos de profil** : jpeg, png uniquement (maximum 1 MB)
 
 Aucun autre type autorisé.
+* **Photos de profil** :
+  * **Taille maximale** : 1 MB par fichier
+  * **Redimensionnement automatique** : Toutes les photos de profil sont automatiquement redimensionnées en 100x100px (carré) lors de l'upload
+  * **Validation stricte** : Vérification du type MIME via magic bytes pour prévenir les attaques par upload de fichiers malveillants
+  * **Suppression automatique** : Lors de l'upload d'une nouvelle photo, l'ancienne photo est automatiquement supprimée du système de fichiers
+  * **Stockage** : Le chemin relatif de la photo est stocké dans le champ `photo` du modèle `User` (format : `/uploads/user-photos/filename.jpg`)
+  * **Affichage** :
+    * **Sidebar** : Photo affichée en 48x48px
+    * **Page profil** : Photo affichée en 100x100px
+    * **Liste utilisateurs** : Photo affichée en 40x40px
+    * **Avatar de remplacement** : Si aucune photo n'est définie, affichage d'un avatar avec les initiales de l'utilisateur et une couleur de fond générée automatiquement basée sur le login
 * **Optimisation du cache des images** :
   * **En-têtes HTTP de cache** : Les images servies via `/api/files/[...path]` incluent des en-têtes de cache optimisés pour améliorer les performances
   * **Cache-Control** : `public, max-age=31536000, immutable` (cache de 1 an, fichiers immutables)
@@ -800,7 +816,14 @@ Aucun autre type autorisé.
 
 * **Interface CRUD complète** : Page dédiée `/dashboard/utilisateurs` avec liste des utilisateurs
 * **Créer** : Bouton "Nouvel utilisateur" avec formulaire (login, mot de passe, rôle, statut actif)
-* **Modifier** : Bouton "Modifier" sur chaque utilisateur permettant de modifier login, mot de passe (optionnel), rôle et statut actif
+* **Modifier** : Bouton "Modifier" sur chaque utilisateur permettant de modifier login, mot de passe (optionnel), rôle, statut actif et photo de profil
+* **Photo de profil** :
+  * **Affichage** : Photo de profil affichée en 40x40px dans la liste des utilisateurs (ou avatar avec initiales si aucune photo)
+  * **Upload** : Possibilité d'uploader une photo de profil lors de la création ou modification d'un utilisateur (JPEG ou PNG, maximum 1 MB)
+  * **Redimensionnement automatique** : La photo est automatiquement redimensionnée en 100x100px (carré) lors de l'upload
+  * **Prévisualisation** : Aperçu de la nouvelle photo avant l'enregistrement
+  * **Suppression** : Possibilité de supprimer la photo de profil existante
+  * **Avatar de remplacement** : Si aucune photo n'est définie, affichage d'un avatar avec les initiales de l'utilisateur et une couleur de fond générée automatiquement
 * **Désactiver/Activer** : Bouton "Désactiver" ou "Activer" pour basculer le statut actif d'un utilisateur
 * **Supprimer** : Bouton "Supprimer" avec confirmation avant suppression définitive
 * **Gestion 2FA** :
@@ -811,7 +834,7 @@ Aucun autre type autorisé.
     * **Taille** : QR Code affiché en 192x192 pixels (classe `w-48 h-48`)
   * Validation du code de vérification depuis Google Authenticator
   * Activation/désactivation du 2FA
-* **Affichage** : Liste des utilisateurs avec login, rôle, statut actif et état 2FA
+* **Affichage** : Liste des utilisateurs avec photo de profil (ou avatar), login, rôle, statut actif et état 2FA
 
 ### 11.2.1 Protection du compte Admin
 
@@ -868,9 +891,19 @@ Aucun autre type autorisé.
   * Affichage du rôle (lecture seule)
   * Modification du login
   * Modification du mot de passe (optionnel, avec confirmation)
+  * **Photo de profil** :
+    * **Affichage** : Photo de profil affichée en 100x100px (ou avatar avec initiales si aucune photo)
+    * **Upload** : Possibilité d'uploader une photo de profil (JPEG ou PNG, maximum 1 MB)
+    * **Redimensionnement automatique** : La photo est automatiquement redimensionnée en 100x100px (carré) lors de l'upload
+    * **Prévisualisation** : Aperçu de la nouvelle photo avant l'enregistrement
+    * **Suppression** : Possibilité de supprimer la photo de profil existante
+    * **Avatar de remplacement** : Si aucune photo n'est définie, affichage d'un avatar avec les initiales de l'utilisateur et une couleur de fond générée automatiquement
   * Messages d'erreur et de succès
-* **API route** : `/api/auth/profile` (PUT) - Permet à un utilisateur de modifier son propre profil
-* **Sécurité** : Chaque utilisateur ne peut modifier que son propre profil (vérification de session)
+* **API routes** :
+  * `/api/auth/profile` (PUT) - Permet à un utilisateur de modifier son propre profil (login, mot de passe)
+  * `/api/users/[id]/photo` (POST) - Permet d'uploader une photo de profil pour un utilisateur
+  * `/api/users/[id]/photo` (DELETE) - Permet de supprimer la photo de profil d'un utilisateur
+* **Sécurité** : Chaque utilisateur ne peut modifier que son propre profil (vérification de session). Les Super Admin peuvent modifier les photos de profil de tous les utilisateurs
 
 ### 11.3 Sécurité obligatoire
 

@@ -296,6 +296,7 @@ export default function AgencesPage() {
     importance: "INFO" as "URGENT" | "CRITIQUE" | "INFO",
   })
   const [taskFilter, setTaskFilter] = useState<"ALL" | "URGENT" | "CRITIQUE" | "INFO">("ALL")
+  const [expandedTaskNotes, setExpandedTaskNotes] = useState<Record<string, boolean>>({})
 
   // États pour l'historique des notes techniques
   const [isNotesHistoryDialogOpen, setIsNotesHistoryDialogOpen] = useState(false)
@@ -3502,9 +3503,39 @@ export default function AgencesPage() {
                                     </div>
 
                                     {/* Description */}
-                                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 max-h-[5rem] overflow-y-auto pr-2" style={{ lineHeight: '1.25rem' }}>
-                                      {task.notes}
-                                    </p>
+                                    <div className="mb-4">
+                                      <p 
+                                        className={`text-sm text-gray-600 dark:text-gray-400 pr-2 transition-all ${
+                                          expandedTaskNotes[task.id] 
+                                            ? 'max-h-none' 
+                                            : 'max-h-[5rem] overflow-y-auto'
+                                        }`}
+                                        style={{ lineHeight: '1.25rem' }}
+                                      >
+                                        {task.notes}
+                                      </p>
+                                      {task.notes.length > 100 && (
+                                        <button
+                                          onClick={() => setExpandedTaskNotes(prev => ({
+                                            ...prev,
+                                            [task.id]: !prev[task.id]
+                                          }))}
+                                          className="mt-2 text-xs text-primary hover:underline flex items-center gap-1"
+                                        >
+                                          {expandedTaskNotes[task.id] ? (
+                                            <>
+                                              <ChevronUp className="h-3 w-3" />
+                                              Réduire
+                                            </>
+                                          ) : (
+                                            <>
+                                              <ChevronDown className="h-3 w-3" />
+                                              Voir plus
+                                            </>
+                                          )}
+                                        </button>
+                                      )}
+                                    </div>
 
                                     {/* Informations de création */}
                                     {!isClosed ? (
