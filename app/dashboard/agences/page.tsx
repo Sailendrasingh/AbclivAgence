@@ -297,6 +297,7 @@ export default function AgencesPage() {
   })
   const [taskFilter, setTaskFilter] = useState<"ALL" | "URGENT" | "CRITIQUE" | "INFO">("ALL")
   const [expandedTaskNotes, setExpandedTaskNotes] = useState<Record<string, boolean>>({})
+  const [expandedContactNotes, setExpandedContactNotes] = useState<Record<string, boolean>>({})
 
   // États pour l'historique des notes techniques
   const [isNotesHistoryDialogOpen, setIsNotesHistoryDialogOpen] = useState(false)
@@ -3126,7 +3127,45 @@ export default function AgencesPage() {
                                           <FileText className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
                                           <div className="flex-1">
                                             <strong>Note:</strong>
-                                            <p className="text-muted-foreground mt-1 whitespace-pre-wrap">{contact.note}</p>
+                                            <div className="mt-1">
+                                              <div 
+                                                className={`text-muted-foreground transition-all ${
+                                                  !expandedContactNotes[contact.id] 
+                                                    ? "overflow-hidden" 
+                                                    : ""
+                                                }`}
+                                                style={!expandedContactNotes[contact.id] ? {
+                                                  lineHeight: '1.5rem',
+                                                  whiteSpace: 'normal',
+                                                  wordBreak: 'break-word',
+                                                  display: '-webkit-box',
+                                                  WebkitLineClamp: 5,
+                                                  WebkitBoxOrient: 'vertical',
+                                                  maxHeight: '7.5rem'
+                                                } : {
+                                                  lineHeight: '1.5rem',
+                                                  whiteSpace: 'pre-wrap',
+                                                  wordBreak: 'break-word'
+                                                }}
+                                              >
+                                                {contact.note}
+                                              </div>
+                                              {(contact.note.split('\n').length > 5 || contact.note.length > 300) && (
+                                                <button
+                                                  onClick={() => setExpandedContactNotes(prev => ({
+                                                    ...prev,
+                                                    [contact.id]: !prev[contact.id]
+                                                  }))}
+                                                  className="text-sm text-primary hover:underline mt-1"
+                                                >
+                                                  {expandedContactNotes[contact.id] ? (
+                                                    "Réduire"
+                                                  ) : (
+                                                    "Voir plus"
+                                                  )}
+                                                </button>
+                                              )}
+                                            </div>
                                           </div>
                                         </div>
                                       </div>
@@ -5305,7 +5344,19 @@ export default function AgencesPage() {
                 onChange={(e) => setContactNote(e.target.value)}
                 placeholder="Note optionnelle"
                 rows={3}
+                maxLength={1000}
               />
+              {contactNote.length > 100 && (
+                <p className={`text-xs mt-1 ${
+                  contactNote.length > 1000 
+                    ? "text-destructive" 
+                    : contactNote.length > 900 
+                    ? "text-orange-600 dark:text-orange-400" 
+                    : "text-muted-foreground"
+                }`}>
+                  {contactNote.length} / 1000 caractères
+                </p>
+              )}
             </div>
           </div>
           <DialogFooter>
@@ -5921,6 +5972,7 @@ export default function AgencesPage() {
               setIsTaskEditDialogOpen(false)
               setEditingTask(null)
               setTaskFormData({
+                title: "",
                 createdAt: "",
                 notes: "",
                 importance: "INFO",

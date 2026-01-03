@@ -765,15 +765,15 @@ function ParametresPageContent() {
   // Vérifier que l'utilisateur est Super Admin
   if (userRole !== "Super Admin") {
     return (
-      <div className="p-6">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center text-muted-foreground">
-              <p>Accès refusé. Cette page est réservée aux Super Admin.</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+        <div className="p-6">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center text-muted-foreground">
+                <p>Accès refusé. Cette page est réservée aux Super Admin.</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
     )
   }
 
@@ -811,40 +811,40 @@ function ParametresPageContent() {
           </TabsList>
 
           <TabsContent value="general" className="mt-4">
-            {loading ? (
-              <div>Chargement...</div>
-            ) : (
+        {loading ? (
+          <div>Chargement...</div>
+        ) : (
               <>
-                <Card>
-                  <CardHeader>
+          <Card>
+            <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Sliders className="h-5 w-5" />
                       Paramètres de l&apos;application
                     </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="session-timeout">
-                        Durée de session (en minutes)
-                      </Label>
-                      <Input
-                        id="session-timeout"
-                        type="number"
-                        min="1"
-                        value={sessionTimeout}
-                        onChange={(e) => setSessionTimeout(parseInt(e.target.value) || 60)}
-                        placeholder="60"
-                      />
-                      <p className="text-sm text-muted-foreground">
-                        Durée d&apos;inactivité avant déconnexion automatique (minimum 1 minute)
-                      </p>
-                    </div>
-                    <Button onClick={handleSave} disabled={saving} className="gap-2">
-                      <Save className="h-4 w-4" />
-                      {saving ? "Enregistrement..." : "Enregistrer"}
-                    </Button>
-                  </CardContent>
-                </Card>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="session-timeout">
+                  Durée de session (en minutes)
+                </Label>
+                <Input
+                  id="session-timeout"
+                  type="number"
+                  min="1"
+                  value={sessionTimeout}
+                  onChange={(e) => setSessionTimeout(parseInt(e.target.value) || 60)}
+                  placeholder="60"
+                />
+                <p className="text-sm text-muted-foreground">
+                  Durée d&apos;inactivité avant déconnexion automatique (minimum 1 minute)
+                </p>
+              </div>
+              <Button onClick={handleSave} disabled={saving} className="gap-2">
+                <Save className="h-4 w-4" />
+                {saving ? "Enregistrement..." : "Enregistrer"}
+              </Button>
+            </CardContent>
+          </Card>
 
                 {/* Section Fichiers orphelins */}
                 {userRole === "Super Admin" && (
@@ -907,7 +907,7 @@ function ParametresPageContent() {
                                 ? "Suppression..."
                                 : `Supprimer (${selectedOrphanedFiles.size})`}
                             </Button>
-                          </div>
+      </div>
                         </div>
 
                         <div className="border rounded-lg max-h-96 overflow-y-auto">

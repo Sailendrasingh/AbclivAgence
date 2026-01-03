@@ -10,7 +10,7 @@ import { validateRequest } from "@/lib/validation-middleware"
 
 export async function PUT(
   request: NextRequest,
-  { params }: Promise<{ params: { id: string } }>
+  context: { params: Promise<{ id: string }> }
 ) {
   // Vérifier le token CSRF
   const csrfError = await requireCSRF(request)
@@ -18,7 +18,7 @@ export async function PUT(
     return csrfError
   }
 
-  const { id } = await params
+  const { id } = await context.params
   const session = await getSession()
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
@@ -101,7 +101,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: Promise<{ params: { id: string } }>
+  context: { params: Promise<{ id: string }> }
 ) {
   // Vérifier le token CSRF
   const csrfError = await requireCSRF(request)
@@ -109,7 +109,7 @@ export async function DELETE(
     return csrfError
   }
 
-  const { id } = await params
+  const { id } = await context.params
   const session = await getSession()
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })

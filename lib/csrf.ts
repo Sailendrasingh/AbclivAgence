@@ -106,7 +106,7 @@ export async function validateCSRF(request: Request): Promise<{
   }
 
   const token = getCSRFTokenFromRequest(request)
-  const isValid = await verifyCSRFToken(token || undefined)
+  const isValid = await verifyCSRFToken(token || null)
 
   if (!isValid) {
     return {

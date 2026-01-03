@@ -436,6 +436,22 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
   * Validation RFC via **librairie autorisée (ex: validator)** pour chaque email si fourni
   * Stockage : JSON array en base de données (tableau vide `[]` si aucun email)
 * Champ note texte - **OPTIONNEL**
+  * **Limite de caractères** : Maximum 1000 caractères
+  * **Compteur de caractères** : 
+    * Affiché uniquement si plus de 100 caractères sont saisis
+    * Format : `{nombre} / 1000 caractères`
+    * **Couleurs dynamiques** :
+      * Rouge si > 1000 caractères (dépassement)
+      * Orange si > 900 caractères (proche de la limite)
+      * Gris par défaut
+    * **Limite côté client** : Le champ Textarea utilise `maxLength={1000}` pour empêcher la saisie au-delà de 1000 caractères
+  * **Affichage des notes** :
+    * **Limitation visuelle** : Les notes sont limitées à 5 lignes maximum lors de l'affichage
+    * **Bouton "Voir plus"/"Réduire"** : 
+      * Affiché si la note dépasse 5 lignes ou 300 caractères
+      * Permet d'afficher la note complète ou de la réduire à 5 lignes
+      * **État réduit** : `whiteSpace: 'normal'` avec `-webkit-line-clamp: 5` pour tronquer le texte
+      * **État étendu** : `whiteSpace: 'pre-wrap'` pour préserver les retours à la ligne
   * Stockage : `null` si non renseigné
 * **Gestion de l'ordre d'affichage** :
   * Champ `order` (Int) dans le modèle Contact pour définir l'ordre d'affichage
@@ -458,6 +474,10 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
   * Structure de la carte :
     * **CardHeader** : Contient le nom du contact (titre) et les boutons d'action (Modifier, Supprimer) en mode édition
     * **CardContent** : Contient les informations du contact (poste, agent, ligne directe, emails, note)
+      * **Affichage de la note** : 
+        * Les notes sont limitées à 5 lignes maximum lors de l'affichage
+        * Un bouton "Voir plus"/"Réduire" est affiché si la note dépasse 5 lignes ou 300 caractères
+        * Permet d'afficher la note complète ou de la réduire à 5 lignes
   * **Grille responsive** : Les cartes sont affichées dans une grille responsive :
     * **Mobile** : 1 colonne
     * **Tablette** : 2 colonnes

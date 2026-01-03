@@ -10,16 +10,15 @@ import { validateRequest } from "@/lib/validation-middleware"
 
 export async function PUT(
   request: NextRequest,
-  props: Promise<{ params: { id: string } }>
+  context: { params: Promise<{ id: string }> }
 ) {
-  const { params } = await props
   // Vérifier le token CSRF
   const csrfError = await requireCSRF(request)
   if (csrfError) {
     return csrfError
   }
 
-  const { id } = await params
+  const { id } = await context.params
   const session = await getSession()
   if (!session || session.role !== "Super Admin") {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
@@ -90,16 +89,15 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  props: Promise<{ params: { id: string } }>
+  context: { params: Promise<{ id: string }> }
 ) {
-  const { params } = await props
   // Vérifier le token CSRF
   const csrfError = await requireCSRF(request)
   if (csrfError) {
     return csrfError
   }
 
-  const { id } = await params
+  const { id } = await context.params
   const session = await getSession()
   if (!session || session.role !== "Super Admin") {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })

@@ -22,8 +22,8 @@ export async function apiFetch(
 
   // Préparer les headers
   const isFormData = restOptions.body instanceof FormData
-  const requestHeaders: HeadersInit = {
-    ...headers,
+  const requestHeaders: Record<string, string> = {
+    ...(headers as Record<string, string>),
   }
   
   // Ajouter Content-Type seulement si ce n'est pas FormData
@@ -84,8 +84,8 @@ export async function apiFetch(
       // Réessayer avec un nouveau token
       const newToken = await fetchCSRFToken()
       if (newToken) {
-        const retryHeaders: HeadersInit = {
-          ...headers,
+        const retryHeaders: Record<string, string> = {
+          ...(headers as Record<string, string>),
           "x-csrf-token": newToken,
         }
         

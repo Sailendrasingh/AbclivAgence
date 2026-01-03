@@ -6,9 +6,9 @@ import { createHash } from "crypto"
 
 export async function GET(
   request: NextRequest,
-  { params }: Promise<{ params: { path: string[] } }>
+  context: { params: Promise<{ path: string[] }> }
 ) {
-  const { path } = await params
+  const { path } = await context.params
   const session = await getSession()
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })

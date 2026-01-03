@@ -10,9 +10,9 @@ const ALLOWED_TYPES = ["Bureau", "Connexion", "Armoire électrique", "Agence", "
 
 export async function PUT(
   request: NextRequest,
-  { params }: Promise<{ params: { id: string } }>
+  context: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params
+  const { id } = await context.params
   const session = await getSession()
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
@@ -122,9 +122,9 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: Promise<{ params: { id: string } }>
+  context: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params
+  const { id } = await context.params
   const session = await getSession()
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })

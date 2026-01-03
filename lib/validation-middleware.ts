@@ -28,7 +28,7 @@ export async function validateRequest<T>(
     }
     
     // Formater les erreurs Zod de manière lisible
-    const errors = result.error.errors?.map((err) => ({
+    const errors = result.error.issues?.map((err) => ({
       path: err.path?.join(".") || "unknown",
       message: err.message || "Erreur de validation",
     })) || []
@@ -78,7 +78,7 @@ export function validateData<T>(
     return { success: true, data: validatedData }
   } catch (error) {
     if (error instanceof ZodError) {
-      const errors = error.errors?.map((err) => ({
+      const errors = error.issues?.map((err) => ({
         path: err.path?.join(".") || "unknown",
         message: err.message || "Erreur de validation",
       })) || []

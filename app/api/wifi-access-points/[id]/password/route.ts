@@ -45,9 +45,9 @@ function decrypt(text: string): string {
 
 export async function GET(
   request: NextRequest,
-  { params }: Promise<{ params: { id: string } }>
+  context: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params
+  const { id } = await context.params
   const session = await getSession()
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })

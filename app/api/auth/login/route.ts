@@ -23,7 +23,6 @@ export async function POST(request: NextRequest) {
     // Rate limiting par IP
     const ipAddress = request.headers.get("x-forwarded-for") || 
                      request.headers.get("x-real-ip") || 
-                     request.ip || 
                      "unknown"
     const rateLimit = checkRateLimit(`login:${ipAddress}`)
     

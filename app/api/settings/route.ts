@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { getSession } from "@/lib/session"
 import { prisma } from "@/lib/prisma"
 import { requireCSRF } from "@/lib/csrf-middleware"
+import { validateRequest } from "@/lib/validation-middleware"
+import { updateSettingsSchema } from "@/lib/validations"
 
 export async function GET(request: NextRequest) {
   try {
