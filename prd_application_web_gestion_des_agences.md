@@ -224,7 +224,7 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
   * **Tri automatique** : Les agences sont triées par nom (ordre alphabétique) dans la zone Master
   * **Boutons d'action par agence** :
     * Bouton Modifier (icône Edit, couleur bleue) - à droite du nom
-      * Visible pour les utilisateurs avec les rôles **Admin** ou **Super Admin**
+      * Visible pour les utilisateurs avec les rôles **Super user** ou **Super Admin**
     * Bouton Supprimer (icône Trash2, couleur rouge) - à droite du nom
       * Visible uniquement pour les utilisateurs avec le rôle **Super Admin**
     * Les boutons sont représentés par des pictogrammes appropriés et en couleur
@@ -278,18 +278,18 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
         * Les boutons "Modifier" et "Clôturer" ne sont **pas visibles** pour les utilisateurs de type **User** (même en mode édition)
         * Les utilisateurs de type **User** ne peuvent que consulter les tâches (accès en lecture seule)
         * Le bouton "Ajouter une tâche" n'est **pas visible** car les utilisateurs de type **User** ne peuvent pas activer le mode édition d'une agence
-      * **Utilisateur de type Admin** :
+      * **Utilisateur de type Super user** :
         * Les boutons "Modifier" et "Clôturer" sont visibles et utilisables (uniquement en mode édition)
-        * Le bouton "Supprimer" n'est **pas visible** pour les utilisateurs de type **Admin** (même en mode édition)
+        * Le bouton "Supprimer" n'est **pas visible** pour les utilisateurs de type **Super user** (même en mode édition)
       * **Utilisateur de type Super Admin** :
         * Tous les boutons sont visibles et utilisables (Modifier, Clôturer, Supprimer) uniquement en mode édition
     * **Restriction de suppression des notes** : Seul le **Super Admin** peut supprimer (vider) les notes des tâches existantes
-      * Les utilisateurs **Admin** peuvent modifier les notes des tâches mais ne peuvent pas les supprimer
+      * Les utilisateurs **Super user** peuvent modifier les notes des tâches mais ne peuvent pas les supprimer
       * Les utilisateurs **User** ne peuvent pas modifier les tâches (boutons Modifier et Clôturer masqués)
       * Si un utilisateur non-Super Admin tente de vider le champ de notes d'une tâche, une erreur est affichée et l'opération est bloquée
       * La vérification est effectuée à la fois côté client (interface) et côté serveur (API)
     * **Restriction de suppression des tâches** : Seul le **Super Admin** peut supprimer une tâche
-      * Le bouton "Supprimer" n'est **pas visible** pour les utilisateurs **Admin** et **User**
+      * Le bouton "Supprimer" n'est **pas visible** pour les utilisateurs **Super user** et **User**
       * Si un utilisateur non-Super Admin tente de supprimer une tâche via l'API, une erreur 403 est retournée avec le message "Seul le Super Admin peut supprimer une tâche"
       * La vérification est effectuée à la fois côté client (interface) et côté serveur (API)
   * **Ascenseur vertical** : L'ascenseur vertical est uniquement dans la partie scrollable (contenu des onglets), les parties fixes (en-tête et onglets) restent toujours visibles
@@ -347,11 +347,11 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
     * Boutons "Utilisateurs", "Logs" et "Sauvegardes" : Visibles uniquement pour les utilisateurs avec le rôle **Super Admin**
     * Bouton "Agences" : Visible pour tous les utilisateurs
   * **Gestion des agences** :
-    * Bouton "Ajouter une agence" : Disponible uniquement pour les utilisateurs avec les rôles **Admin** ou **Super Admin**
-    * Bouton "Modifier" d'une agence : Disponible pour les utilisateurs avec les rôles **Admin** ou **Super Admin**
+    * Bouton "Ajouter une agence" : Disponible uniquement pour les utilisateurs avec les rôles **Super user** ou **Super Admin**
+    * Bouton "Modifier" d'une agence : Disponible pour les utilisateurs avec les rôles **Super user** ou **Super Admin**
     * Bouton "Supprimer" d'une agence : Disponible **uniquement** pour les utilisateurs avec le rôle **Super Admin**
     * Les utilisateurs avec le rôle **User** ne peuvent que consulter les agences (pas de création, modification ou suppression)
-    * Les utilisateurs avec le rôle **Admin** peuvent créer et modifier des agences, mais ne peuvent pas les supprimer
+    * Les utilisateurs avec le rôle **Super user** peuvent créer et modifier des agences, mais ne peuvent pas les supprimer
   * **Modification des détails d'une agence** :
     * Les utilisateurs avec le rôle **User** ne peuvent **pas** modifier les détails d'une agence
     * Le bouton "Modifier" dans la vue des détails d'une agence (mobile et desktop) n'est **pas visible** pour les utilisateurs de type **User**
@@ -609,7 +609,7 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
 * Historisation activée
 * **Historique consultable ET restaurable (max 100 versions)**
 * **Restriction de suppression** : Seul le **Super Admin** peut supprimer (vider) les notes techniques existantes
-  * Les utilisateurs **Admin** et **User** peuvent modifier les notes techniques mais ne peuvent pas les supprimer
+  * Les utilisateurs **Super user** et **User** peuvent modifier les notes techniques mais ne peuvent pas les supprimer
   * Si un utilisateur non-Super Admin tente de vider le champ de notes techniques, une erreur est affichée et l'opération est bloquée
   * La vérification est effectuée à la fois côté client (interface) et côté serveur (API)
 
@@ -1124,20 +1124,20 @@ Aucun autre type autorisé.
 
 * **Rôles disponibles** :
   * **Super Admin** : Accès complet à toutes les fonctionnalités (création, modification et suppression d'agences, gestion des utilisateurs, logs, sauvegardes)
-  * **Admin** : Peut créer et modifier des agences, mais ne peut pas les supprimer
+  * **Super user** : Peut créer et modifier des agences, mais ne peut pas les supprimer
   * **User** : Accès en lecture seule aux agences (consultation uniquement, pas de création, modification ou suppression)
 * **Restrictions d'interface** :
   * Les éléments de menu et boutons sont masqués selon le rôle de l'utilisateur
   * Récupération du rôle via l'API `/api/auth/me` au chargement des composants
 * **Menu de navigation** :
   * **Super Admin** : Accès à tous les menus (Agences, Utilisateurs, Logs, Sauvegardes, Paramètres)
-  * **Admin** et **User** : Accès uniquement au menu "Agences"
+  * **Super user** et **User** : Accès uniquement au menu "Agences"
 * **Gestion des agences** :
   * **Super Admin** :
     * Peut créer de nouvelles agences (bouton "Ajouter" visible)
     * Peut modifier des agences (bouton "Modifier" visible)
     * Peut supprimer des agences (bouton "Supprimer" visible)
-  * **Admin** :
+  * **Super user** :
     * Peut créer de nouvelles agences (bouton "Ajouter" visible)
     * Peut modifier des agences (bouton "Modifier" visible)
     * Ne peut pas supprimer des agences (bouton "Supprimer" masqué)

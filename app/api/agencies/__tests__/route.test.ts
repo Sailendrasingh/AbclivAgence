@@ -225,7 +225,7 @@ describe('POST /api/agencies', () => {
       data: {
         login: 'admin',
         passwordHash,
-        role: 'Admin',
+        role: 'Super user',
         active: true,
       },
     })
@@ -264,7 +264,7 @@ describe('POST /api/agencies', () => {
       data: {
         login: 'admin',
         passwordHash,
-        role: 'Admin',
+        role: 'Super user',
         active: true,
       },
     })
@@ -294,7 +294,7 @@ describe('POST /api/agencies', () => {
       data: {
         login: 'admin',
         passwordHash,
-        role: 'Admin',
+        role: 'Super user',
         active: true,
       },
     })

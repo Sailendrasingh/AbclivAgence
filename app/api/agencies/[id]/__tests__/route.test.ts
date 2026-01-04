@@ -117,7 +117,7 @@ describe('PUT /api/agencies/[id]', () => {
       data: {
         login: 'admin',
         passwordHash,
-        role: 'Admin',
+        role: 'Super user',
         active: true,
       },
     })
@@ -169,7 +169,7 @@ describe('PUT /api/agencies/[id]', () => {
       data: {
         login: `admin-${uniqueId}`,
         passwordHash,
-        role: 'Admin',
+        role: 'Super user',
         active: true,
       },
     })
@@ -335,7 +335,7 @@ describe('DELETE /api/agencies/[id]', () => {
       data: {
         login: `admin-${uniqueId}`,
         passwordHash,
-        role: 'Admin',
+        role: 'Super user',
         active: true,
       },
     })

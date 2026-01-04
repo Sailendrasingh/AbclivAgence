@@ -22,7 +22,7 @@ export const createUserSchema = z.object({
     .regex(/[a-z]/, "Le mot de passe doit contenir au moins une minuscule")
     .regex(/[0-9]/, "Le mot de passe doit contenir au moins un chiffre")
     .regex(/[^A-Za-z0-9]/, "Le mot de passe doit contenir au moins un caractère spécial"),
-  role: z.enum(["User", "Admin", "Super Admin"]).optional().default("User"),
+  role: z.enum(["User", "Super user", "Super Admin"]).optional().default("User"),
 })
 
 /**
@@ -44,7 +44,7 @@ export const updateUserSchema = z.object({
     .regex(/[0-9]/, "Le mot de passe doit contenir au moins un chiffre")
     .regex(/[^A-Za-z0-9]/, "Le mot de passe doit contenir au moins un caractère spécial")
     .optional(),
-  role: z.enum(["User", "Admin", "Super Admin"]).optional(),
+  role: z.enum(["User", "Super user", "Super Admin"]).optional(),
   active: z.boolean().optional(),
 })
 

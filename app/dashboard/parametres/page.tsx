@@ -1947,7 +1947,7 @@ function ParametresPageContent() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="User">User</SelectItem>
-                    <SelectItem value="Admin">Admin</SelectItem>
+                    <SelectItem value="Super user">Super user</SelectItem>
                     <SelectItem value="Super Admin">Super Admin</SelectItem>
                   </SelectContent>
                 </Select>

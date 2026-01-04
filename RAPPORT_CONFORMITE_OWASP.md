@@ -32,7 +32,7 @@
    - Retour 401 si session invalide
 2. **Contrôle d'accès basé sur les rôles (RBAC)** : ✅ **VERIFIÉ** - Implémenté avec vérification stricte des rôles
    - **Super Admin** : Accès complet (sauvegardes, monitoring, paramètres, utilisateurs)
-   - **Admin** : Accès limité (création/modification d'agences)
+   - **Super user** : Accès limité (création/modification d'agences)
    - **User** : Accès en lecture seule
    - Vérifications explicites : `session.role !== "Super Admin"` dans 9 fichiers API critiques
 3. **Vérification des permissions** : ✅ **VERIFIÉ** - Les actions sensibles vérifient le rôle
