@@ -9,8 +9,21 @@ const nextConfig = {
     domains: [],
     unoptimized: true
   },
-  // Exclure les modules Node.js du bundle client pour éviter les avertissements
-  serverComponentsExternalPackages: ['winston', 'fs', 'zlib'],
+  // Configuration Webpack pour exclure les modules Node.js du bundle client
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      // Exclure les modules Node.js du bundle client
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        zlib: false,
+        net: false,
+        tls: false,
+        crypto: false,
+      }
+    }
+    return config
+  },
   experimental: {
     serverActions: {
       bodySizeLimit: '5mb'
