@@ -1808,15 +1808,19 @@ L'application doit être conforme aux standards de sécurité OWASP Top 10 2021.
 
 ### 22.2 Dashboard de monitoring
 
-* **Page dédiée** : `/dashboard/monitoring` (Super Admin uniquement)
-* **Statistiques en temps réel** :
-  * Alertes (total, non résolues, critiques, élevées, dernières 24h)
-  * Logs (total, dernières 24h, 7 jours, tentatives échouées, actions sensibles)
-  * Utilisateurs (total, actifs, verrouillés)
-  * Sessions (actives)
-* **Affichage des alertes** : Liste avec badges de sévérité, bouton de résolution
-* **Actualisation automatique** : Toutes les 30 secondes
-* **Routes API** : `GET /api/monitoring/stats`
+* **Onglet dans Paramètres** : ✅ **IMPLÉMENTÉ** (2026-01-30)
+  * **Accès** : Onglet "Monitoring" dans la page `/dashboard/parametres` (Super Admin uniquement)
+  * **Navigation** : Accessible via le sidebar dans la section Paramètres, sous l'onglet Logs
+  * **Statistiques en temps réel** :
+    * Alertes (total, non résolues, critiques, élevées, dernières 24h)
+    * Logs (total, dernières 24h, 7 jours, tentatives échouées, actions sensibles)
+    * Utilisateurs (total, actifs, verrouillés, désactivés)
+    * Sessions (actives)
+  * **Affichage des alertes** : Liste avec badges de sévérité, bouton de résolution
+  * **Actualisation automatique** : Toutes les 30 secondes
+  * **Bouton d'actualisation** : Bouton manuel pour forcer le rafraîchissement
+  * **Routes API** : `GET /api/monitoring/stats`, `GET /api/alerts`, `POST /api/alerts/[id]/resolve`
+* **Page dédiée** : `/dashboard/monitoring` (Super Admin uniquement) - **Déprécié, utiliser l'onglet dans Paramètres**
 
 ### 22.3 Système de logging centralisé
 
@@ -1893,3 +1897,39 @@ L'application doit être conforme aux standards de sécurité OWASP Top 10 2021.
 * **Validation** : Côté serveur (Zod) et affichage côté client
 * **Schémas** : `createUserSchema`, `updateUserSchema`, `updateProfileSchema` dans `lib/validations/user.ts`
 * **Fonction de validation** : `validatePasswordStrength()` dans `lib/auth.ts`
+
+---
+
+## 23. Améliorations récentes (2026-01-30)
+
+### 23.1 Alerte de fermeture de session
+
+* **Alerte 30 secondes avant expiration** : ✅ **IMPLÉMENTÉ** (2026-01-30)
+  * **Affichage automatique** : Dialog d'alerte affiché automatiquement 30 secondes avant la déconnexion automatique
+  * **Compte à rebours en temps réel** : Affichage du nombre de secondes restantes (30, 29, 28...)
+  * **Prolongation de session** : Bouton "Prolonger la session" pour réinitialiser le timer d'inactivité
+  * **Fermeture du dialog** : Fermer le dialog (touche Escape ou clic à l'extérieur) prolonge automatiquement la session
+  * **Interface utilisateur** : Dialog avec icône d'alerte, message clair et bouton d'action
+  * **Composant** : `components/session-timeout.tsx` avec gestion des timers multiples
+
+### 23.2 Suppression individuelle des sauvegardes
+
+* **Bouton de suppression** : ✅ **IMPLÉMENTÉ** (2026-01-30)
+  * **Emplacement** : Bouton "Supprimer" à côté du bouton "Restaurer" pour chaque sauvegarde dans l'onglet Sauvegardes
+  * **Confirmation** : Dialog de confirmation avec détails de la sauvegarde (nom, date, taille)
+  * **Sécurité** :
+    * Protection path traversal
+    * Vérification du format de fichier (doit commencer par "backup-" et se terminer par ".encrypted.zip", ".zip" ou ".db")
+    * Vérification que le 2FA est activé pour les Super Admin
+  * **Nettoyage automatique** : Suppression du fichier de checksum associé (`.sha256`) si présent
+  * **Logging** : Action journalisée avec le nom du fichier supprimé
+  * **Alerte de sécurité** : Alerte créée pour action sensible
+  * **API** : `DELETE /api/backups/[filename]`
+
+### 23.3 Intégration du Monitoring dans Paramètres
+
+* **Onglet Monitoring** : ✅ **IMPLÉMENTÉ** (2026-01-30)
+  * **Emplacement** : Onglet "Monitoring" dans la page `/dashboard/parametres`
+  * **Navigation** : Accessible via le sidebar dans la section Paramètres, sous l'onglet Logs
+  * **Fonctionnalités** : Identiques à la page dédiée `/dashboard/monitoring` (statistiques, alertes, résolution)
+  * **Avantage** : Centralisation de toutes les fonctionnalités d'administration dans une seule page
