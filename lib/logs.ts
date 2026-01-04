@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server"
 import { prisma } from "./prisma"
+import { getClientIP } from "./get-client-ip"
 
 /**
  * Crée un log dans la base de données ET dans les fichiers de log centralisés
@@ -12,9 +13,7 @@ export async function createLog(
   request?: NextRequest
 ) {
   try {
-    const ipAddress = request?.headers.get("x-forwarded-for") || 
-                     request?.headers.get("x-real-ip") || 
-                     "unknown"
+    const ipAddress = getClientIP(request) || "unknown"
     const userAgent = request?.headers.get("user-agent") || "unknown"
 
     // Enregistrer dans la base de données

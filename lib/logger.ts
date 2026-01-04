@@ -144,10 +144,18 @@ export function logAction(
   request?: any,
   level: 'info' | 'warn' | 'error' = 'info'
 ) {
-  const ipAddress = request?.headers?.get?.('x-forwarded-for') || 
-                   request?.headers?.get?.('x-real-ip') || 
-                   request?.ip ||
-                   'unknown'
+  // Utiliser getClientIP pour extraire l'IP correctement
+  let ipAddress = 'unknown'
+  try {
+    const { getClientIP } = await import('./get-client-ip')
+    ipAddress = getClientIP(request) || 'unknown'
+  } catch {
+    // Fallback si l'import échoue
+    ipAddress = request?.headers?.get?.('x-forwarded-for') || 
+                request?.headers?.get?.('x-real-ip') || 
+                request?.ip ||
+                'unknown'
+  }
   const userAgent = request?.headers?.get?.('user-agent') || 'unknown'
 
   const logData = {

@@ -6,6 +6,7 @@ import { checkRateLimit, resetRateLimit } from "@/lib/rate-limit"
 import { createCSRFToken } from "@/lib/csrf"
 import { ensureSessionTable } from "@/lib/ensure-session-table"
 import { checkFailedLoginAttempts } from "@/lib/alerts"
+import { getClientIP } from "@/lib/get-client-ip"
 
 const MAX_FAILED_ATTEMPTS = 5
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000 // 15 minutes
@@ -22,9 +23,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Rate limiting par IP
-    const ipAddress = request.headers.get("x-forwarded-for") || 
-                     request.headers.get("x-real-ip") || 
-                     "unknown"
+    const ipAddress = getClientIP(request) || "unknown"
     const rateLimit = checkRateLimit(`login:${ipAddress}`)
     
     if (!rateLimit.allowed) {
@@ -61,9 +60,7 @@ export async function POST(request: NextRequest) {
       }, request)
       
       // Vérifier et alerter sur les tentatives multiples
-      const ipAddress = request.headers.get("x-forwarded-for") || 
-                       request.headers.get("x-real-ip") || 
-                       "unknown"
+      const ipAddress = getClientIP(request) || "unknown"
       await checkFailedLoginAttempts(login, ipAddress)
       
       return NextResponse.json(
@@ -79,9 +76,7 @@ export async function POST(request: NextRequest) {
       }, request)
       
       // Vérifier et alerter sur les tentatives multiples
-      const ipAddress = request.headers.get("x-forwarded-for") || 
-                       request.headers.get("x-real-ip") || 
-                       "unknown"
+      const ipAddress = getClientIP(request) || "unknown"
       await checkFailedLoginAttempts(login, ipAddress)
       
       return NextResponse.json(
@@ -143,9 +138,7 @@ export async function POST(request: NextRequest) {
       }, request)
       
       // Vérifier et alerter sur les tentatives multiples
-      const ipAddress = request.headers.get("x-forwarded-for") || 
-                       request.headers.get("x-real-ip") || 
-                       "unknown"
+      const ipAddress = getClientIP(request) || "unknown"
       await checkFailedLoginAttempts(login, ipAddress)
       
       if (shouldLock) {

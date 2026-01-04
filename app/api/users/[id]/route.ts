@@ -8,6 +8,7 @@ import { sanitize } from "@/lib/sanitize"
 import { updateUserSchema } from "@/lib/validations"
 import { validateRequest } from "@/lib/validation-middleware"
 import { alertSensitiveAction } from "@/lib/alerts"
+import { getClientIP } from "@/lib/get-client-ip"
 
 export async function PUT(
   request: NextRequest,
@@ -74,9 +75,7 @@ export async function PUT(
     }, request)
 
     // Alerter sur l'action sensible
-    const ipAddress = request.headers.get("x-forwarded-for") || 
-                     request.headers.get("x-real-ip") || 
-                     null
+    const ipAddress = getClientIP(request)
     await alertSensitiveAction("UTILISATEUR_MODIFIE", session.id, {
       userId: id,
     }, ipAddress)
@@ -142,9 +141,7 @@ export async function DELETE(
     }, request)
 
     // Alerter sur l'action sensible
-    const ipAddress = request.headers.get("x-forwarded-for") || 
-                     request.headers.get("x-real-ip") || 
-                     null
+    const ipAddress = getClientIP(request)
     await alertSensitiveAction("UTILISATEUR_SUPPRIME", session.id, {
       userId: id,
     }, ipAddress)

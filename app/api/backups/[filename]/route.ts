@@ -81,9 +81,8 @@ export async function DELETE(
     }, request)
 
     // Alerter sur l'action sensible
-    const ipAddress = request.headers.get("x-forwarded-for") || 
-                     request.headers.get("x-real-ip") || 
-                     null
+    const { getClientIP } = await import("@/lib/get-client-ip")
+    const ipAddress = getClientIP(request)
     await alertSensitiveAction("SAUVEGARDE_SUPPRIMEE", session.id, {
       filename,
     }, ipAddress)
