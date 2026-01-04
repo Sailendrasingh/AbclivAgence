@@ -1172,6 +1172,81 @@ function ParametresPageContent() {
                     </Card>
                   </div>
                 )}
+
+                {/* Section Images manquantes */}
+                {userRole === "Super Admin" && (
+                  <div className="mt-12">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <AlertTriangle className="h-5 w-5" />
+                          Images manquantes
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <p className="text-sm text-muted-foreground">
+                          Scanne les images référencées dans la base de données pour trouver celles qui sont manquantes physiquement dans le dossier uploads.
+                        </p>
+                        <Button
+                          onClick={handleScanMissingImages}
+                          disabled={scanningMissing}
+                          className="gap-2"
+                          variant="outline"
+                        >
+                          <Search className="h-4 w-4" />
+                          {scanningMissing ? "Scan en cours..." : "Rechercher les images manquantes"}
+                        </Button>
+
+                        {missingImages.length > 0 && (
+                          <div className="space-y-4">
+                            <p className="text-sm font-medium">
+                              {missingImages.length} image(s) manquante(s) trouvée(s)
+                            </p>
+                            <div className="border rounded-lg divide-y overflow-x-auto">
+                              <div className="grid grid-cols-5 gap-4 p-3 bg-muted/50 font-medium text-sm min-w-[800px]">
+                                <div>Agence</div>
+                                <div>Type de photo</div>
+                                <div>Libellé</div>
+                                <div>Date physique</div>
+                                <div>Nom physique</div>
+                              </div>
+                              {missingImages.map((image, index) => (
+                                <div
+                                  key={`${image.agencyId}-${image.photoPath}-${index}`}
+                                  className="grid grid-cols-5 gap-4 p-3 hover:bg-muted/50 text-sm min-w-[800px]"
+                                >
+                                  <div className="font-medium">{image.agencyName}</div>
+                                  <div>{image.photoType}</div>
+                                  <div className="text-muted-foreground">
+                                    {image.photoLabel || "-"}
+                                  </div>
+                                  <div className="text-muted-foreground">
+                                    {image.photoDate 
+                                      ? new Date(image.photoDate).toLocaleDateString("fr-FR", {
+                                          year: "numeric",
+                                          month: "2-digit",
+                                          day: "2-digit",
+                                        })
+                                      : "-"}
+                                  </div>
+                                  <div className="text-muted-foreground font-mono text-xs break-all">
+                                    {image.photoPath}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {missingImages.length === 0 && !scanningMissing && (
+                          <p className="text-sm text-muted-foreground text-center py-4">
+                            Aucune image manquante trouvée. Cliquez sur &quot;Rechercher les images manquantes&quot; pour lancer une recherche.
+                          </p>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
               </>
             )}
           </TabsContent>
