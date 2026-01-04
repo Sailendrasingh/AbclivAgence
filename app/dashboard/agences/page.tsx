@@ -3188,14 +3188,15 @@ export default function AgencesPage() {
 
               <TabsContent value="tasks" className="space-y-2 sm:space-y-4 pt-2 sm:pt-4 mt-0">
                 {/* Bouton Ajouter - Pleine largeur sur mobile */}
-                <Button 
-                  onClick={handleAddTask} 
-                  disabled={!editing}
-                  className="w-full sm:w-auto gap-2 mb-4 bg-green-600 hover:bg-green-700 text-white"
-                >
-                  <Plus className="h-4 w-4" />
-                  Ajouter une tâche
-                </Button>
+                {editing && (
+                  <Button 
+                    onClick={handleAddTask} 
+                    className="w-full sm:w-auto gap-2 mb-4 bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Ajouter une tâche
+                  </Button>
+                )}
 
                 {/* Filtres - Visibles uniquement sur mobile */}
                 <div className="sm:hidden mb-4">
@@ -3421,44 +3422,45 @@ export default function AgencesPage() {
                                   )}
 
                                   {/* Boutons d'action */}
-                                  <div className="flex gap-2 mt-4">
-                                    {userRole !== "User" && (
-                                      <>
-                                        <Button
-                                          variant="default"
-                                          size="sm"
-                                          onClick={() => handleEditTask(task)}
-                                          disabled={isClosed || !editing}
-                                          className="flex-1"
-                                        >
-                                          <Edit className="h-4 w-4 mr-1" />
-                                          Modifier
-                                        </Button>
+                                  {editing && (
+                                    <div className="flex gap-2 mt-4">
+                                      {userRole !== "User" && (
+                                        <>
+                                          <Button
+                                            variant="default"
+                                            size="sm"
+                                            onClick={() => handleEditTask(task)}
+                                            disabled={isClosed}
+                                            className="flex-1"
+                                          >
+                                            <Edit className="h-4 w-4 mr-1" />
+                                            Modifier
+                                          </Button>
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => handleCloseTask(task)}
+                                            disabled={isClosed}
+                                            className="flex-1 bg-green-50 hover:bg-green-100 text-green-700 border-green-300"
+                                          >
+                                            <CheckCircle className="h-4 w-4 mr-1" />
+                                            Clôturer
+                                          </Button>
+                                        </>
+                                      )}
+                                      {userRole === "Super Admin" && (
                                         <Button
                                           variant="outline"
                                           size="sm"
-                                          onClick={() => handleCloseTask(task)}
-                                          disabled={isClosed || !editing}
-                                          className="flex-1 bg-green-50 hover:bg-green-100 text-green-700 border-green-300"
+                                          onClick={() => handleDeleteTask(task)}
+                                          className="flex-1 bg-red-50 hover:bg-red-100 text-red-700 border-red-300"
                                         >
-                                          <CheckCircle className="h-4 w-4 mr-1" />
-                                          Clôturer
+                                          <Trash2 className="h-4 w-4 mr-1" />
+                                          Supprimer
                                         </Button>
-                                      </>
-                                    )}
-                                    {userRole === "Super Admin" && (
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => handleDeleteTask(task)}
-                                        disabled={!editing}
-                                        className="flex-1 bg-red-50 hover:bg-red-100 text-red-700 border-red-300"
-                                      >
-                                        <Trash2 className="h-4 w-4 mr-1" />
-                                        Supprimer
-                                      </Button>
-                                    )}
-                                  </div>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -3623,44 +3625,45 @@ export default function AgencesPage() {
                                     )}
 
                                     {/* Boutons d'action */}
-                                    <div className="flex gap-2 mt-4">
-                                      {userRole !== "User" && (
-                                        <>
-                                          <Button
-                                            variant="default"
-                                            size="sm"
-                                            onClick={() => handleEditTask(task)}
-                                            disabled={isClosed || !editing}
-                                            className="flex-1"
-                                          >
-                                            <Edit className="h-4 w-4 mr-1" />
-                                            Modifier
-                                          </Button>
+                                    {editing && (
+                                      <div className="flex gap-2 mt-4">
+                                        {userRole !== "User" && (
+                                          <>
+                                            <Button
+                                              variant="default"
+                                              size="sm"
+                                              onClick={() => handleEditTask(task)}
+                                              disabled={isClosed}
+                                              className="flex-1"
+                                            >
+                                              <Edit className="h-4 w-4 mr-1" />
+                                              Modifier
+                                            </Button>
+                                            <Button
+                                              variant="outline"
+                                              size="sm"
+                                              onClick={() => handleCloseTask(task)}
+                                              disabled={isClosed}
+                                              className="flex-1 bg-green-50 hover:bg-green-100 text-green-700 border-green-300"
+                                            >
+                                              <CheckCircle className="h-4 w-4 mr-1" />
+                                              Clôturer
+                                            </Button>
+                                          </>
+                                        )}
+                                        {userRole === "Super Admin" && (
                                           <Button
                                             variant="outline"
                                             size="sm"
-                                            onClick={() => handleCloseTask(task)}
-                                            disabled={isClosed || !editing}
-                                            className="flex-1 bg-green-50 hover:bg-green-100 text-green-700 border-green-300"
+                                            onClick={() => handleDeleteTask(task)}
+                                            className="flex-1 bg-red-50 hover:bg-red-100 text-red-700 border-red-300"
                                           >
-                                            <CheckCircle className="h-4 w-4 mr-1" />
-                                            Clôturer
+                                            <Trash2 className="h-4 w-4 mr-1" />
+                                            Supprimer
                                           </Button>
-                                        </>
-                                      )}
-                                      {userRole === "Super Admin" && (
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          onClick={() => handleDeleteTask(task)}
-                                          disabled={!editing}
-                                          className="flex-1 bg-red-50 hover:bg-red-100 text-red-700 border-red-300"
-                                        >
-                                          <Trash2 className="h-4 w-4 mr-1" />
-                                          Supprimer
-                                        </Button>
-                                      )}
-                                    </div>
+                                        )}
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                               </div>

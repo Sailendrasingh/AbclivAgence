@@ -250,6 +250,10 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
   * **Onglet Tâches** :
     * Interface de gestion des tâches avec liste des tâches
     * Colonnes affichées : Créée le, Créée par, Clôturée le, Clôturée par, Notes, Importance
+    * **Visibilité conditionnelle des boutons d'action** :
+      * Les boutons "Ajouter une tâche", "Modifier", "Clôturer" et "Supprimer" ne sont **visibles que si le mode édition de l'agence est activé** (depuis le bouton "Modifier" du Master)
+      * En mode consultation (sans édition), seuls les filtres et la liste des tâches sont visibles
+      * Les boutons d'action apparaissent uniquement lorsque l'agence est en mode édition
     * Actions disponibles : Modifier, Clôturer, Supprimer
     * Bouton "Ajouter une tâche"
     * Filtre par importance (URGENT, CRITIQUE, INFO, TOUS)
@@ -259,16 +263,16 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
     * Affichage en cartes (mobile et desktop)
     * Tâches clôturées avec fond grisé et badge "Clôturée"
     * Notes limitées à 5 lignes avec scrollbar pour les notes plus longues
-    * **Restrictions d'accès par rôle** :
+    * **Restrictions d'accès par rôle** (applicables uniquement en mode édition) :
       * **Utilisateur de type User** :
-        * Les boutons "Modifier" et "Clôturer" ne sont **pas visibles** pour les utilisateurs de type **User**
+        * Les boutons "Modifier" et "Clôturer" ne sont **pas visibles** pour les utilisateurs de type **User** (même en mode édition)
         * Les utilisateurs de type **User** ne peuvent que consulter les tâches (accès en lecture seule)
-        * Le bouton "Ajouter une tâche" est automatiquement désactivé car les utilisateurs de type **User** ne peuvent pas activer le mode édition d'une agence
+        * Le bouton "Ajouter une tâche" n'est **pas visible** car les utilisateurs de type **User** ne peuvent pas activer le mode édition d'une agence
       * **Utilisateur de type Admin** :
-        * Les boutons "Modifier" et "Clôturer" sont visibles et utilisables
-        * Le bouton "Supprimer" n'est **pas visible** pour les utilisateurs de type **Admin**
+        * Les boutons "Modifier" et "Clôturer" sont visibles et utilisables (uniquement en mode édition)
+        * Le bouton "Supprimer" n'est **pas visible** pour les utilisateurs de type **Admin** (même en mode édition)
       * **Utilisateur de type Super Admin** :
-        * Tous les boutons sont visibles et utilisables (Modifier, Clôturer, Supprimer)
+        * Tous les boutons sont visibles et utilisables (Modifier, Clôturer, Supprimer) uniquement en mode édition
     * **Restriction de suppression des notes** : Seul le **Super Admin** peut supprimer (vider) les notes des tâches existantes
       * Les utilisateurs **Admin** peuvent modifier les notes des tâches mais ne peuvent pas les supprimer
       * Les utilisateurs **User** ne peuvent pas modifier les tâches (boutons Modifier et Clôturer masqués)
