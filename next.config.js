@@ -9,7 +9,10 @@ const nextConfig = {
     domains: [],
     unoptimized: true
   },
-  // Configuration Webpack pour exclure les modules Node.js du bundle client
+  // Configuration Turbopack (Next.js 16.1.1 utilise Turbopack par défaut)
+  // Les modules Node.js (fs, zlib, etc.) sont automatiquement exclus du bundle client
+  turbopack: {},
+  // Configuration Webpack pour compatibilité (si --webpack est utilisé)
   webpack: (config, { isServer }) => {
     if (!isServer) {
       // Exclure les modules Node.js du bundle client
