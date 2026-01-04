@@ -86,9 +86,35 @@ Toutes les sauvegardes sont automatiquement chiffrées avec **AES-256-GCM** avan
 
 Les tests utilisent une base de données séparée (`prisma/test.db`) pour éviter d'affecter les données de développement.
 
+## 🚀 Déploiement en Production
+
+Pour déployer l'application en production, consultez le guide complet :
+
+**📖 [GUIDE_DEPLOIEMENT_PRODUCTION.md](./GUIDE_DEPLOIEMENT_PRODUCTION.md)**
+
+Ce guide détaille :
+- Les prérequis système (Node.js, ClamAV, etc.)
+- La configuration des variables d'environnement
+- L'installation et la configuration de PM2
+- La configuration de Nginx comme reverse proxy
+- L'installation de SSL/TLS avec Let's Encrypt
+- Les tâches automatiques (sauvegardes, nettoyage)
+- La sécurité et la maintenance
+
+**Déploiement rapide :**
+```bash
+# 1. Configurer .env avec les variables de production
+# 2. Exécuter le script de déploiement
+./scripts/deploy.sh
+
+# 3. Démarrer avec PM2 (si installé)
+pm2 start ecosystem.config.js
+```
+
 ## 📚 Documentation
 
 - `prd_application_web_gestion_des_agences.md` - Cahier des charges complet
+- `GUIDE_DEPLOIEMENT_PRODUCTION.md` - Guide de déploiement en production
 - `TESTS_IMPLEMENTES.md` - Documentation des tests
 - `SCENARIOS_TESTS.md` - Scénarios de tests
 

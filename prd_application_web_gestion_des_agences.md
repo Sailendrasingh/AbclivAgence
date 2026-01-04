@@ -1572,8 +1572,142 @@ L'application doit être conforme aux standards de sécurité OWASP Top 10 2021.
 
 ---
 
-## 20. Clause finale (bloquante)
+## 20. Déploiement en Production
+
+### 20.1 Environnement cible
+
+* **Système d'exploitation** : Ubuntu Server LTS (20.04, 22.04 ou 24.04) uniquement
+* **Node.js** : Version 18.x ou 20.x LTS
+* **npm** : Version 9.x ou supérieure
+* **Process Manager** : PM2 (recommandé)
+* **Reverse Proxy** : Nginx (recommandé)
+* **SSL/TLS** : Certificat SSL (Let's Encrypt recommandé)
+
+### 20.2 Configuration requise
+
+* **Variables d'environnement obligatoires** :
+  * `DATABASE_URL` : Chemin vers la base de données SQLite de production (ex: `file:/var/www/abcliv-agency/prisma/production.db`)
+  * `ENCRYPTION_KEY` : Clé de chiffrement de 64 caractères hexadécimaux (générée avec `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`)
+  * `NODE_ENV` : Doit être défini à `"production"`
+  * `NEXT_PUBLIC_APP_URL` : URL publique de l'application (optionnel)
+* **Sécurité** :
+  * Le fichier `.env` ne doit jamais être commité dans Git
+  * Permissions restrictives : `chmod 600 .env`
+  * La clé de chiffrement ne doit jamais être partagée
+
+### 20.3 Dépendances système
+
+* **ClamAV** (recommandé) : Pour le scan antivirus des fichiers uploadés
+  * Installation : `sudo apt install -y clamav clamav-daemon`
+  * Mise à jour des définitions : `sudo freshclam`
+  * Le système fonctionne avec un scan heuristique en fallback si ClamAV n'est pas disponible
+* **PM2** : Pour la gestion du processus Node.js
+  * Installation : `sudo npm install -g pm2`
+  * Configuration : Fichier `ecosystem.config.js` à la racine du projet
+
+### 20.4 Processus de déploiement
+
+* **Script de déploiement** : `scripts/deploy.sh`
+  * Automatise le processus de déploiement complet
+  * Options disponibles :
+    * `--no-pull` : Ne pas récupérer le code depuis Git
+    * `--no-backup` : Ne pas créer de sauvegarde avant déploiement
+  * Étapes automatiques :
+    * Vérification des prérequis
+    * Sauvegarde (si script `backup.sh` existe)
+    * Récupération du code depuis Git (`git pull`)
+    * Installation des dépendances (`npm install --production`)
+    * Génération du client Prisma (`npx prisma generate`)
+    * Application des migrations (`npx prisma migrate deploy`)
+    * Build de l'application (`npm run build`)
+    * Redémarrage PM2
+* **Configuration PM2** : Fichier `ecosystem.config.js` fourni avec le projet
+  * Nom de l'application : `abcliv-agency`
+  * Port : 3000
+  * Redémarrage automatique en cas d'erreur
+  * Limite mémoire : 1 GB (redémarrage automatique si dépassée)
+
+### 20.5 Mises à jour en production
+
+* **Processus standard** :
+  1. Sauvegarde obligatoire avant toute mise à jour (base de données, uploads, `.env`)
+  2. Récupération du code depuis Git (`git pull origin main`)
+  3. Installation des nouvelles dépendances (`npm install --production`)
+  4. Génération Prisma si schéma modifié (`npx prisma generate`)
+  5. Application des migrations (`npx prisma migrate deploy`)
+  6. Rebuild de l'application (`npm run build`)
+  7. Redémarrage de l'application (`pm2 restart abcliv-agency`)
+  8. Vérification post-déploiement (logs, tests fonctionnels)
+* **Script automatisé** : Utiliser `./scripts/deploy.sh` pour automatiser le processus
+* **Rollback** : Procédure documentée dans `GUIDE_DEPLOIEMENT_PRODUCTION.md`
+  * Restauration du code depuis un commit précédent
+  * Restauration de la base de données depuis la sauvegarde
+  * Rebuild et redémarrage
+
+### 20.6 Documentation de déploiement
+
+* **Guide complet** : `GUIDE_DEPLOIEMENT_PRODUCTION.md`
+  * Étapes détaillées de déploiement initial
+  * Configuration de Nginx comme reverse proxy
+  * Configuration SSL/TLS avec Let's Encrypt
+  * Configuration des tâches automatiques (sauvegardes, nettoyage)
+  * Procédures de maintenance et de mise à jour
+  * Dépannage et résolution de problèmes
+* **Scripts fournis** :
+  * `scripts/deploy.sh` : Script de déploiement automatisé
+  * `scripts/backup.sh` : Script de sauvegarde (à créer selon les besoins)
+  * `scripts/clean-quarantine.js` : Nettoyage automatique de la quarantaine
+* **Configuration PM2** : `ecosystem.config.js` à la racine du projet
+
+### 20.7 Tâches automatiques
+
+* **Nettoyage de la quarantaine** :
+  * Script : `npm run clean:quarantine`
+  * Cron recommandé : Toutes les heures (`0 * * * *`)
+* **Sauvegardes automatiques** :
+  * Script de sauvegarde à créer selon les besoins (`scripts/backup.sh`)
+  * Cron recommandé : Tous les jours à 2h du matin (`0 2 * * *`)
+  * Rétention : 30 jours (configurable)
+
+### 20.8 Sécurité en production
+
+* **Checklist de sécurité** :
+  * Clé de chiffrement unique et sécurisée générée
+  * Fichier `.env` avec permissions `600`
+  * Mot de passe Admin changé après première connexion
+  * SSL/TLS configuré et fonctionnel
+  * Pare-feu configuré (ports 80, 443 uniquement)
+  * ClamAV installé et mis à jour
+  * Sauvegardes automatiques configurées
+  * Logs surveillés régulièrement
+  * Mises à jour système régulières
+  * 2FA activé pour les utilisateurs administrateurs
+* **Mises à jour régulières** :
+  * Système Ubuntu : `sudo apt update && sudo apt upgrade -y`
+  * Dépendances npm : `npm audit fix`
+  * ClamAV : `sudo freshclam`
+
+### 20.9 Monitoring et logs
+
+* **Logs PM2** :
+  * Fichiers : `logs/error.log` et `logs/out.log` (ou `/var/log/abcliv-agency/` selon configuration)
+  * Commande : `pm2 logs abcliv-agency`
+* **Logs Nginx** :
+  * Accès : `/var/log/nginx/access.log`
+  * Erreurs : `/var/log/nginx/error.log`
+* **Monitoring** :
+  * Statut PM2 : `pm2 status`
+  * Monitoring en temps réel : `pm2 monit`
+  * Utilisation des ressources : `pm2 list`
+
+---
+
+## 21. Clause finale (bloquante)
 
 ❗ **Toute implémentation qui dépasse ce PRD est NON CONFORME.**
 
 ❗ **Toute ambiguïté doit bloquer l'IA et déclencher une question humaine.**
+
+---
+
+**Dernière mise à jour** : 2026-01-30
