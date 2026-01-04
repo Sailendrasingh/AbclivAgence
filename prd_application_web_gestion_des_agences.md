@@ -1253,6 +1253,14 @@ Aucun autre type autorisé.
       * **Fonctionnalités requises** :
       * Liste des sauvegardes disponibles avec date, heure et taille
       * Bouton de restauration pour chaque sauvegarde
+      * Bouton de suppression pour chaque sauvegarde : ✅ **IMPLÉMENTÉ** (2026-01-30)
+        * **Action** : Suppression individuelle d'une sauvegarde spécifique
+        * **Confirmation** : Dialog de confirmation avec détails de la sauvegarde (nom, date, taille)
+        * **Sécurité** : Protection path traversal, vérification du format de fichier
+        * **Nettoyage** : Suppression automatique du fichier de checksum associé (`.sha256`)
+        * **Logging** : Action journalisée avec le nom du fichier supprimé
+        * **Alerte** : Alerte de sécurité pour action sensible
+        * **API** : `DELETE /api/backups/[filename]`
       * Confirmation avant restauration (action irréversible)
       * **Restauration complète** :
         * Pour les sauvegardes `.encrypted.zip` : Déchiffrement automatique puis extraction complète de l'archive (base de données + dossier uploads)
