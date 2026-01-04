@@ -260,6 +260,16 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
       * **Visibilité permanente** : Les boutons de filtre restent toujours visibles même s'il n'y a pas de tâches correspondantes au filtre sélectionné
       * Permet de changer de filtre même quand aucun résultat n'est affiché
       * Filtres disponibles sur mobile et desktop
+    * **Filtre par statut de clôture** :
+      * Bouton toggle "Clôturées"/"Non clôturées" pour inclure ou exclure les tâches clôturées
+      * **Texte dynamique** : 
+        * Affiche "Clôturées" quand les tâches clôturées sont incluses (état par défaut)
+        * Affiche "Non clôturées" quand les tâches clôturées sont exclues
+      * **Style visuel** :
+        * Style vert (actif) quand les tâches clôturées sont exclues
+        * Style blanc/gris (inactif) quand les tâches clôturées sont incluses
+      * Disponible sur mobile et desktop
+      * Les filtres par importance et par statut de clôture fonctionnent en combinaison
     * Affichage en cartes (mobile et desktop)
     * Tâches clôturées avec fond grisé et badge "Clôturée"
     * Notes limitées à 5 lignes avec scrollbar pour les notes plus longues
