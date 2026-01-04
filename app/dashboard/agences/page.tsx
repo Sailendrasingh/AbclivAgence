@@ -3024,15 +3024,6 @@ export default function AgencesPage() {
                             return (
                               <Card
                                 key={contact.id}
-                                draggable={editing}
-                                onDragStart={(e) => {
-                                  setDraggedContactId(contact.id)
-                                  e.dataTransfer.effectAllowed = "move"
-                                }}
-                                onDragEnd={() => {
-                                  setDraggedContactId(null)
-                                  setDragOverContactIndex(null)
-                                }}
                                 onDragOver={(e) => {
                                   e.preventDefault()
                                   e.dataTransfer.dropEffect = "move"
@@ -3053,12 +3044,23 @@ export default function AgencesPage() {
                                   draggedContactId === contact.id ? "opacity-50" : ""
                                 } ${
                                   dragOverContactIndex === index ? "border-primary border-2" : ""
-                                } ${editing ? "cursor-move" : ""}`}
+                                }`}
                               >
                                 <CardHeader className="p-3 sm:p-4">
                                   <div className="flex items-start justify-between gap-2">
                                     {editing && (
-                                      <div className="text-muted-foreground cursor-move shrink-0">
+                                      <div 
+                                        className="text-muted-foreground cursor-move shrink-0"
+                                        draggable={true}
+                                        onDragStart={(e) => {
+                                          setDraggedContactId(contact.id)
+                                          e.dataTransfer.effectAllowed = "move"
+                                        }}
+                                        onDragEnd={() => {
+                                          setDraggedContactId(null)
+                                          setDragOverContactIndex(null)
+                                        }}
+                                      >
                                         <GripVertical className="h-4 w-4" />
                                       </div>
                                     )}
@@ -3071,6 +3073,7 @@ export default function AgencesPage() {
                                           variant="ghost"
                                           size="sm"
                                           onClick={() => handleEditContact(contact)}
+                                          onMouseDown={(e) => e.stopPropagation()}
                                           className="h-8 w-8 p-0"
                                         >
                                           <Edit className="h-4 w-4" />
@@ -3079,6 +3082,7 @@ export default function AgencesPage() {
                                           variant="ghost"
                                           size="sm"
                                           onClick={() => handleDeleteContact(contact.id)}
+                                          onMouseDown={(e) => e.stopPropagation()}
                                           className="h-8 w-8 p-0 text-destructive hover:text-destructive"
                                         >
                                           <Trash2 className="h-4 w-4" />
@@ -3779,15 +3783,6 @@ export default function AgencesPage() {
                               return sortedPCs.map((pc, index) => (
                               <div
                                 key={pc.id}
-                                draggable={editing}
-                                onDragStart={(e) => {
-                                  setDraggedPCId(pc.id)
-                                  e.dataTransfer.effectAllowed = "move"
-                                }}
-                                onDragEnd={() => {
-                                  setDraggedPCId(null)
-                                  setDragOverIndex(null)
-                                }}
                                 onDragOver={(e) => {
                                   e.preventDefault()
                                   e.dataTransfer.dropEffect = "move"
@@ -3808,11 +3803,22 @@ export default function AgencesPage() {
                                   draggedPCId === pc.id ? "opacity-50" : ""
                                 } ${
                                   dragOverIndex === index ? "border-primary border-2" : ""
-                                } ${editing ? "cursor-move" : ""}`}
+                                }`}
                               >
                                 <div className="flex items-start justify-between">
                                   {editing && (
-                                    <div className="mr-2 text-muted-foreground cursor-move">
+                                    <div 
+                                      className="mr-2 text-muted-foreground cursor-move"
+                                      draggable={true}
+                                      onDragStart={(e) => {
+                                        setDraggedPCId(pc.id)
+                                        e.dataTransfer.effectAllowed = "move"
+                                      }}
+                                      onDragEnd={() => {
+                                        setDraggedPCId(null)
+                                        setDragOverIndex(null)
+                                      }}
+                                    >
                                       <GripVertical className="h-5 w-5" />
                                     </div>
                                   )}
@@ -3904,6 +3910,7 @@ export default function AgencesPage() {
                                         variant="ghost"
                                         size="sm"
                                         onClick={() => handleEditPC(pc)}
+                                        onMouseDown={(e) => e.stopPropagation()}
                                       >
                                         <Edit className="h-4 w-4" />
                                       </Button>
@@ -3911,6 +3918,7 @@ export default function AgencesPage() {
                                         variant="ghost"
                                         size="sm"
                                         onClick={() => handleDeletePC(pc.id)}
+                                        onMouseDown={(e) => e.stopPropagation()}
                                       >
                                         <Trash2 className="h-4 w-4" />
                                       </Button>
