@@ -9,6 +9,8 @@ const nextConfig = {
     domains: [],
     unoptimized: true
   },
+  // Exclure les modules Node.js du bundle client pour éviter les avertissements
+  serverComponentsExternalPackages: ['winston', 'fs', 'zlib'],
   experimental: {
     serverActions: {
       bodySizeLimit: '5mb'
