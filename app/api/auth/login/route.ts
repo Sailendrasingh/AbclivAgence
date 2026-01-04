@@ -5,6 +5,7 @@ import { createLog } from "@/lib/logs"
 import { checkRateLimit, resetRateLimit } from "@/lib/rate-limit"
 import { createCSRFToken } from "@/lib/csrf"
 import { ensureSessionTable } from "@/lib/ensure-session-table"
+import { checkFailedLoginAttempts } from "@/lib/alerts"
 
 const MAX_FAILED_ATTEMPTS = 5
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000 // 15 minutes
@@ -58,6 +59,13 @@ export async function POST(request: NextRequest) {
         login,
         reason: "Utilisateur inexistant",
       }, request)
+      
+      // Vérifier et alerter sur les tentatives multiples
+      const ipAddress = request.headers.get("x-forwarded-for") || 
+                       request.headers.get("x-real-ip") || 
+                       "unknown"
+      await checkFailedLoginAttempts(login, ipAddress)
+      
       return NextResponse.json(
         { error: "Identifiant ou mot de passe incorrect" },
         { status: 401 }
@@ -69,6 +77,13 @@ export async function POST(request: NextRequest) {
       await createLog(user.id, "TENTATIVE_CONNEXION_ECHOUEE", {
         reason: "Utilisateur désactivé",
       }, request)
+      
+      // Vérifier et alerter sur les tentatives multiples
+      const ipAddress = request.headers.get("x-forwarded-for") || 
+                       request.headers.get("x-real-ip") || 
+                       "unknown"
+      await checkFailedLoginAttempts(login, ipAddress)
+      
       return NextResponse.json(
         { error: "Identifiant ou mot de passe incorrect" },
         { status: 401 }
@@ -126,6 +141,12 @@ export async function POST(request: NextRequest) {
         failedAttempts: newFailedAttempts,
         locked: shouldLock,
       }, request)
+      
+      // Vérifier et alerter sur les tentatives multiples
+      const ipAddress = request.headers.get("x-forwarded-for") || 
+                       request.headers.get("x-real-ip") || 
+                       "unknown"
+      await checkFailedLoginAttempts(login, ipAddress)
       
       if (shouldLock) {
         return NextResponse.json(
@@ -199,6 +220,12 @@ export async function POST(request: NextRequest) {
           failedAttempts: newFailedAttempts,
           locked: shouldLock,
         }, request)
+        
+        // Vérifier et alerter sur les tentatives multiples
+        const ipAddress = request.headers.get("x-forwarded-for") || 
+                         request.headers.get("x-real-ip") || 
+                         "unknown"
+        await checkFailedLoginAttempts(login, ipAddress)
         
         if (shouldLock) {
           return NextResponse.json(

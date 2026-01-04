@@ -28,14 +28,32 @@ export function AddressSearch({
   const [query, setQuery] = useState("")
   const [results, setResults] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const search = async () => {
     if (!query.trim()) return
 
     setLoading(true)
+    setError(null)
+    setResults([])
+    
     try {
       const response = await fetch(`/api/ban/search?q=${encodeURIComponent(query)}`)
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        const errorMessage = errorData.error || "Erreur lors de la recherche d'adresse"
+        setError(errorMessage)
+        return
+      }
+
       const data: BANResult = await response.json()
+
+      // Vérifier que la réponse contient des features
+      if (!data.features || !Array.isArray(data.features)) {
+        setError("Aucun résultat trouvé")
+        return
+      }
 
       setResults(
         data.features.map((feature) => {
@@ -66,6 +84,7 @@ export function AddressSearch({
       )
     } catch (error) {
       console.error("Error searching address:", error)
+      setError("Erreur lors de la recherche d'adresse. Veuillez réessayer.")
     } finally {
       setLoading(false)
     }
@@ -85,6 +104,11 @@ export function AddressSearch({
           Rechercher
         </Button>
       </div>
+      {error && (
+        <div className="text-sm text-destructive p-2 bg-destructive/10 rounded-md">
+          {error}
+        </div>
+      )}
       {results.length > 0 && (
         <div className="border rounded-md max-h-60 overflow-y-auto">
           {results.map((result, index) => (

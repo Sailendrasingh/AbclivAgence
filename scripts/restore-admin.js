@@ -49,7 +49,9 @@ async function restoreAdmin() {
     console.log(`   ID: ${admin.id}`)
     console.log(`   Login: ${admin.login}`)
     console.log(`   Mot de passe par défaut: Password`)
-    console.log(`\n⚠️  IMPORTANT: Changez le mot de passe après la première connexion !`)
+    console.log(`\n⚠️  IMPORTANT: Le mot de passe par défaut "Password" ne respecte pas la politique de sécurité.`)
+    console.log(`   ⚠️  Changez-le IMMÉDIATEMENT après la première connexion !`)
+    console.log(`   ⚠️  Le nouveau mot de passe doit contenir au moins 12 caractères avec majuscules, minuscules, chiffres et caractères spéciaux.`)
   } catch (error) {
     console.error('❌ Erreur lors de la restauration:', error)
     process.exit(1)

@@ -4,6 +4,7 @@ import { join } from "path"
 import { existsSync } from "fs"
 import archiver from "archiver"
 import { encryptFile } from "../lib/encryption"
+import { saveChecksum, cleanupOrphanedChecksums } from "../lib/backup-integrity"
 
 async function backup() {
   const backupsDir = join(process.cwd(), "backups")
@@ -71,6 +72,17 @@ async function backup() {
     const backupStats = await stat(backupPath)
     console.log(`Taille de la sauvegarde chiffrée: ${backupStats.size} bytes`)
 
+    // Calculer et sauvegarder le checksum SHA-256
+    console.log("Calcul du checksum SHA-256...")
+    try {
+      const checksum = await saveChecksum(backupPath)
+      console.log(`Checksum SHA-256: ${checksum}`)
+      console.log(`Checksum sauvegardé dans: ${backupPath}.sha256`)
+    } catch (checksumError: any) {
+      console.error(`Erreur lors du calcul du checksum:`, checksumError)
+      // Ne pas faire échouer la sauvegarde si le checksum échoue
+    }
+
     // Nettoyer les sauvegardes de plus de 10 jours
     const files = await readdir(backupsDir)
     const now = Date.now()
@@ -87,9 +99,26 @@ async function backup() {
         
         if (stats.mtimeMs < tenDaysAgo) {
           await unlink(filePath)
+          // Supprimer aussi le fichier de checksum associé s'il existe
+          const checksumPath = `${filePath}.sha256`
+          if (existsSync(checksumPath)) {
+            try {
+              await unlink(checksumPath)
+            } catch {}
+          }
           console.log(`Sauvegarde supprimée: ${file}`)
         }
       }
+    }
+
+    // Nettoyer les checksums orphelins
+    try {
+      const orphanedChecksums = await cleanupOrphanedChecksums(backupsDir)
+      if (orphanedChecksums > 0) {
+        console.log(`${orphanedChecksums} checksum(s) orphelin(s) nettoyé(s)`)
+      }
+    } catch (error) {
+      console.warn("Erreur lors du nettoyage des checksums orphelins:", error)
     }
   } catch (error) {
     console.error("Erreur lors de la sauvegarde:", error)

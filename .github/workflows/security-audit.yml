@@ -1,0 +1,91 @@
+# Workflow GitHub Actions pour le scan de vulnérabilités
+# S'exécute automatiquement chaque semaine et sur les pull requests
+
+name: Security Audit
+
+on:
+  schedule:
+    # Exécution hebdomadaire le lundi à 9h00 UTC
+    - cron: '0 9 * * 1'
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch: # Permet l'exécution manuelle
+
+jobs:
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit
+        run: npm audit --audit-level=moderate
+        continue-on-error: true # Continuer même en cas de vulnérabilités pour voir le rapport complet
+
+      - name: Run npm audit (JSON output)
+        id: audit
+        run: |
+          npm audit --json > audit-report.json || true
+          echo "audit_completed=true" >> $GITHUB_OUTPUT
+        continue-on-error: true
+
+      - name: Upload audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-audit-report
+          path: audit-report.json
+          retention-days: 30
+
+      - name: Comment PR with audit results
+        if: github.event_name == 'pull_request' && steps.audit.outputs.audit_completed == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const auditReport = JSON.parse(fs.readFileSync('audit-report.json', 'utf8'));
+            
+            let comment = '## 🔒 Rapport de sécurité npm audit\n\n';
+            
+            if (auditReport.metadata && auditReport.metadata.vulnerabilities) {
+              const vulns = auditReport.metadata.vulnerabilities;
+              const total = vulns.info + vulns.low + vulns.moderate + vulns.high + vulns.critical;
+              
+              if (total === 0) {
+                comment += '✅ **Aucune vulnérabilité détectée**\n\n';
+              } else {
+                comment += `⚠️ **${total} vulnérabilité(s) détectée(s)**\n\n`;
+                comment += `- Info: ${vulns.info}\n`;
+                comment += `- Low: ${vulns.low}\n`;
+                comment += `- Moderate: ${vulns.moderate}\n`;
+                comment += `- High: ${vulns.high}\n`;
+                comment += `- Critical: ${vulns.critical}\n\n`;
+                comment += '📋 Consultez le rapport complet dans les artifacts.\n';
+                comment += '💡 Exécutez `npm audit fix` pour corriger automatiquement les vulnérabilités.\n';
+              }
+            } else {
+              comment += '❌ Impossible de générer le rapport.\n';
+            }
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+

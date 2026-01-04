@@ -2,41 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getSession } from "@/lib/session"
 import { createLog } from "@/lib/logs"
-import crypto from "crypto"
-
-// Clé de chiffrement - FORCER l'utilisation d'une variable d'environnement en production
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY
-const ALGORITHM = "aes-256-cbc"
-
-// Fonction pour obtenir la clé de chiffrement
-// Ne vérifie la production qu'au moment de l'utilisation, pas au chargement du module
-function getEncryptionKey(): string {
-  if (!ENCRYPTION_KEY) {
-    // Vérifier seulement si on est vraiment en production (pas pendant le build)
-    if (process.env.NODE_ENV === "production" && process.env.VERCEL_ENV !== undefined) {
-      throw new Error("ENCRYPTION_KEY doit être définie en production")
-    }
-    // En développement ou build, utiliser une clé par défaut
-    return "default-encryption-key-32-chars!!" // Dev uniquement
-  }
-  if (ENCRYPTION_KEY.length < 32) {
-    throw new Error("ENCRYPTION_KEY doit contenir au moins 32 caractères")
-  }
-  return ENCRYPTION_KEY.substring(0, 32)
-}
-
-function encrypt(text: string): string {
-  const key = getEncryptionKey()
-  const iv = crypto.randomBytes(16)
-  const cipher = crypto.createCipheriv(
-    ALGORITHM,
-    Buffer.from(key),
-    iv
-  )
-  let encrypted = cipher.update(text, "utf8", "hex")
-  encrypted += cipher.final("hex")
-  return iv.toString("hex") + ":" + encrypted
-}
+import { encryptWifiPassword } from "@/lib/wifi-vault"
+import { logError } from "@/lib/logger"
 
 export async function PUT(
   request: NextRequest,
@@ -59,14 +26,36 @@ export async function PUT(
     if (serialNumber !== undefined) updateData.serialNumber = serialNumber
     if (ssid !== undefined) updateData.ssid = ssid
 
-    // Chiffrer le mot de passe si fourni (chiffrement réversible pour pouvoir l'afficher)
-    if (password) {
-      updateData.passwordEncrypted = encrypt(password)
+    // Chiffrer le mot de passe avec le vault sécurisé si fourni
+    if (password !== undefined) {
+      if (password) {
+        updateData.passwordEncrypted = encryptWifiPassword(password, id)
+      } else {
+        // Si password est une chaîne vide, supprimer le mot de passe
+        updateData.passwordEncrypted = null
+      }
     }
 
-    const wifiAP = await prisma.wifiAccessPoint.update({
+    await prisma.wifiAccessPoint.update({
       where: { id },
       data: updateData,
+    })
+
+    // Recharger sans exposer le mot de passe chiffré
+    const wifiAP = await prisma.wifiAccessPoint.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        technicalId: true,
+        brand: true,
+        model: true,
+        ip: true,
+        serialNumber: true,
+        ssid: true,
+        createdAt: true,
+        updatedAt: true,
+        // passwordEncrypted n'est pas inclus dans le select
+      },
     })
 
     await createLog(session.id, "WIFI_AP_MODIFIE", {
@@ -75,7 +64,7 @@ export async function PUT(
 
     return NextResponse.json(wifiAP)
   } catch (error) {
-    console.error("Error updating wifi access point:", error)
+    logError("Error updating wifi access point", error, { wifiAPId: id })
     return NextResponse.json(
       { error: "Erreur serveur" },
       { status: 500 }
@@ -104,7 +93,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error("Error deleting wifi access point:", error)
+    logError("Error deleting wifi access point", error, { wifiAPId: id })
     return NextResponse.json(
       { error: "Erreur serveur" },
       { status: 500 }

@@ -1023,6 +1023,12 @@ Aucun autre type autorisé.
     * Utilise `setTimeout` pour déclencher la déconnexion après expiration
     * Appelle l'API `/api/auth/logout` pour déconnecter l'utilisateur
     * Redirige vers `/login` après déconnexion
+  * **Alerte avant expiration** : ✅ **IMPLÉMENTÉ** (2026-01-30)
+    * **Affichage automatique** : Dialog d'alerte affiché 30 secondes avant l'expiration de la session
+    * **Compte à rebours** : Affichage en temps réel du nombre de secondes restantes (30, 29, 28...)
+    * **Prolongation de session** : Bouton "Prolonger la session" pour réinitialiser le timer d'inactivité
+    * **Fermeture du dialog** : Fermer le dialog (Escape ou clic extérieur) prolonge automatiquement la session
+    * **Interface** : Dialog avec icône d'alerte, message clair et bouton d'action
   * **Chargement dynamique** : La durée de session est chargée dynamiquement depuis l'API `/api/settings` au démarrage de l'application via le composant `SessionTimeoutWrapper`
   * **Application globale** : Le système de timeout est actif sur toutes les pages du dashboard grâce à l'intégration dans `DashboardLayout`
 
@@ -1031,6 +1037,12 @@ Aucun autre type autorisé.
 * **Page Paramètres** : `/dashboard/parametres` (accessible uniquement aux Super Admin)
 * **Accès** : Bouton "Paramètres" dans la barre latérale (icône Settings), visible uniquement pour les utilisateurs avec le rôle **Super Admin**
 * **Vérification d'accès** : Si un utilisateur non-Super Admin tente d'accéder à la page, un message "Accès refusé. Cette page est réservée aux Super Admin." est affiché
+* **Onglets disponibles** :
+  * **Général** : Paramètres de session, fichiers orphelins
+  * **Utilisateurs** : Gestion des utilisateurs (CRUD, 2FA)
+  * **Sauvegardes** : Gestion des sauvegardes (création, restauration, suppression individuelle)
+  * **Logs** : Consultation et export des logs
+  * **Monitoring** : ✅ **IMPLÉMENTÉ** (2026-01-30) - Dashboard de monitoring de sécurité (statistiques, alertes)
 * **Paramètres disponibles** :
   * **Durée de session** :
     * Champ de saisie numérique pour définir la durée d'inactivité avant déconnexion automatique (en minutes)
@@ -1224,6 +1236,14 @@ Aucun autre type autorisé.
   * Création automatique du dossier si inexistant
   * Stockage filesystem uniquement
   * **Sécurité** : Tous les fichiers de sauvegarde sont chiffrés avant stockage
+  * **Validation d'intégrité** : ✅ **IMPLÉMENTÉ** (2026-01-30)
+    * **Checksums SHA-256** : Calcul et vérification automatiques pour chaque sauvegarde
+    * **Stockage** : Checksums sauvegardés dans des fichiers `.sha256` (format standard)
+    * **Vérification automatique** : Avant chaque restauration de sauvegarde
+    * **Rejet des sauvegardes corrompues** : Impossible de restaurer une sauvegarde avec checksum invalide
+    * **Interface utilisateur** : Indicateurs visuels (✅ valide, ❌ corrompue, ⚠️ inconnue)
+    * **Nettoyage automatique** : Suppression des checksums orphelins
+    * **Module** : `lib/backup-integrity.ts` avec fonctions complètes
 * **Rétention** : **10 jours**
   * Nettoyage automatique : Les sauvegardes de plus de 10 jours sont automatiquement supprimées lors de chaque sauvegarde
   * Calcul basé sur la date de modification du fichier (`mtime`)
@@ -1407,6 +1427,39 @@ L'application doit être conforme aux standards de sécurité OWASP Top 10 2021.
 
 ### 16.9 A09:2021 – Security Logging and Monitoring Failures
 
+* **Journalisation centralisée** : ✅ **IMPLÉMENTÉ** (2026-01-30)
+  * **Système Winston** : Logging structuré avec fichiers séparés
+  * **Fichiers de log** :
+    * `logs/combined.log` : Tous les logs (rotation automatique, 10 MB max, 5 fichiers)
+    * `logs/error.log` : Uniquement les erreurs (rotation automatique, 10 MB max, 5 fichiers)
+    * `logs/security.log` : Logs de sécurité (rotation automatique, 10 MB max, 10 fichiers)
+  * **Format JSON structuré** : Logs avec métadonnées (timestamp, niveau, service, environnement, contexte)
+  * **Format console** : Logs colorisés et formatés pour le développement
+  * **Niveaux de log** : error, warn, info, debug
+  * **Support services externes** : Configuration optionnelle pour CloudWatch, ELK, Splunk
+  * **Module** : `lib/logger.ts` avec fonctions `logError()`, `logWarning()`, `logInfo()`, `logDebug()`, `logSecurity()`
+  * **Intégration** : `createLog()` utilise maintenant le logger centralisé en plus de la base de données
+* **Alertes automatiques** : ✅ **IMPLÉMENTÉ** (2026-01-30)
+  * **Détection automatique** :
+    * Tentatives de connexion échouées multiples (3+ dans 5 minutes) → Alerte medium/high
+    * Accès non autorisés → Alerte high
+    * Actions sensibles (restauration sauvegarde, purge, suppression utilisateur) → Alertes selon sévérité
+  * **Types d'alertes** : FAILED_LOGIN_ATTEMPTS, UNAUTHORIZED_ACCESS, SENSITIVE_ACTION, etc.
+  * **Sévérités** : low, medium, high, critical
+  * **Stockage** : Table `Alert` dans la base de données avec statut de résolution
+  * **Module** : `lib/alerts.ts` avec fonctions `createAlert()`, `checkFailedLoginAttempts()`, `alertUnauthorizedAccess()`, `alertSensitiveAction()`, `resolveAlert()`
+  * **Intégration** : Login, backups, users
+* **Dashboard de monitoring** : ✅ **IMPLÉMENTÉ** (2026-01-30)
+  * **Page dédiée** : `/dashboard/monitoring` (Super Admin uniquement)
+  * **Statistiques en temps réel** :
+    * Alertes (total, non résolues, critiques, élevées, dernières 24h)
+    * Logs (total, dernières 24h, 7 jours, tentatives échouées, actions sensibles)
+    * Utilisateurs (total, actifs, verrouillés)
+    * Sessions (actives)
+  * **Affichage des alertes** : Liste avec badges de sévérité, bouton de résolution
+  * **Actualisation automatique** : Toutes les 30 secondes
+  * **Routes API** : `GET /api/alerts`, `GET /api/monitoring/stats`, `POST /api/alerts/[id]/resolve`
+
 * **Journalisation des actions** : Toutes les actions importantes sont loggées
 * **Informations de contexte** : IP, User-Agent, userId loggés
 * **Rétention des logs** : Nettoyage automatique après 30 jours
@@ -1427,10 +1480,15 @@ L'application doit être conforme aux standards de sécurité OWASP Top 10 2021.
   * Limite : 5 tentatives par IP toutes les 15 minutes
   * Application sur l'endpoint de login
 * **Protection contre l'énumération d'utilisateurs** : Messages d'erreur génériques pour les tentatives de connexion échouées
-* **Gestion sécurisée des mots de passe WiFi** : 
-  * Chiffrement réversible avec AES-256-CBC
-  * Clé de chiffrement stockée dans variable d'environnement
-  * IV (Initialization Vector) aléatoire pour chaque chiffrement
+* **Gestion sécurisée des mots de passe WiFi** : ✅ **AMÉLIORÉ** (2026-01-30)
+  * **Vault sécurisé** : Chiffrement par entrée avec clé unique dérivée
+  * **Algorithme** : AES-256-GCM (chiffrement authentifié)
+  * **Dérivation de clé** : scrypt avec salt unique par mot de passe (N=16384, r=8, p=1)
+  * **Contexte unique** : ID du WiFi AP utilisé dans la dérivation de clé
+  * **Avantage** : Si une clé est compromise, les autres mots de passe restent sécurisés
+  * **Migration automatique** : Les anciens mots de passe (AES-256-CBC) sont automatiquement migrés vers le nouveau format lors de la lecture
+  * **Module** : `lib/wifi-vault.ts` avec fonctions complètes
+  * **Script de migration** : `npm run migrate:wifi-passwords` pour migrer tous les mots de passe en masse
 
 ---
 
@@ -1695,7 +1753,26 @@ L'application doit être conforme aux standards de sécurité OWASP Top 10 2021.
 * **Logs Nginx** :
   * Accès : `/var/log/nginx/access.log`
   * Erreurs : `/var/log/nginx/error.log`
-* **Monitoring** :
+* **Logs centralisés de l'application** : ✅ **IMPLÉMENTÉ** (2026-01-30)
+  * **Système Winston** : Logging structuré avec fichiers séparés
+  * **Fichiers** :
+    * `logs/combined.log` : Tous les logs (rotation automatique, 10 MB max, 5 fichiers)
+    * `logs/error.log` : Uniquement les erreurs (rotation automatique, 10 MB max, 5 fichiers)
+    * `logs/security.log` : Logs de sécurité (rotation automatique, 10 MB max, 10 fichiers)
+  * **Format JSON** : Logs structurés pour analyse
+  * **Support services externes** : Configuration optionnelle via variables d'environnement
+  * **Documentation** : Guide complet dans `LOGGING_CENTRALISE.md`
+* **Dashboard de monitoring** : ✅ **IMPLÉMENTÉ** (2026-01-30)
+  * **Page** : `/dashboard/monitoring` (Super Admin uniquement)
+  * **Statistiques en temps réel** : Alertes, logs, utilisateurs, sessions
+  * **Affichage des alertes** : Liste avec résolution
+  * **Actualisation automatique** : Toutes les 30 secondes
+* **Alertes automatiques** : ✅ **IMPLÉMENTÉ** (2026-01-30)
+  * **Détection** : Tentatives de connexion multiples, accès non autorisés, actions sensibles
+  * **Stockage** : Table `Alert` dans la base de données
+  * **Résolution** : Système de résolution avec suivi
+  * **Documentation** : Intégré dans le dashboard de monitoring
+* **Monitoring PM2** :
   * Statut PM2 : `pm2 status`
   * Monitoring en temps réel : `pm2 monit`
   * Utilisation des ressources : `pm2 list`
@@ -1711,3 +1788,108 @@ L'application doit être conforme aux standards de sécurité OWASP Top 10 2021.
 ---
 
 **Dernière mise à jour** : 2026-01-30
+
+---
+
+## 22. Fonctionnalités de sécurité avancées (2026-01-30)
+
+### 22.1 Système d'alertes automatiques
+
+* **Détection automatique** :
+  * Tentatives de connexion échouées multiples (3+ dans 5 minutes) → Alerte medium/high
+  * Accès non autorisés → Alerte high
+  * Actions sensibles (restauration sauvegarde, purge, suppression utilisateur) → Alertes selon sévérité
+* **Types d'alertes** : FAILED_LOGIN_ATTEMPTS, UNAUTHORIZED_ACCESS, SENSITIVE_ACTION, etc.
+* **Sévérités** : low, medium, high, critical
+* **Stockage** : Table `Alert` dans la base de données avec statut de résolution
+* **Module** : `lib/alerts.ts` avec fonctions complètes
+* **Intégration** : Login, backups, users
+* **Routes API** : `GET /api/alerts`, `POST /api/alerts/[id]/resolve`
+
+### 22.2 Dashboard de monitoring
+
+* **Page dédiée** : `/dashboard/monitoring` (Super Admin uniquement)
+* **Statistiques en temps réel** :
+  * Alertes (total, non résolues, critiques, élevées, dernières 24h)
+  * Logs (total, dernières 24h, 7 jours, tentatives échouées, actions sensibles)
+  * Utilisateurs (total, actifs, verrouillés)
+  * Sessions (actives)
+* **Affichage des alertes** : Liste avec badges de sévérité, bouton de résolution
+* **Actualisation automatique** : Toutes les 30 secondes
+* **Routes API** : `GET /api/monitoring/stats`
+
+### 22.3 Système de logging centralisé
+
+* **Système Winston** : Logging structuré avec fichiers séparés
+* **Fichiers de log** :
+  * `logs/combined.log` : Tous les logs (rotation automatique, 10 MB max, 5 fichiers)
+  * `logs/error.log` : Uniquement les erreurs (rotation automatique, 10 MB max, 5 fichiers)
+  * `logs/security.log` : Logs de sécurité (rotation automatique, 10 MB max, 10 fichiers)
+* **Format JSON structuré** : Logs avec métadonnées (timestamp, niveau, service, environnement, contexte)
+* **Format console** : Logs colorisés et formatés pour le développement
+* **Niveaux de log** : error, warn, info, debug
+* **Support services externes** : Configuration optionnelle pour CloudWatch, ELK, Splunk
+* **Module** : `lib/logger.ts` avec fonctions `logError()`, `logWarning()`, `logInfo()`, `logDebug()`, `logSecurity()`
+* **Intégration** : `createLog()` utilise maintenant le logger centralisé en plus de la base de données
+* **Documentation** : Guide complet dans `LOGGING_CENTRALISE.md`
+
+### 22.4 Vault sécurisé pour mots de passe WiFi
+
+* **Chiffrement par entrée** : Chaque mot de passe WiFi a sa propre clé dérivée
+* **Algorithme** : AES-256-GCM (chiffrement authentifié)
+* **Dérivation de clé** : scrypt avec salt unique par mot de passe (N=16384, r=8, p=1)
+* **Contexte unique** : ID du WiFi AP utilisé dans la dérivation de clé
+* **Avantage** : Si une clé est compromise, les autres mots de passe restent sécurisés
+* **Format** : `salt:iv:tag:encrypted` (tous en hex)
+* **Migration automatique** : Les anciens mots de passe (AES-256-CBC) sont automatiquement migrés vers le nouveau format lors de la lecture
+* **Module** : `lib/wifi-vault.ts` avec fonctions `encryptWifiPassword()`, `decryptWifiPassword()`, `isVaultFormat()`, `migrateOldPassword()`
+* **Script de migration** : `npm run migrate:wifi-passwords` pour migrer tous les mots de passe en masse
+* **Documentation** : Guide complet dans `VAULT_WIFI.md`
+
+### 22.5 Validation d'intégrité des sauvegardes
+
+* **Checksums SHA-256** : Calcul et vérification automatiques pour chaque sauvegarde
+* **Stockage** : Checksums sauvegardés dans des fichiers `.sha256` (format standard)
+* **Vérification automatique** : Avant chaque restauration de sauvegarde
+* **Rejet des sauvegardes corrompues** : Impossible de restaurer une sauvegarde avec checksum invalide
+* **Interface utilisateur** : Indicateurs visuels (✅ valide, ❌ corrompue, ⚠️ inconnue)
+* **Nettoyage automatique** : Suppression des checksums orphelins
+* **Module** : `lib/backup-integrity.ts` avec fonctions complètes
+
+### 22.6 Scan de vulnérabilités automatisé
+
+* **Dependabot** : Configuration dans `.github/dependabot.yml`
+  * Scan automatique hebdomadaire (tous les lundis à 9h00 UTC)
+  * Alertes de sécurité automatiques
+  * Pull requests automatiques pour les corrections
+  * Groupement des mises à jour (production/dev)
+  * Limite de 10 PRs ouvertes simultanément
+* **GitHub Actions** : Workflow automatisé dans `.github/workflows/security-audit.yml`
+  * Exécution de `npm audit` sur chaque PR et push vers `main`
+  * Scan hebdomadaire automatique
+  * Rapports JSON téléchargeables
+  * Commentaires automatiques sur les PRs
+* **Scripts npm** : Commandes disponibles
+  * `npm run audit` : Scan complet
+  * `npm run audit:fix` : Correction automatique
+  * `npm run audit:production` : Scan des dépendances de production
+  * `npm run audit:json` : Génération de rapport JSON
+* **Documentation** : Guide complet dans `SECURITY_SCAN.md`
+
+### 22.7 Timeout sur requêtes externes
+
+* **Timeout de 5 secondes** : Protection contre les API externes lentes
+* **AbortController** : Annulation propre des requêtes expirées
+* **Gestion d'erreurs** : Messages d'erreur clairs (code HTTP 504 Gateway Timeout)
+* **Validation de réponse** : Vérification basique de la structure de la réponse
+* **Implémentation** : `app/api/ban/search/route.ts` avec fonction `fetchWithTimeout()`
+* **Protection DoS** : Empêche les attaques par déni de service via API externe
+
+### 22.8 Politique de mots de passe forts
+
+* **Validation stricte** : Minimum 12 caractères
+* **Exigences** : Au moins une majuscule, une minuscule, un chiffre, un caractère spécial
+* **Messages d'erreur détaillés** : Guide l'utilisateur pour créer un mot de passe conforme
+* **Validation** : Côté serveur (Zod) et affichage côté client
+* **Schémas** : `createUserSchema`, `updateUserSchema`, `updateProfileSchema` dans `lib/validations/user.ts`
+* **Fonction de validation** : `validatePasswordStrength()` dans `lib/auth.ts`

@@ -132,7 +132,17 @@ export default function ProfilPage() {
         await fetchUserData()
       } else {
         const data = await response.json()
-        setError(data.error || "Erreur lors de la mise à jour")
+        // Afficher le message d'erreur principal et les détails si disponibles
+        let errorMessage = data.error || "Erreur lors de la mise à jour"
+        if (data.details && Array.isArray(data.details) && data.details.length > 0) {
+          const detailsMessages = data.details
+            .filter((d: any) => d.message && !errorMessage.includes(d.message))
+            .map((d: any) => d.message)
+          if (detailsMessages.length > 0) {
+            errorMessage += "\n\n" + detailsMessages.join("\n")
+          }
+        }
+        setError(errorMessage)
       }
     } catch (error) {
       console.error("Error updating profile:", error)

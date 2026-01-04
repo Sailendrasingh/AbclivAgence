@@ -26,6 +26,7 @@ model User {
   technicalHistory    TechnicalHistory[]
   createdTasks        Task[]             @relation("TaskCreator")
   closedTasks         Task[]             @relation("TaskCloser")
+  alerts              Alert[]
 }
 
 model Session {
@@ -268,4 +269,20 @@ model AppSettings {
   id             String   @id @default("settings")
   sessionTimeout Int      @default(60)
   updatedAt      DateTime @updatedAt
+}
+
+model Alert {
+  id         String    @id @default(cuid())
+  type       String    // FAILED_LOGIN_ATTEMPTS, UNAUTHORIZED_ACCESS, etc.
+  severity   String    // low, medium, high, critical
+  title      String
+  message    String
+  details    String?   // JSON
+  userId     String?
+  ipAddress  String?
+  resolved   Boolean   @default(false)
+  resolvedAt DateTime?
+  resolvedBy String?
+  createdAt  DateTime  @default(now())
+  user       User?     @relation(fields: [userId], references: [id])
 }

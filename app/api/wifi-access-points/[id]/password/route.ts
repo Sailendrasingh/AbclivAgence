@@ -1,37 +1,21 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getSession } from "@/lib/session"
+import { decryptWifiPassword, isVaultFormat, migrateOldPassword } from "@/lib/wifi-vault"
+import { logError, logInfo, logWarning } from "@/lib/logger"
 import crypto from "crypto"
 
-// Clé de chiffrement - FORCER l'utilisation d'une variable d'environnement en production
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY
-const ALGORITHM = "aes-256-cbc"
-
-// Fonction pour obtenir la clé de chiffrement
-// Ne vérifie la production qu'au moment de l'utilisation, pas au chargement du module
-function getEncryptionKey(): string {
-  if (!ENCRYPTION_KEY) {
-    // Vérifier seulement si on est vraiment en production (pas pendant le build)
-    if (process.env.NODE_ENV === "production" && process.env.VERCEL_ENV !== undefined) {
-      throw new Error("ENCRYPTION_KEY doit être définie en production")
-    }
-    // En développement ou build, utiliser une clé par défaut
-    return "default-encryption-key-32-chars!!" // Dev uniquement
-  }
-  if (ENCRYPTION_KEY.length < 32) {
-    throw new Error("ENCRYPTION_KEY doit contenir au moins 32 caractères")
-  }
-  return ENCRYPTION_KEY.substring(0, 32)
-}
-
-function decrypt(text: string): string {
+// Fonction de déchiffrement pour l'ancien format (AES-256-CBC)
+// Utilisée uniquement pour la migration
+function decryptOldFormat(text: string): string {
   try {
-    const key = getEncryptionKey()
+    const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || "default-encryption-key-32-chars!!"
+    const key = ENCRYPTION_KEY.substring(0, 32)
     const parts = text.split(":")
     const iv = Buffer.from(parts.shift()!, "hex")
     const encryptedText = parts.join(":")
     const decipher = crypto.createDecipheriv(
-      ALGORITHM,
+      "aes-256-cbc",
       Buffer.from(key),
       iv
     )
@@ -66,15 +50,57 @@ export async function GET(
     }
 
     // Si le mot de passe commence par $argon2, c'est un hash (ancien système, non réversible)
-    // Sinon, c'est un chiffrement réversible
     if (wifiAP.passwordEncrypted.startsWith("$argon2")) {
       return NextResponse.json({ password: "" })
     }
 
-    const decryptedPassword = decrypt(wifiAP.passwordEncrypted)
+    let decryptedPassword: string
+
+    // Vérifier si c'est le nouveau format (vault)
+    if (isVaultFormat(wifiAP.passwordEncrypted)) {
+      // Nouveau format : déchiffrer avec le vault
+      try {
+        decryptedPassword = decryptWifiPassword(wifiAP.passwordEncrypted, id)
+      } catch (error: any) {
+        logError("Erreur lors du déchiffrement avec le vault", error, { wifiAPId: id })
+        return NextResponse.json(
+          { error: "Impossible de déchiffrer le mot de passe" },
+          { status: 500 }
+        )
+      }
+    } else {
+      // Ancien format (AES-256-CBC) : déchiffrer et migrer automatiquement
+      try {
+        decryptedPassword = decryptOldFormat(wifiAP.passwordEncrypted)
+        
+        if (!decryptedPassword) {
+          return NextResponse.json({ password: "" })
+        }
+
+        // Migrer automatiquement vers le nouveau format
+        try {
+          const newEncryptedPassword = migrateOldPassword(wifiAP.passwordEncrypted, id)
+          await prisma.wifiAccessPoint.update({
+            where: { id },
+            data: { passwordEncrypted: newEncryptedPassword },
+          })
+          logInfo("Mot de passe WiFi migré vers le nouveau format", { wifiAPId: id })
+        } catch (migrationError: any) {
+          logWarning("Échec de la migration du mot de passe WiFi", { 
+            wifiAPId: id, 
+            error: migrationError.message 
+          })
+          // Continuer quand même avec le déchiffrement de l'ancien format
+        }
+      } catch (error: any) {
+        logError("Erreur lors du déchiffrement de l'ancien format", error, { wifiAPId: id })
+        return NextResponse.json({ password: "" })
+      }
+    }
+
     return NextResponse.json({ password: decryptedPassword })
   } catch (error) {
-    console.error("Error decrypting password:", error)
+    logError("Error decrypting password", error, { wifiAPId: id })
     return NextResponse.json(
       { error: "Erreur serveur" },
       { status: 500 }

@@ -67,6 +67,9 @@ L'application sera accessible sur `http://localhost:3000`
 - `npm run reset:admin` - Réinitialiser le mot de passe Admin
 - `npm run disable:2fa:admin` - Désactiver le 2FA pour Admin
 - `npm run check:data` - Vérifier l'état de la base de données
+- `npm run audit` - Scanner les vulnérabilités des dépendances
+- `npm run audit:fix` - Corriger automatiquement les vulnérabilités
+- `npm run audit:production` - Scanner uniquement les dépendances de production
 
 ## 🗄️ Base de données
 
@@ -111,10 +114,32 @@ Ce guide détaille :
 pm2 start ecosystem.config.js
 ```
 
+## 🔒 Sécurité et Scan de Vulnérabilités
+
+L'application utilise plusieurs outils pour scanner et corriger les vulnérabilités :
+
+- **Dependabot** : Scan automatique hebdomadaire et alertes de sécurité sur GitHub
+- **GitHub Actions** : Workflow automatisé pour `npm audit` sur chaque PR
+- **npm audit** : Scan local des vulnérabilités des dépendances
+
+**📖 [SECURITY_SCAN.md](./SECURITY_SCAN.md)** - Guide complet sur les scans de sécurité
+
+**Scan rapide** :
+```bash
+# Scanner les vulnérabilités
+npm run audit
+
+# Corriger automatiquement
+npm run audit:fix
+```
+
 ## 📚 Documentation
 
 - `prd_application_web_gestion_des_agences.md` - Cahier des charges complet
 - `GUIDE_DEPLOIEMENT_PRODUCTION.md` - Guide de déploiement en production
+- `SECURITY_SCAN.md` - Guide des scans de sécurité et vulnérabilités
+- `LOGGING_CENTRALISE.md` - Guide du système de logging centralisé
+- `VAULT_WIFI.md` - Guide du vault sécurisé pour mots de passe WiFi
 - `TESTS_IMPLEMENTES.md` - Documentation des tests
 - `SCENARIOS_TESTS.md` - Scénarios de tests
 

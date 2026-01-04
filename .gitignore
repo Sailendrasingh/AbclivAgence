@@ -53,3 +53,10 @@ next-env.d.ts
 # backups
 /backups/*
 !/backups/.gitkeep
+
+# security audit reports
+audit-report.json
+
+# logs
+/logs/*
+!/logs/.gitkeep

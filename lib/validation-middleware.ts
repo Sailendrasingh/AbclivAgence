@@ -36,11 +36,31 @@ export async function validateRequest<T>(
     console.error("[VALIDATION] Erreurs de validation:", errors)
     console.error("[VALIDATION] Données reçues:", JSON.stringify(body, null, 2))
     
+    // Créer un message d'erreur principal plus descriptif
+    // Si c'est une erreur de mot de passe, combiner tous les messages
+    const passwordErrors = errors.filter(err => err.path === "password")
+    let mainErrorMessage = "Erreur de validation"
+    
+    if (passwordErrors.length > 0) {
+      // Pour les erreurs de mot de passe, combiner tous les messages
+      mainErrorMessage = passwordErrors.map(err => err.message).join(". ")
+    } else if (errors.length === 1) {
+      // Si une seule erreur, utiliser son message directement
+      mainErrorMessage = errors[0].message
+    } else if (errors.length > 1) {
+      // Si plusieurs erreurs, créer un message combiné
+      const errorMessages = errors.map(err => {
+        const fieldName = err.path === "unknown" ? "Champ" : err.path
+        return `${fieldName}: ${err.message}`
+      })
+      mainErrorMessage = errorMessages.join("; ")
+    }
+    
     return {
       success: false,
       error: NextResponse.json(
         {
-          error: "Erreur de validation",
+          error: mainErrorMessage,
           details: errors,
         },
         { status: 400 }

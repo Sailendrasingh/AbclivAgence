@@ -7,6 +7,8 @@ import { getSession } from "@/lib/session"
 import { createLog } from "@/lib/logs"
 import archiver from "archiver"
 import { encryptFile } from "@/lib/encryption"
+import { saveChecksum, verifyFileIntegrity, cleanupOrphanedChecksums } from "@/lib/backup-integrity"
+import { alertSensitiveAction } from "@/lib/alerts"
 
 // GET : Lister toutes les sauvegardes
 export async function GET(request: NextRequest) {
@@ -54,11 +56,19 @@ export async function GET(request: NextRequest) {
           ? stats.birthtime 
           : stats.mtime
 
+        // Vérifier l'intégrité de la sauvegarde (si un checksum existe)
+        const integrityCheck = await verifyFileIntegrity(filePath)
+        const integrityStatus = integrityCheck.storedChecksum 
+          ? (integrityCheck.valid ? "valid" : "corrupted")
+          : "unknown"
+
         return {
           filename: file,
           date: date.toISOString(),
           size: stats.size,
           sizeFormatted: formatFileSize(stats.size),
+          integrity: integrityStatus,
+          integrityError: integrityCheck.valid ? undefined : integrityCheck.error,
         }
       })
     )
@@ -175,6 +185,16 @@ export async function POST(request: NextRequest) {
       throw new Error(`Erreur lors du chiffrement de la sauvegarde: ${encryptError.message}`)
     }
 
+    // Calculer et sauvegarder le checksum SHA-256 de la sauvegarde chiffrée
+    let checksum: string | undefined
+    try {
+      checksum = await saveChecksum(backupPath)
+      console.log(`[BACKUP] Checksum SHA-256 sauvegardé pour ${backupPath}`)
+    } catch (checksumError: any) {
+      console.error(`[BACKUP] Erreur lors du calcul du checksum:`, checksumError)
+      // Ne pas faire échouer la sauvegarde si le checksum échoue, mais logger l'erreur
+    }
+
     // Nettoyer les sauvegardes de plus de 10 jours
     const files = await readdir(backupsDir)
     const now = Date.now()
@@ -193,6 +213,13 @@ export async function POST(request: NextRequest) {
         if (stats.mtimeMs < tenDaysAgo) {
           try {
             await unlink(filePath)
+            // Supprimer aussi le fichier de checksum associé s'il existe
+            const checksumPath = `${filePath}.sha256`
+            if (existsSync(checksumPath)) {
+              try {
+                await unlink(checksumPath)
+              } catch {}
+            }
             deletedCount++
           } catch (unlinkError) {
             // Ignorer les erreurs de suppression
@@ -202,12 +229,25 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Nettoyer les checksums orphelins
+    try {
+      const orphanedChecksums = await cleanupOrphanedChecksums(backupsDir)
+      if (orphanedChecksums > 0) {
+        console.log(`[BACKUP] ${orphanedChecksums} checksum(s) orphelin(s) nettoyé(s)`)
+      }
+    } catch (error) {
+      console.warn("[BACKUP] Erreur lors du nettoyage des checksums orphelins:", error)
+    }
+
     await createLog(session.id, "SAUVEGARDE_CREEE", {
       filename: `backup-${timestamp}.encrypted.zip`,
       deletedOldBackups: deletedCount,
     }, request)
 
     const backupStats = await stat(backupPath)
+
+    // Vérifier l'intégrité de la sauvegarde créée
+    const integrityCheck = await verifyFileIntegrity(backupPath)
 
     return NextResponse.json(
       {
@@ -216,6 +256,8 @@ export async function POST(request: NextRequest) {
         size: backupStats.size,
         sizeFormatted: formatFileSize(backupStats.size),
         deletedOldBackups: deletedCount,
+        checksum: integrityCheck.calculatedChecksum,
+        integrity: integrityCheck.valid ? "valid" : "unknown",
       },
       { status: 201 }
     )
@@ -283,6 +325,15 @@ export async function DELETE(request: NextRequest) {
       try {
         const filePath = join(backupsDir, file)
         await unlink(filePath)
+        
+        // Supprimer aussi le fichier de checksum associé s'il existe
+        const checksumPath = `${filePath}.sha256`
+        if (existsSync(checksumPath)) {
+          try {
+            await unlink(checksumPath)
+          } catch {}
+        }
+        
         deletedCount++
       } catch (error) {
         console.error(`Erreur lors de la suppression de ${file}:`, error)
@@ -292,6 +343,14 @@ export async function DELETE(request: NextRequest) {
     await createLog(session.id, "SAUVEGARDES_PURGEES", {
       deletedCount,
     }, request)
+
+    // Alerter sur l'action sensible
+    const ipAddress = request.headers.get("x-forwarded-for") || 
+                     request.headers.get("x-real-ip") || 
+                     null
+    await alertSensitiveAction("SAUVEGARDES_PURGEES", session.id, {
+      deletedCount,
+    }, ipAddress)
 
     return NextResponse.json({
       message: `${deletedCount} sauvegarde(s) supprimée(s)`,

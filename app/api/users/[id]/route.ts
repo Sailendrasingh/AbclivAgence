@@ -7,6 +7,7 @@ import { requireCSRF } from "@/lib/csrf-middleware"
 import { sanitize } from "@/lib/sanitize"
 import { updateUserSchema } from "@/lib/validations"
 import { validateRequest } from "@/lib/validation-middleware"
+import { alertSensitiveAction } from "@/lib/alerts"
 
 export async function PUT(
   request: NextRequest,
@@ -72,6 +73,14 @@ export async function PUT(
       userId: id,
     }, request)
 
+    // Alerter sur l'action sensible
+    const ipAddress = request.headers.get("x-forwarded-for") || 
+                     request.headers.get("x-real-ip") || 
+                     null
+    await alertSensitiveAction("UTILISATEUR_MODIFIE", session.id, {
+      userId: id,
+    }, ipAddress)
+
     return NextResponse.json({
       id: user.id,
       login: user.login,
@@ -131,6 +140,14 @@ export async function DELETE(
     await createLog(session.id, "UTILISATEUR_SUPPRIME", {
       userId: id,
     }, request)
+
+    // Alerter sur l'action sensible
+    const ipAddress = request.headers.get("x-forwarded-for") || 
+                     request.headers.get("x-real-ip") || 
+                     null
+    await alertSensitiveAction("UTILISATEUR_SUPPRIME", session.id, {
+      userId: id,
+    }, ipAddress)
 
     return NextResponse.json({ success: true })
   } catch (error) {

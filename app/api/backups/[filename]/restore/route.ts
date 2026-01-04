@@ -7,6 +7,8 @@ import { getSession } from "@/lib/session"
 import { createLog } from "@/lib/logs"
 import yauzl from "yauzl"
 import { decryptFile, isEncryptedFile } from "@/lib/encryption"
+import { verifyFileIntegrity } from "@/lib/backup-integrity"
+import { alertSensitiveAction } from "@/lib/alerts"
 
 export async function POST(
   request: NextRequest,
@@ -53,6 +55,25 @@ export async function POST(
         { error: "Fichier de sauvegarde invalide" },
         { status: 400 }
       )
+    }
+
+    // Vérifier l'intégrité de la sauvegarde avant restauration
+    const integrityCheck = await verifyFileIntegrity(backupPath)
+    if (integrityCheck.storedChecksum && !integrityCheck.valid) {
+      return NextResponse.json(
+        { 
+          error: "La sauvegarde est corrompue ou a été modifiée",
+          details: integrityCheck.error,
+          storedChecksum: integrityCheck.storedChecksum,
+          calculatedChecksum: integrityCheck.calculatedChecksum,
+        },
+        { status: 400 }
+      )
+    }
+    
+    // Avertir si aucun checksum n'est disponible (sauvegarde ancienne)
+    if (!integrityCheck.storedChecksum) {
+      console.warn(`[RESTORE] Aucun checksum trouvé pour ${filename}. La sauvegarde peut être ancienne.`)
     }
 
     // Déterminer le chemin du fichier à restaurer (déchiffré si nécessaire)
@@ -268,6 +289,15 @@ export async function POST(
       restoredFrom: filename,
       backupCreatedBefore: `backup-before-restore-${timestamp}.zip`,
     }, request)
+
+    // Alerter sur l'action sensible
+    const ipAddress = request.headers.get("x-forwarded-for") || 
+                     request.headers.get("x-real-ip") || 
+                     null
+    await alertSensitiveAction("SAUVEGARDE_RESTAUREE", session.id, {
+      restoredFrom: filename,
+      backupCreatedBefore: `backup-before-restore-${timestamp}.zip`,
+    }, ipAddress)
 
     return NextResponse.json({
       success: true,

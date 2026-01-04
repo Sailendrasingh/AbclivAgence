@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Dialog,
@@ -15,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Save, Plus, RotateCcw, HardDrive, AlertTriangle, Trash2, Download, Edit, Shield, ShieldOff, Sliders, Users, FileText, Search, CheckSquare, Square } from "lucide-react"
+import { Save, Plus, RotateCcw, HardDrive, AlertTriangle, Trash2, Download, Edit, Shield, ShieldOff, Sliders, Users, FileText, Search, CheckSquare, Square, CheckCircle2, XCircle, Activity, Clock, TrendingUp } from "lucide-react"
 import Image from "next/image"
 import {
   Select,
@@ -33,6 +34,8 @@ interface Backup {
   date: string
   size: number
   sizeFormatted: string
+  integrity?: "valid" | "corrupted" | "unknown"
+  integrityError?: string
 }
 
 function ParametresPageContent() {
@@ -59,6 +62,8 @@ function ParametresPageContent() {
   const [restoring, setRestoring] = useState(false)
   const [restoreDialogOpen, setRestoreDialogOpen] = useState(false)
   const [selectedBackup, setSelectedBackup] = useState<Backup | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deletingBackup, setDeletingBackup] = useState(false)
   const [purgeDialogOpen, setPurgeDialogOpen] = useState(false)
   const [purgeConfirmText, setPurgeConfirmText] = useState("")
   const [purging, setPurging] = useState(false)
@@ -97,6 +102,48 @@ function ParametresPageContent() {
   const [scanningOrphaned, setScanningOrphaned] = useState(false)
   const [deletingOrphaned, setDeletingOrphaned] = useState(false)
   const [selectedOrphanedFiles, setSelectedOrphanedFiles] = useState<Set<string>>(new Set())
+  
+  // États pour le monitoring
+  const [monitoringAlerts, setMonitoringAlerts] = useState<Array<{
+    id: string
+    type: string
+    severity: "low" | "medium" | "high" | "critical"
+    title: string
+    message: string
+    details: any
+    userId: string | null
+    ipAddress: string | null
+    createdAt: string
+  }>>([])
+  const [monitoringStats, setMonitoringStats] = useState<{
+    alerts: {
+      total: number
+      unresolved: number
+      critical: number
+      high: number
+      last24Hours: number
+    }
+    logs: {
+      total: number
+      last24Hours: number
+      last7Days: number
+      failedLogins: number
+      sensitiveActions: number
+    }
+    users: {
+      total: number
+      active: number
+      locked: number
+      inactive?: number
+    }
+    sessions: {
+      active: number
+    }
+    timestamp: string
+  } | null>(null)
+  const [loadingMonitoring, setLoadingMonitoring] = useState(false)
+  const [selectedAlert, setSelectedAlert] = useState<any | null>(null)
+  const [resolveDialogOpen, setResolveDialogOpen] = useState(false)
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -139,6 +186,11 @@ function ParametresPageContent() {
       loadLogs()
     } else if (activeTab === "utilisateurs") {
       loadUsers()
+    } else if (activeTab === "monitoring") {
+      loadMonitoringData()
+      // Rafraîchir toutes les 30 secondes
+      const interval = setInterval(loadMonitoringData, 30000)
+      return () => clearInterval(interval)
     }
   }, [activeTab])
   
@@ -211,13 +263,53 @@ function ParametresPageContent() {
         window.location.reload()
       } else {
         const error = await response.json()
-        alert(error.error || "Erreur lors de la restauration")
+        // Afficher le message d'erreur principal et les détails si disponibles
+        let errorMessage = error.error || "Erreur lors de la restauration"
+        if (error.details) {
+          errorMessage += `\n\nDétails: ${error.details}`
+        }
+        if (error.storedChecksum && error.calculatedChecksum) {
+          errorMessage += `\n\nChecksum attendu: ${error.storedChecksum}`
+          errorMessage += `\nChecksum calculé: ${error.calculatedChecksum}`
+        }
+        alert(errorMessage)
       }
     } catch (error) {
       console.error("Error restoring backup:", error)
       alert("Erreur lors de la restauration de la sauvegarde")
     } finally {
       setRestoring(false)
+    }
+  }
+
+  const handleDeleteBackup = async () => {
+    if (!selectedBackup) return
+
+    setDeletingBackup(true)
+    try {
+      const response = await apiFetch(
+        `/api/backups/${encodeURIComponent(selectedBackup.filename)}`,
+        {
+          method: "DELETE",
+        }
+      )
+
+      if (response.ok) {
+        const data = await response.json()
+        setDeleteDialogOpen(false)
+        setSelectedBackup(null)
+        alert(data.message || "Sauvegarde supprimée avec succès")
+        await loadBackups()
+      } else {
+        const error = await response.json()
+        console.error("Erreur de suppression:", error)
+        alert(error.error || "Erreur lors de la suppression de la sauvegarde")
+      }
+    } catch (error) {
+      console.error("Error deleting backup:", error)
+      alert("Erreur lors de la suppression de la sauvegarde")
+    } finally {
+      setDeletingBackup(false)
     }
   }
 
@@ -324,6 +416,92 @@ function ParametresPageContent() {
       alert("Erreur lors du chargement des utilisateurs")
     } finally {
       setLoadingUsers(false)
+    }
+  }
+
+  const loadMonitoringData = async () => {
+    setLoadingMonitoring(true)
+    try {
+      // Charger les alertes avec les statistiques
+      const alertsResponse = await apiFetch("/api/alerts?limit=50&stats=true")
+      if (alertsResponse.ok) {
+        const data = await alertsResponse.json()
+        setMonitoringAlerts(data.alerts || [])
+        if (data.stats) {
+          // Charger les stats complètes
+          const statsResponse = await apiFetch("/api/monitoring/stats")
+          if (statsResponse.ok) {
+            const statsData = await statsResponse.json()
+            setMonitoringStats(statsData)
+          }
+        }
+      }
+
+      // Charger les statistiques si pas déjà chargées
+      if (!monitoringStats) {
+        const statsResponse = await apiFetch("/api/monitoring/stats")
+        if (statsResponse.ok) {
+          const statsData = await statsResponse.json()
+          setMonitoringStats(statsData)
+        }
+      }
+    } catch (error) {
+      console.error("Error loading monitoring data:", error)
+    } finally {
+      setLoadingMonitoring(false)
+    }
+  }
+
+  const handleResolveAlert = async () => {
+    if (!selectedAlert) return
+
+    try {
+      const response = await apiFetch(`/api/alerts/${selectedAlert.id}/resolve`, {
+        method: "POST",
+      })
+
+      if (response.ok) {
+        setResolveDialogOpen(false)
+        setSelectedAlert(null)
+        await loadMonitoringData()
+        alert("Alerte résolue avec succès")
+      } else {
+        const error = await response.json()
+        alert(error.error || "Erreur lors de la résolution de l'alerte")
+      }
+    } catch (error) {
+      console.error("Error resolving alert:", error)
+      alert("Erreur lors de la résolution de l'alerte")
+    }
+  }
+
+  const getSeverityColor = (severity: string) => {
+    switch (severity) {
+      case "critical":
+        return "bg-red-500"
+      case "high":
+        return "bg-orange-500"
+      case "medium":
+        return "bg-yellow-500"
+      case "low":
+        return "bg-blue-500"
+      default:
+        return "bg-gray-500"
+    }
+  }
+
+  const getSeverityBadge = (severity: string) => {
+    switch (severity) {
+      case "critical":
+        return <Badge variant="destructive">Critique</Badge>
+      case "high":
+        return <Badge className="bg-orange-500">Élevée</Badge>
+      case "medium":
+        return <Badge className="bg-yellow-500">Moyenne</Badge>
+      case "low":
+        return <Badge className="bg-blue-500">Faible</Badge>
+      default:
+        return <Badge>Inconnue</Badge>
     }
   }
 
@@ -456,7 +634,17 @@ function ParametresPageContent() {
           })
         } else {
           const error = await response.json()
-          alert(error.error || "Erreur lors de la sauvegarde")
+          // Afficher le message d'erreur principal et les détails si disponibles
+          let errorMessage = error.error || "Erreur lors de la sauvegarde"
+          if (error.details && Array.isArray(error.details) && error.details.length > 0) {
+            const detailsMessages = error.details
+              .filter((d: any) => d.message && !errorMessage.includes(d.message))
+              .map((d: any) => d.message)
+            if (detailsMessages.length > 0) {
+              errorMessage += "\n\n" + detailsMessages.join("\n")
+            }
+          }
+          alert(errorMessage)
         }
         return
       }
@@ -509,7 +697,18 @@ function ParametresPageContent() {
         setUserPhotoPreview(null)
       } else {
         const error = await response.json()
-        alert(error.error || "Erreur lors de la sauvegarde")
+        // Afficher le message d'erreur principal et les détails si disponibles
+        let errorMessage = error.error || "Erreur lors de la sauvegarde"
+        if (error.details && Array.isArray(error.details) && error.details.length > 0) {
+          // Si le message principal ne contient pas déjà tous les détails, les ajouter
+          const detailsMessages = error.details
+            .filter((d: any) => d.message && !errorMessage.includes(d.message))
+            .map((d: any) => d.message)
+          if (detailsMessages.length > 0) {
+            errorMessage += "\n\n" + detailsMessages.join("\n")
+          }
+        }
+        alert(errorMessage)
       }
     } catch (error) {
       console.error("Error saving user:", error)
@@ -791,7 +990,7 @@ function ParametresPageContent() {
           }} 
           className="w-full"
         >
-          <TabsList className="hidden sm:grid w-full grid-cols-4">
+          <TabsList className="hidden sm:grid w-full grid-cols-5">
             <TabsTrigger value="general" className="flex items-center gap-2">
               <Sliders className="h-4 w-4" />
               Général
@@ -807,6 +1006,10 @@ function ParametresPageContent() {
             <TabsTrigger value="logs" className="flex items-center gap-2">
               <FileText className="h-4 w-4" />
               Logs
+            </TabsTrigger>
+            <TabsTrigger value="monitoring" className="flex items-center gap-2">
+              <Activity className="h-4 w-4" />
+              Monitoring
             </TabsTrigger>
           </TabsList>
 
@@ -1154,7 +1357,18 @@ function ParametresPageContent() {
                           <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
                             <HardDrive className="h-5 w-5 text-muted-foreground shrink-0" />
                             <div className="flex-1 min-w-0">
-                              <div className="font-medium break-words text-sm sm:text-base">{backup.filename}</div>
+                              <div className="font-medium break-words text-sm sm:text-base flex items-center gap-2">
+                                {backup.filename}
+                                {backup.integrity === "valid" && (
+                                  <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" title="Intégrité vérifiée" />
+                                )}
+                                {backup.integrity === "corrupted" && (
+                                  <XCircle className="h-4 w-4 text-red-500 shrink-0" title="Sauvegarde corrompue" />
+                                )}
+                                {backup.integrity === "unknown" && (
+                                  <AlertTriangle className="h-4 w-4 text-yellow-500 shrink-0" title="Intégrité non vérifiée (sauvegarde ancienne)" />
+                                )}
+                              </div>
                               <div className="text-xs sm:text-sm text-muted-foreground flex flex-wrap gap-1 sm:gap-0 break-words">
                                 <span className="break-words">{new Date(backup.date).toLocaleString("fr-FR", {
                                   day: "2-digit",
@@ -1165,21 +1379,44 @@ function ParametresPageContent() {
                                 })}</span>
                                 <span className="hidden sm:inline"> • </span>
                                 <span className="break-words">{backup.sizeFormatted}</span>
+                                {backup.integrity === "corrupted" && backup.integrityError && (
+                                  <>
+                                    <span className="hidden sm:inline"> • </span>
+                                    <span className="text-red-500 break-words">Corrompue</span>
+                                  </>
+                                )}
                               </div>
                             </div>
                           </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedBackup(backup)
-                              setRestoreDialogOpen(true)
-                            }}
-                            className="gap-2 w-full sm:w-auto min-h-[44px]"
-                          >
-                            <RotateCcw className="h-4 w-4" />
-                            Restaurer
-                          </Button>
+                          <div className="flex gap-2 w-full sm:w-auto">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedBackup(backup)
+                                setRestoreDialogOpen(true)
+                              }}
+                              disabled={backup.integrity === "corrupted"}
+                              className="gap-2 flex-1 sm:flex-initial min-h-[44px]"
+                              title={backup.integrity === "corrupted" ? "Impossible de restaurer une sauvegarde corrompue" : "Restaurer cette sauvegarde"}
+                            >
+                              <RotateCcw className="h-4 w-4" />
+                              <span className="hidden sm:inline">Restaurer</span>
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedBackup(backup)
+                                setDeleteDialogOpen(true)
+                              }}
+                              className="gap-2 flex-1 sm:flex-initial min-h-[44px]"
+                              title="Supprimer cette sauvegarde"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              <span className="hidden sm:inline">Supprimer</span>
+                            </Button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1202,6 +1439,12 @@ function ParametresPageContent() {
                     </p>
                     <p className="break-words">
                       • Une sauvegarde de la base actuelle est créée avant chaque restauration
+                    </p>
+                    <p className="break-words">
+                      • L'intégrité des sauvegardes est vérifiée avec des checksums SHA-256
+                    </p>
+                    <p className="break-words">
+                      • Les sauvegardes corrompues ne peuvent pas être restaurées
                     </p>
                   </CardContent>
                 </Card>
@@ -1258,6 +1501,163 @@ function ParametresPageContent() {
                 )}
               </div>
             )}
+          </TabsContent>
+
+          <TabsContent value="monitoring" className="mt-4">
+            <div className="flex items-center justify-between mb-4 sm:mb-6">
+              <h2 className="text-lg sm:text-xl font-semibold">Monitoring de Sécurité</h2>
+              <Button onClick={loadMonitoringData} variant="outline" disabled={loadingMonitoring}>
+                <Activity className="h-4 w-4 mr-2" />
+                Actualiser
+              </Button>
+            </div>
+
+            {loadingMonitoring ? (
+              <div>Chargement...</div>
+            ) : (
+              <>
+                {/* Statistiques */}
+                {monitoringStats && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <Card>
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Alertes Non Résolues</CardTitle>
+                        <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold">{monitoringStats.alerts.unresolved}</div>
+                        <div className="flex gap-2 mt-2">
+                          <Badge variant="destructive">{monitoringStats.alerts.critical} critiques</Badge>
+                          <Badge className="bg-orange-500">{monitoringStats.alerts.high} élevées</Badge>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Tentatives Échouées (24h)</CardTitle>
+                        <Shield className="h-4 w-4 text-muted-foreground" />
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold">{monitoringStats.logs.failedLogins}</div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {monitoringStats.logs.last24Hours} logs au total
+                        </p>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Utilisateurs Actifs</CardTitle>
+                        <Users className="h-4 w-4 text-muted-foreground" />
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold">{monitoringStats.users.active}</div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {monitoringStats.users.locked} verrouillés
+                          {monitoringStats.users.inactive !== undefined && monitoringStats.users.inactive > 0 && (
+                            <span className="ml-2">• {monitoringStats.users.inactive} désactivés</span>
+                          )}
+                        </p>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-sm font-medium">Sessions Actives</CardTitle>
+                        <Activity className="h-4 w-4 text-muted-foreground" />
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold">{monitoringStats.sessions.active}</div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          En cours
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                )}
+
+                {/* Liste des alertes */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Alertes de Sécurité</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {monitoringAlerts.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <CheckCircle2 className="h-12 w-12 mx-auto mb-4 text-green-500" />
+                        <p>Aucune alerte non résolue</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {monitoringAlerts.map((alert) => (
+                          <div
+                            key={alert.id}
+                            className="border rounded-lg p-4 hover:bg-accent/50 transition-colors"
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <div className={`w-3 h-3 rounded-full ${getSeverityColor(alert.severity)}`} />
+                                  {getSeverityBadge(alert.severity)}
+                                  <span className="font-semibold">{alert.title}</span>
+                                </div>
+                                <p className="text-sm text-muted-foreground mb-2">{alert.message}</p>
+                                <div className="flex gap-4 text-xs text-muted-foreground">
+                                  <span>
+                                    <Clock className="h-3 w-3 inline mr-1" />
+                                    {new Date(alert.createdAt).toLocaleString("fr-FR")}
+                                  </span>
+                                  {alert.ipAddress && (
+                                    <span>IP: {alert.ipAddress}</span>
+                                  )}
+                                </div>
+                              </div>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedAlert(alert)
+                                  setResolveDialogOpen(true)
+                                }}
+                              >
+                                Résoudre
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </>
+            )}
+
+            {/* Dialog de résolution */}
+            <Dialog open={resolveDialogOpen} onOpenChange={setResolveDialogOpen}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Résoudre l'alerte</DialogTitle>
+                  <DialogDescription>
+                    Êtes-vous sûr de vouloir marquer cette alerte comme résolue ?
+                  </DialogDescription>
+                </DialogHeader>
+                {selectedAlert && (
+                  <div className="space-y-2">
+                    <p className="font-semibold">{selectedAlert.title}</p>
+                    <p className="text-sm text-muted-foreground">{selectedAlert.message}</p>
+                  </div>
+                )}
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setResolveDialogOpen(false)}>
+                    Annuler
+                  </Button>
+                  <Button onClick={handleResolveAlert}>
+                    Résoudre
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </TabsContent>
         </Tabs>
 
@@ -1432,6 +1832,63 @@ function ParametresPageContent() {
               >
                 <RotateCcw className="h-4 w-4" />
                 {restoring ? "Restauration..." : "Confirmer la restauration"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialog de confirmation de suppression d'une sauvegarde */}
+        <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-destructive" />
+                Supprimer la sauvegarde
+              </DialogTitle>
+              <DialogDescription>
+                Cette action est irréversible. La sauvegarde sera définitivement supprimée.
+              </DialogDescription>
+            </DialogHeader>
+            {selectedBackup && (
+              <div className="py-4">
+                <div className="space-y-2">
+                  <div>
+                    <span className="font-medium">Fichier :</span> {selectedBackup.filename}
+                  </div>
+                  <div>
+                    <span className="font-medium">Date :</span>{" "}
+                    {new Date(selectedBackup.date).toLocaleString("fr-FR", {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </div>
+                  <div>
+                    <span className="font-medium">Taille :</span> {selectedBackup.sizeFormatted}
+                  </div>
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setDeleteDialogOpen(false)
+                  setSelectedBackup(null)
+                }}
+              >
+                Annuler
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleDeleteBackup}
+                disabled={deletingBackup}
+                className="gap-2"
+              >
+                <Trash2 className="h-4 w-4" />
+                {deletingBackup ? "Suppression..." : "Confirmer la suppression"}
               </Button>
             </DialogFooter>
           </DialogContent>

@@ -1,0 +1,43 @@
+# Configuration Dependabot pour le scan automatique des vulnérabilités
+# Documentation: https://docs.github.com/en/code-security/dependabot/dependabot-alerts/about-dependabot-alerts
+
+version: 2
+updates:
+  # Scanner les dépendances npm
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly" # Scan hebdomadaire
+      day: "monday" # Tous les lundis
+      time: "09:00" # À 9h00 UTC
+    open-pull-requests-limit: 10 # Maximum 10 PRs ouvertes simultanément
+    reviewers:
+      - "Sailendrasingh" # Reviewer par défaut (à adapter selon votre équipe)
+    labels:
+      - "dependencies"
+      - "security"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    # Groupes de mises à jour pour réduire le nombre de PRs
+    groups:
+      production-dependencies:
+        dependency-type: "production"
+      development-dependencies:
+        dependency-type: "development"
+    # Ignorer certaines mises à jour majeures (à adapter selon vos besoins)
+    ignore:
+      # Ignorer les mises à jour majeures de Next.js (nécessite des tests approfondis)
+      - dependency-name: "next"
+        update-types: ["version-update:semver-major"]
+      # Ignorer les mises à jour majeures de React (nécessite des tests approfondis)
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+      # Ignorer les mises à jour majeures de Prisma (nécessite des migrations)
+      - dependency-name: "@prisma/client"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "prisma"
+        update-types: ["version-update:semver-major"]
+

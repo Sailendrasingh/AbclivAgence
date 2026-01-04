@@ -17,7 +17,12 @@
     "restore:admin": "node scripts/restore-admin.js",
     "reset:admin": "node scripts/reset-admin-password.js",
     "disable:2fa:admin": "node scripts/disable-2fa-admin.js",
-    "clean:quarantine": "node scripts/clean-quarantine.js"
+    "clean:quarantine": "node scripts/clean-quarantine.js",
+    "migrate:wifi-passwords": "npx tsx scripts/migrate-wifi-passwords.ts",
+    "audit": "npm audit",
+    "audit:fix": "npm audit fix",
+    "audit:production": "npm audit --production",
+    "audit:json": "npm audit --json > audit-report.json"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
@@ -52,6 +57,7 @@
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
     "validator": "^13.12.0",
+    "winston": "^3.19.0",
     "yauzl": "^3.2.0",
     "zod": "^4.3.4",
     "zustand": "^5.0.2"
@@ -66,6 +72,7 @@
     "@types/react": "^19.0.6",
     "@types/react-dom": "^19.0.2",
     "@types/validator": "^13.12.0",
+    "@types/winston": "^2.4.4",
     "@types/yauzl": "^2.10.3",
     "autoprefixer": "^10.4.20",
     "eslint": "^9.18.0",

@@ -6,7 +6,7 @@ import Image from "next/image"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Button } from "./button"
 import { ThemeToggle } from "./theme-toggle"
-import { Menu, X, LogOut, User, Building2, Users, FileText, HardDrive, Settings, ChevronDown, ChevronRight, Sliders } from "lucide-react"
+import { Menu, X, LogOut, User, Building2, Users, FileText, HardDrive, Settings, ChevronDown, ChevronRight, Sliders, Activity } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { LucideIcon } from "lucide-react"
 
@@ -43,6 +43,7 @@ function SidebarContent() {
     { href: "/dashboard/parametres?tab=utilisateurs", label: "Utilisateurs", tab: "utilisateurs", icon: Users },
     { href: "/dashboard/parametres?tab=sauvegardes", label: "Sauvegardes", tab: "sauvegardes", icon: HardDrive },
     { href: "/dashboard/parametres?tab=logs", label: "Logs", tab: "logs", icon: FileText },
+    { href: "/dashboard/parametres?tab=monitoring", label: "Monitoring", tab: "monitoring", icon: Activity },
   ], [])
   
   // Vérifier si on est sur une page Paramètres pour ouvrir automatiquement le menu
