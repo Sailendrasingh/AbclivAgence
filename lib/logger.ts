@@ -137,7 +137,7 @@ export const securityLogger = winston.createLogger({
  * Logger pour les actions métier
  * Enregistre uniquement dans les fichiers de log (la base de données est gérée par createLog)
  */
-export function logAction(
+export async function logAction(
   userId: string | null,
   action: string,
   details: any,

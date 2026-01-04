@@ -30,7 +30,7 @@ export async function createLog(
     // Enregistrer aussi dans les fichiers de log centralisés (import dynamique pour éviter les cycles)
     try {
       const { logAction } = await import("./logger")
-      logAction(userId, action, details, request, 'info')
+      await logAction(userId, action, details, request, 'info')
     } catch (logError) {
       // Si le logger n'est pas disponible, continuer sans erreur
       // (peut arriver lors du build)
