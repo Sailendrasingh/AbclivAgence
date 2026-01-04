@@ -103,6 +103,17 @@ function ParametresPageContent() {
   const [deletingOrphaned, setDeletingOrphaned] = useState(false)
   const [selectedOrphanedFiles, setSelectedOrphanedFiles] = useState<Set<string>>(new Set())
   
+  // États pour les images manquantes
+  const [missingImages, setMissingImages] = useState<Array<{
+    agencyName: string
+    agencyId: string
+    photoType: string
+    photoLabel: string | null
+    photoDate: string | null
+    photoPath: string
+  }>>([])
+  const [scanningMissing, setScanningMissing] = useState(false)
+  
   // États pour le monitoring
   const [monitoringAlerts, setMonitoringAlerts] = useState<Array<{
     id: string
