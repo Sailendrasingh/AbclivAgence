@@ -1244,9 +1244,8 @@ export default function AgencesPage() {
       // Mettre à jour tous les ordres
       await Promise.all(
         newContacts.map((contact, index) =>
-          fetch(`/api/contacts/${contact.id}`, {
+          apiFetch(`/api/contacts/${contact.id}`, {
             method: "PUT",
-            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ order: index }),
           })
         )
@@ -2088,9 +2087,8 @@ export default function AgencesPage() {
       // Mettre à jour tous les ordres
       await Promise.all(
         newPcs.map((pc, index) =>
-          fetch(`/api/pcs/${pc.id}`, {
+          apiFetch(`/api/pcs/${pc.id}`, {
             method: "PUT",
-            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ order: index }),
           })
         )
