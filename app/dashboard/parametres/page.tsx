@@ -908,6 +908,29 @@ function ParametresPageContent() {
     setSelectedOrphanedFiles(newSelection)
   }
 
+  const handleScanMissingImages = async () => {
+    setScanningMissing(true)
+    setMissingImages([])
+    try {
+      const response = await apiFetch("/api/files/missing")
+      if (response.ok) {
+        const data = await response.json()
+        setMissingImages(data.missingImages || [])
+        if (data.count === 0) {
+          alert("Aucune image manquante trouvée")
+        }
+      } else {
+        const error = await response.json()
+        alert(error.error || "Erreur lors du scan")
+      }
+    } catch (error) {
+      console.error("Error scanning missing images:", error)
+      alert("Erreur lors du scan des images manquantes")
+    } finally {
+      setScanningMissing(false)
+    }
+  }
+
   const selectAllOrphanedFiles = () => {
     if (selectedOrphanedFiles.size === orphanedFiles.length) {
       setSelectedOrphanedFiles(new Set())
