@@ -1469,13 +1469,19 @@ function ParametresPageContent() {
                               <div className="font-medium break-words text-sm sm:text-base flex items-center gap-2">
                                 {backup.filename}
                                 {backup.integrity === "valid" && (
-                                  <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" title="Intégrité vérifiée" />
+                                  <span title="Intégrité vérifiée">
+                                    <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+                                  </span>
                                 )}
                                 {backup.integrity === "corrupted" && (
-                                  <XCircle className="h-4 w-4 text-red-500 shrink-0" title="Sauvegarde corrompue" />
+                                  <span title="Sauvegarde corrompue">
+                                    <XCircle className="h-4 w-4 text-red-500 shrink-0" />
+                                  </span>
                                 )}
                                 {backup.integrity === "unknown" && (
-                                  <AlertTriangle className="h-4 w-4 text-yellow-500 shrink-0" title="Intégrité non vérifiée (sauvegarde ancienne)" />
+                                  <span title="Intégrité non vérifiée (sauvegarde ancienne)">
+                                    <AlertTriangle className="h-4 w-4 text-yellow-500 shrink-0" />
+                                  </span>
                                 )}
                               </div>
                               <div className="text-xs sm:text-sm text-muted-foreground flex flex-wrap gap-1 sm:gap-0 break-words">
