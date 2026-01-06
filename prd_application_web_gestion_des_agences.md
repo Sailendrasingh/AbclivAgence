@@ -1135,10 +1135,6 @@ Aucun autre type autorisé.
         * Nom physique (chemin du fichier)
     * **Accès** : Réservé aux Super Admin
     * **API** : `GET /api/files/missing` : Scanne et retourne la liste des images manquantes
-    * **Valeur par défaut** : 1 minute (60 secondes)
-    * **Validation** : Validation côté client et serveur pour s'assurer que la valeur est un nombre positif d'au moins 1 minute
-    * **Enregistrement** : Les paramètres sont sauvegardés dans la base de données (modèle `AppSettings`)
-    * **Application immédiate** : La nouvelle durée de session est appliquée immédiatement après enregistrement pour tous les utilisateurs connectés via le composant `SessionTimeoutWrapper` qui recharge la durée depuis l'API
   * **Gestion des fichiers orphelins** (onglet Général) :
     * **Fonctionnalité** : Scan du dossier uploads pour trouver les images non référencées dans la base de données
     * **Processus** :
