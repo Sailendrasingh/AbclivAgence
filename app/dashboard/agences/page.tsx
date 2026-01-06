@@ -1361,7 +1361,10 @@ export default function AgencesPage() {
     let photos: string[] = []
     if (task.photos) {
       try {
-        photos = JSON.parse(task.photos)
+        const parsed = JSON.parse(task.photos)
+        if (Array.isArray(parsed)) {
+          photos = parsed
+        }
       } catch {
         photos = []
       }
