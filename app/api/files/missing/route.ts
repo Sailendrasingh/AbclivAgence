@@ -131,6 +131,47 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // 4. Photos dans Task (JSON array)
+    const tasks = await prisma.task.findMany({
+      where: { photos: { not: null } },
+      include: {
+        agency: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    })
+
+    for (const task of tasks) {
+      if (task.photos) {
+        try {
+          const photos = JSON.parse(task.photos)
+          if (Array.isArray(photos)) {
+            for (const photoPath of photos) {
+              if (photoPath && typeof photoPath === "string") {
+                const absolutePath = join(process.cwd(), photoPath)
+                if (!existsSync(absolutePath)) {
+                  missingImages.push({
+                    agencyName: task.agency.name,
+                    agencyId: task.agency.id,
+                    photoType: "Tâche",
+                    photoLabel: task.title,
+                    photoDate: task.createdAt ? new Date(task.createdAt).toISOString() : null,
+                    photoPath: photoPath,
+                  })
+                }
+              }
+            }
+          }
+        } catch (error) {
+          // Ignorer les erreurs de parsing JSON
+          console.warn(`Erreur lors du parsing des photos pour la tâche ${task.id}:`, error)
+        }
+      }
+    }
+
     // Trier par agence puis par type
     missingImages.sort((a, b) => {
       if (a.agencyName !== b.agencyName) {
