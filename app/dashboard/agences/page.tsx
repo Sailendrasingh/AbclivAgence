@@ -1399,6 +1399,7 @@ export default function AgencesPage() {
     setViewingImageTaskId(taskId || null)
     setImageZoom(1)
     setImagePosition({ x: 0, y: 0 })
+    setImageHasDragged(false)
   }
 
   const handleImageZoom = (e: React.WheelEvent) => {
@@ -1465,6 +1466,7 @@ export default function AgencesPage() {
       setViewingImage(viewingImageList[nextIndex])
       setImageZoom(1)
       setImagePosition({ x: 0, y: 0 })
+      setImageHasDragged(false)
     }
   }
 
@@ -1475,6 +1477,7 @@ export default function AgencesPage() {
       setViewingImage(viewingImageList[prevIndex])
       setImageZoom(1)
       setImagePosition({ x: 0, y: 0 })
+      setImageHasDragged(false)
     }
   }
 
@@ -6253,6 +6256,7 @@ export default function AgencesPage() {
           setViewingImage(null)
           setImageZoom(1)
           setImagePosition({ x: 0, y: 0 })
+          setImageHasDragged(false)
         }
       }}>
         <DialogContent className="max-w-[95vw] sm:max-w-6xl max-h-[90vh] overflow-hidden p-0">
