@@ -273,6 +273,21 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
     * Affichage en cartes (mobile et desktop)
     * Tâches clôturées avec fond grisé et badge "Clôturée"
     * Notes limitées à 5 lignes avec scrollbar pour les notes plus longues
+    * **Photos dans les tâches** : ✅ **IMPLÉMENTÉ** (2026-01-31)
+      * **Upload de photos** : Possibilité d'ajouter jusqu'à N photos par tâche (N configurable dans les Paramètres, par défaut : 5)
+      * **Paramètre** : `maxPhotosPerTask` dans `AppSettings` (défaut: 5, min: 1, max: 100)
+      * **Format** : Photos stockées dans le champ `photos` de la table `Task` (JSON array de chemins)
+      * **Types autorisés** : JPEG, PNG uniquement
+      * **Taille maximale** : Utilise le paramètre global `maxImageSizeMB` (par défaut : 5 MB)
+      * **Affichage** : Photos affichées en petites vignettes (16x16) dans les cartes de tâches
+      * **Visualisation** : Clic sur une vignette ouvre un dialog avec :
+        * Navigation entre photos (flèches gauche/droite ou clic sur les moitiés gauche/droite de l'image)
+        * Zoom avec molette de la souris (1x à 5x)
+        * Déplacement de l'image zoomée avec clic-glisser
+        * Suppression de photo (uniquement en mode édition)
+        * Indicateur de position (ex: "1/5") et niveau de zoom
+      * **Validation** : Vérification côté client et serveur du nombre maximum de photos
+      * **Libellés dynamiques** : Les libellés et messages d'erreur utilisent la valeur configurée
     * **Restrictions d'accès par rôle** (applicables uniquement en mode édition) :
       * **Utilisateur de type User** :
         * Les boutons "Modifier" et "Clôturer" ne sont **pas visibles** pour les utilisateurs de type **User** (même en mode édition)
@@ -745,11 +760,13 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
   * Clic en dehors de la photo (fond noir) → fermeture de la lightbox et retour à l'onglet Photos
   * Bouton X en haut à droite pour fermer la lightbox
 * **Titre en lightbox** : Le titre individuel de la photo (ou le titre du groupe si aucun titre individuel) s'affiche en bas, centré, sur la photo agrandie avec un fond noir semi-transparent (`bg-black/70`)
-* **Validation de la taille des fichiers** :
-  * **Taille maximale** : 5 MB par fichier
-  * **Validation côté client** : Vérification immédiate lors de la sélection des fichiers
-  * **Message d'erreur en français** : Si un fichier dépasse 5 MB, un message d'erreur en français est affiché indiquant que la taille maximale autorisée est de 5 MB par fichier
+* **Validation de la taille des fichiers** : ✅ **CONFIGURABLE** (2026-01-31)
+  * **Taille maximale** : Configurable dans les Paramètres (par défaut : 5 MB par fichier)
+  * **Paramètre** : `maxImageSizeMB` dans `AppSettings` (défaut: 5 Mo, min: 1 Mo, max: 100 Mo)
+  * **Validation côté client** : Vérification immédiate lors de la sélection des fichiers avec la valeur configurée
+  * **Message d'erreur en français** : Si un fichier dépasse la taille maximale configurée, un message d'erreur en français est affiché avec la taille maximale actuelle
   * **Double vérification** : Vérification supplémentaire avant l'upload pour empêcher l'envoi de fichiers trop volumineux
+  * **Libellés dynamiques** : Les libellés dans l'interface affichent automatiquement la taille maximale configurée
 
 ---
 
@@ -774,7 +791,10 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
   * **Photos de profil** : Stockées dans `/uploads/user-photos/` (ou `/uploads/profiles/` selon la configuration)
   * **Photos d'agences** : Stockées dans `/uploads/` (racine du dossier uploads)
   * **Quarantaine** : Fichiers temporaires stockés dans `/uploads/quarantine/` avant validation et traitement
-* Taille max fichier : **5 MB** (photos d'agences), **1 MB** (photos de profil)
+* Taille max fichier : ✅ **CONFIGURABLE** (2026-01-31) - Définie dans les Paramètres (par défaut : 5 MB pour toutes les images)
+  * **Paramètre global** : `maxImageSizeMB` dans `AppSettings` (défaut: 5 Mo, min: 1 Mo, max: 100 Mo)
+  * **Application** : S'applique à toutes les images (photos d'agences, photos de groupes, photos de tâches, photos de profil)
+  * **Libellés dynamiques** : Les libellés dans l'interface affichent automatiquement la taille maximale configurée
 * Types autorisés :
 
   * Photos : jpeg, png
@@ -783,7 +803,7 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
 
 Aucun autre type autorisé.
 * **Photos de profil** :
-  * **Taille maximale** : 1 MB par fichier
+  * **Taille maximale** : ✅ **CONFIGURABLE** (2026-01-31) - Utilise le paramètre global `maxImageSizeMB` (par défaut : 5 MB, configurable dans les Paramètres)
   * **Redimensionnement automatique** : Toutes les photos de profil sont automatiquement redimensionnées en 100x100px (carré) lors de l'upload
   * **Validation stricte** : Vérification du type MIME via magic bytes pour prévenir les attaques par upload de fichiers malveillants
   * **Sécurité renforcée** :
@@ -1047,6 +1067,31 @@ Aucun autre type autorisé.
   * **Durée de session** :
     * Champ de saisie numérique pour définir la durée d'inactivité avant déconnexion automatique (en minutes)
     * **Valeur minimale** : 1 minute
+    * **Valeur maximale** : 1440 minutes (24 heures)
+  * **Taille maximale des images** : ✅ **IMPLÉMENTÉ** (2026-01-31)
+    * Champ de saisie numérique pour définir la taille maximale autorisée pour l'upload d'images (en Mo)
+    * **Valeur par défaut** : 5 Mo
+    * **Valeur minimale** : 1 Mo
+    * **Valeur maximale** : 100 Mo
+    * **Application** : La taille maximale est appliquée lors de l'upload de toutes les images (photos d'agences, photos de groupes, photos de tâches, photos de profil)
+    * **Conservation** : Les images déjà importées avec une taille supérieure à la nouvelle limite sont conservées (pas de suppression)
+    * **Libellés dynamiques** : Les libellés dans l'interface d'upload affichent automatiquement la taille maximale configurée (ex: "max 5 MB" devient "max 10 MB" si configuré à 10 Mo)
+  * **Nombre maximum de photos par type de photo** : ✅ **IMPLÉMENTÉ** (2026-01-31)
+    * Champ de saisie numérique pour définir le nombre maximum de photos autorisées par type de photo dans un groupe
+    * **Valeur par défaut** : 50 photos
+    * **Valeur minimale** : 1 photo
+    * **Valeur maximale** : 1000 photos
+    * **Application** : Validation lors de l'import de photos dans les groupes de photos (onglet Photos du Détails de l'agence)
+    * **Comptage** : Le système compte toutes les photos existantes du même type pour l'agence avant d'autoriser l'ajout de nouvelles photos
+    * **Exception** : Le type "Agence" n'est pas soumis à cette limite (1 seule photo autorisée)
+    * **Message d'erreur** : Affiche le nombre de photos existantes, le nombre de nouvelles photos et la limite configurée
+  * **Nombre maximum de photos par tâche** : ✅ **IMPLÉMENTÉ** (2026-01-31)
+    * Champ de saisie numérique pour définir le nombre maximum de photos autorisées par tâche
+    * **Valeur par défaut** : 5 photos
+    * **Valeur minimale** : 1 photo
+    * **Valeur maximale** : 100 photos
+    * **Application** : Validation lors de l'ajout de photos dans les tâches (onglet Tâches du Détails de l'agence)
+    * **Interface** : Les libellés et messages d'erreur utilisent la valeur configurée (ex: "Maximum 5 photos autorisées" devient "Maximum 10 photos autorisées" si configuré à 10)
   * **Gestion des fichiers orphelins** (onglet Général) :
     * **Fonctionnalité** : Scan du dossier uploads pour trouver les images non référencées dans la base de données
     * **Processus** :
@@ -1056,6 +1101,7 @@ Aucun autre type autorisé.
         * Photos d'agences (`Agency.photo`)
         * Photos dans les groupes (`PhotoGroup.photos`)
         * Photos et fichiers des imprimantes (`Printer.photos`, `Printer.files`)
+        * Photos des tâches (`Task.photos`) ✅ **IMPLÉMENTÉ** (2026-01-31)
       * Affichage de la liste des fichiers orphelins trouvés avec :
         * Chemin du fichier
         * Taille formatée
@@ -1085,6 +1131,7 @@ Aucun autre type autorisé.
         * Photos d'agences (`Agency.photo`)
         * Photos dans les groupes (`PhotoGroup.photos`)
         * Photos et fichiers des imprimantes (`Printer.photos`, `Printer.files`)
+        * Photos des tâches (`Task.photos`) ✅ **IMPLÉMENTÉ** (2026-01-31)
       * Affichage de la liste des fichiers orphelins trouvés avec :
         * Chemin du fichier
         * Taille formatée
@@ -1107,12 +1154,18 @@ Aucun autre type autorisé.
     * Création automatique des paramètres par défaut si ils n'existent pas
   * **PUT `/api/settings`** : Met à jour les paramètres de l'application
     * Vérification du rôle Super Admin
-    * Validation de la durée de session (nombre positif, minimum 1 minute)
+    * Validation de la durée de session (nombre positif, minimum 1 minute, maximum 1440 minutes)
+    * Validation de la taille maximale des images (nombre positif, minimum 1 Mo, maximum 100 Mo)
+    * Validation du nombre maximum de photos par type (nombre positif, minimum 1, maximum 1000)
+    * Validation du nombre maximum de photos par tâche (nombre positif, minimum 1, maximum 100)
     * Utilisation de `upsert` pour créer ou mettre à jour les paramètres
 * **Modèle de données** :
   * **Table `AppSettings`** : Stockage des paramètres de l'application
     * `id` : String (clé primaire, valeur fixe `"settings"`)
     * `sessionTimeout` : Int (durée en minutes, défaut: 60)
+    * `maxImageSizeMB` : Int (taille maximale des images en Mo, défaut: 5) ✅ **IMPLÉMENTÉ** (2026-01-31)
+    * `maxPhotosPerType` : Int (nombre maximum de photos par type de photo, défaut: 50) ✅ **IMPLÉMENTÉ** (2026-01-31)
+    * `maxPhotosPerTask` : Int (nombre maximum de photos par tâche, défaut: 5) ✅ **IMPLÉMENTÉ** (2026-01-31)
     * `updatedAt` : DateTime (date de dernière mise à jour)
 * **Initialisation** : Un script d'initialisation (`npm run init:settings`) permet de créer les paramètres par défaut si ils n'existent pas
 * **Composants techniques** :
