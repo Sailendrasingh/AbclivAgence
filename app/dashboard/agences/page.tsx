@@ -299,6 +299,13 @@ export default function AgencesPage() {
   })
   const [taskPhotos, setTaskPhotos] = useState<Array<{ path: string; preview?: string }>>([])
   const [viewingImage, setViewingImage] = useState<string | null>(null)
+  const [viewingImageIndex, setViewingImageIndex] = useState<number>(0)
+  const [viewingImageList, setViewingImageList] = useState<string[]>([])
+  const [viewingImageTaskId, setViewingImageTaskId] = useState<string | null>(null)
+  const [imageZoom, setImageZoom] = useState(1)
+  const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 })
+  const [isImageDragging, setIsImageDragging] = useState(false)
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
   const [taskFilter, setTaskFilter] = useState<"ALL" | "URGENT" | "CRITIQUE" | "INFO">("ALL")
   const [showClosedTasks, setShowClosedTasks] = useState(true)
   const [expandedTaskNotes, setExpandedTaskNotes] = useState<Record<string, boolean>>({})
@@ -1381,6 +1388,103 @@ export default function AgencesPage() {
     })
     setTaskPhotos(photos.map(path => ({ path })))
     setIsTaskEditDialogOpen(true)
+  }
+
+  // Fonctions pour la visualisation des photos de tâches
+  const openImageViewer = (photoPath: string, photoList: string[], index: number, taskId?: string) => {
+    setViewingImage(photoPath)
+    setViewingImageList(photoList)
+    setViewingImageIndex(index)
+    setViewingImageTaskId(taskId || null)
+    setImageZoom(1)
+    setImagePosition({ x: 0, y: 0 })
+  }
+
+  const handleImageZoom = (e: React.WheelEvent) => {
+    e.preventDefault()
+    const delta = e.deltaY > 0 ? -0.1 : 0.1
+    const newZoom = Math.max(1, Math.min(5, imageZoom + delta))
+    setImageZoom(newZoom)
+    if (newZoom === 1) {
+      setImagePosition({ x: 0, y: 0 })
+    }
+  }
+
+  const handleImageMouseDown = (e: React.MouseEvent) => {
+    if (imageZoom > 1) {
+      setIsImageDragging(true)
+      setDragStart({ x: e.clientX - imagePosition.x, y: e.clientY - imagePosition.y })
+    }
+  }
+
+  const handleImageMouseMove = (e: React.MouseEvent) => {
+    if (isImageDragging && imageZoom > 1) {
+      setImagePosition({
+        x: e.clientX - dragStart.x,
+        y: e.clientY - dragStart.y,
+      })
+    }
+  }
+
+  const handleImageMouseUp = () => {
+    setIsImageDragging(false)
+  }
+
+  const handleNextImage = () => {
+    if (viewingImageList.length > 0) {
+      const nextIndex = (viewingImageIndex + 1) % viewingImageList.length
+      setViewingImageIndex(nextIndex)
+      setViewingImage(viewingImageList[nextIndex])
+      setImageZoom(1)
+      setImagePosition({ x: 0, y: 0 })
+    }
+  }
+
+  const handlePrevImage = () => {
+    if (viewingImageList.length > 0) {
+      const prevIndex = (viewingImageIndex - 1 + viewingImageList.length) % viewingImageList.length
+      setViewingImageIndex(prevIndex)
+      setViewingImage(viewingImageList[prevIndex])
+      setImageZoom(1)
+      setImagePosition({ x: 0, y: 0 })
+    }
+  }
+
+  const handleDeleteImage = async () => {
+    if (!viewingImage || !viewingImageTaskId || !editingTask) {
+      alert("Impossible de supprimer la photo")
+      return
+    }
+
+    if (!confirm("Êtes-vous sûr de vouloir supprimer cette photo ?")) {
+      return
+    }
+
+    try {
+      const currentPhotos = taskFormData.photos || []
+      const updatedPhotos = currentPhotos.filter((_, i) => i !== viewingImageIndex)
+      
+      setTaskFormData((prev) => ({
+        ...prev,
+        photos: updatedPhotos,
+      }))
+      setTaskPhotos((prev) => prev.filter((_, i) => i !== viewingImageIndex))
+
+      // Mettre à jour la liste d'affichage
+      const newList = viewingImageList.filter((_, i) => i !== viewingImageIndex)
+      setViewingImageList(newList)
+
+      if (newList.length === 0) {
+        setViewingImage(null)
+      } else {
+        const newIndex = Math.min(viewingImageIndex, newList.length - 1)
+        setViewingImageIndex(newIndex)
+        setViewingImage(newList[newIndex])
+      }
+    } catch (error) {
+      console.error("Error deleting image:", error)
+      alert("Erreur lors de la suppression de la photo")
+    }
   }
 
   const handleSaveTask = async () => {
@@ -3444,7 +3548,16 @@ export default function AgencesPage() {
                                                 src={photoPath}
                                                 alt={`Photo ${photoIndex + 1}`}
                                                 className="w-16 h-16 object-cover rounded border cursor-pointer hover:opacity-80 transition-opacity"
-                                                onClick={() => setViewingImage(photoPath)}
+                                                onClick={() => {
+                                                  try {
+                                                    const photos = JSON.parse(task.photos || "[]")
+                                                    if (Array.isArray(photos)) {
+                                                      openImageViewer(photoPath, photos, photoIndex, task.id)
+                                                    }
+                                                  } catch {
+                                                    openImageViewer(photoPath, [photoPath], 0, task.id)
+                                                  }
+                                                }}
                                               />
                                             ))}
                                           </div>
@@ -3676,7 +3789,16 @@ export default function AgencesPage() {
                                                   src={photoPath}
                                                   alt={`Photo ${photoIndex + 1}`}
                                                   className="w-16 h-16 object-cover rounded border cursor-pointer hover:opacity-80 transition-opacity"
-                                                  onClick={() => setViewingImage(photoPath)}
+                                                  onClick={() => {
+                                                  try {
+                                                    const photos = JSON.parse(task.photos || "[]")
+                                                    if (Array.isArray(photos)) {
+                                                      openImageViewer(photoPath, photos, photoIndex, task.id)
+                                                    }
+                                                  } catch {
+                                                    openImageViewer(photoPath, [photoPath], 0, task.id)
+                                                  }
+                                                }}
                                                 />
                                               ))}
                                             </div>
@@ -6058,7 +6180,11 @@ export default function AgencesPage() {
                         src={photo.preview || photo.path}
                         alt={`Photo ${index + 1}`}
                         className="w-20 h-20 object-cover rounded border cursor-pointer hover:opacity-80"
-                        onClick={() => setViewingImage(photo.path)}
+                        onClick={() => {
+                          const photos = taskFormData.photos || []
+                          const index = photos.findIndex(p => p === photo.path)
+                          openImageViewer(photo.path, photos, index >= 0 ? index : 0)
+                        }}
                       />
                       <Button
                         type="button"
@@ -6094,25 +6220,104 @@ export default function AgencesPage() {
       </Dialog>
 
       {/* Dialog pour voir l'image en grand */}
-      <Dialog open={!!viewingImage} onOpenChange={(open) => !open && setViewingImage(null)}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>Photo</DialogTitle>
-          </DialogHeader>
+      <Dialog open={!!viewingImage} onOpenChange={(open) => {
+        if (!open) {
+          setViewingImage(null)
+          setImageZoom(1)
+          setImagePosition({ x: 0, y: 0 })
+        }
+      }}>
+        <DialogContent className="max-w-[95vw] sm:max-w-6xl max-h-[90vh] overflow-hidden p-0">
           {viewingImage && (
-            <div className="flex justify-center">
-              <img
-                src={viewingImage}
-                alt="Photo agrandie"
-                className="max-w-full max-h-[80vh] object-contain rounded"
-              />
+            <div className="relative w-full h-[85vh] flex items-center justify-center bg-black/90 overflow-hidden">
+              {/* Image avec zoom et drag */}
+              <div
+                className="relative w-full h-full flex items-center justify-center cursor-grab active:cursor-grabbing"
+                onWheel={handleImageZoom}
+                onMouseDown={handleImageMouseDown}
+                onMouseMove={handleImageMouseMove}
+                onMouseUp={handleImageMouseUp}
+                onMouseLeave={handleImageMouseUp}
+                style={{ touchAction: 'none' }}
+              >
+                <img
+                  src={viewingImage}
+                  alt={`Photo ${viewingImageIndex + 1}`}
+                  className="max-w-full max-h-full object-contain select-none"
+                  style={{
+                    transform: `scale(${imageZoom}) translate(${imagePosition.x}px, ${imagePosition.y}px)`,
+                    transformOrigin: 'center center',
+                    transition: imageZoom === 1 ? 'transform 0.2s ease-out' : 'none',
+                  }}
+                  draggable={false}
+                />
+              </div>
+
+              {/* Bouton précédent */}
+              {viewingImageList.length > 1 && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-white hover:text-gray-200 bg-black/50 hover:bg-black/70 rounded-full h-12 w-12"
+                  onClick={handlePrevImage}
+                >
+                  <ChevronLeft className="h-6 w-6" />
+                </Button>
+              )}
+
+              {/* Bouton suivant */}
+              {viewingImageList.length > 1 && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:text-gray-200 bg-black/50 hover:bg-black/70 rounded-full h-12 w-12"
+                  onClick={handleNextImage}
+                >
+                  <ChevronRight className="h-6 w-6" />
+                </Button>
+              )}
+
+              {/* Bouton fermer */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute top-4 right-4 text-white hover:text-gray-200 bg-black/50 hover:bg-black/70 rounded-full h-10 w-10"
+                onClick={() => {
+                  setViewingImage(null)
+                  setImageZoom(1)
+                  setImagePosition({ x: 0, y: 0 })
+                }}
+              >
+                <X className="h-5 w-5" />
+              </Button>
+
+              {/* Bouton supprimer (seulement si en mode édition) */}
+              {editingTask && viewingImageTaskId === editingTask.id && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute top-4 right-16 text-white hover:text-red-400 bg-black/50 hover:bg-red-500/70 rounded-full h-10 w-10"
+                  onClick={handleDeleteImage}
+                >
+                  <Trash2 className="h-5 w-5" />
+                </Button>
+              )}
+
+              {/* Indicateur de position (ex: 1/5) */}
+              {viewingImageList.length > 1 && (
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/70 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                  {viewingImageIndex + 1} / {viewingImageList.length}
+                </div>
+              )}
+
+              {/* Indicateur de zoom */}
+              {imageZoom > 1 && (
+                <div className="absolute top-4 left-4 bg-black/70 text-white px-3 py-1 rounded text-sm">
+                  {Math.round(imageZoom * 100)}%
+                </div>
+              )}
             </div>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setViewingImage(null)}>
-              Fermer
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
@@ -6226,7 +6431,11 @@ export default function AgencesPage() {
                         src={photo.preview || photo.path}
                         alt={`Photo ${index + 1}`}
                         className="w-20 h-20 object-cover rounded border cursor-pointer hover:opacity-80"
-                        onClick={() => setViewingImage(photo.path)}
+                        onClick={() => {
+                          const photos = taskFormData.photos || []
+                          const index = photos.findIndex(p => p === photo.path)
+                          openImageViewer(photo.path, photos, index >= 0 ? index : 0)
+                        }}
                       />
                       <Button
                         type="button"
