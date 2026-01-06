@@ -27,8 +27,8 @@ export async function setCSRFToken(token: string): Promise<void> {
   const cookieStore = await cookies()
   cookieStore.set(CSRF_TOKEN_COOKIE, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    secure: false, // Désactivé pour permettre l'accès via IP en HTTP
+    sameSite: "lax", // Changé de "strict" à "lax" pour permettre la redirection
     maxAge: 60 * 60 * 24, // 24 heures
     path: "/",
   })
@@ -43,8 +43,8 @@ export async function createCSRFToken(response?: any): Promise<string> {
   
   const cookieOptions = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict" as const,
+    secure: false, // Désactivé pour permettre l'accès via IP en HTTP
+    sameSite: "lax" as const, // Changé de "strict" à "lax" pour permettre la redirection
     maxAge: 60 * 60 * 24, // 24 heures
     path: "/",
   }
