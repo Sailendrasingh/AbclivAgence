@@ -204,6 +204,7 @@ export default function AgencesPage() {
   const [editedDateOuverture, setEditedDateOuverture] = useState("")
   const [editedDateFermeture, setEditedDateFermeture] = useState("")
   const [userRole, setUserRole] = useState<string | null>(null)
+  const [maxImageSizeMB, setMaxImageSizeMB] = useState(5) // Taille maximale des images en Mo
   
   // États pour adresses
   const [isAddressDialogOpen, setIsAddressDialogOpen] = useState(false)
@@ -2030,12 +2031,12 @@ export default function AgencesPage() {
     }
 
     // Vérifier la taille des fichiers avant l'upload
-    const MAX_SIZE = 5 * 1024 * 1024 // 5 MB
+    const MAX_SIZE = maxImageSizeMB * 1024 * 1024 // Convertir Mo en octets
     const oversizedFiles = photoFiles.filter((file) => file.size > MAX_SIZE)
     
     if (oversizedFiles.length > 0) {
       alert(
-        `Les fichiers suivants dépassent la taille maximale de 5 MB :\n${oversizedFiles.map((f) => f.name).join("\n")}\n\nLa taille maximale autorisée est de 5 MB par fichier.`
+        `Les fichiers suivants dépassent la taille maximale de ${maxImageSizeMB} MB :\n${oversizedFiles.map((f) => f.name).join("\n")}\n\nLa taille maximale autorisée est de ${maxImageSizeMB} MB par fichier.`
       )
       return
     }
@@ -2071,8 +2072,8 @@ export default function AgencesPage() {
         } catch (uploadError: any) {
           // Gérer les erreurs d'upload (fichier trop volumineux, etc.)
           const errorMessage = uploadError?.message || "Erreur lors de l'upload"
-          if (errorMessage.includes("5 MB") || errorMessage.includes("trop volumineux")) {
-            alert("La taille maximale autorisée est de 5 MB par fichier. Veuillez réduire la taille de vos photos.")
+          if (errorMessage.includes("MB") || errorMessage.includes("trop volumineux")) {
+            alert(`La taille maximale autorisée est de ${maxImageSizeMB} MB par fichier. Veuillez réduire la taille de vos photos.`)
           } else {
             alert(`Erreur lors de l'upload : ${errorMessage}`)
           }
@@ -5644,7 +5645,7 @@ export default function AgencesPage() {
               {selectedPhotoGroup ? "Modifier le groupe de photos" : "Nouveau groupe de photos"}
             </DialogTitle>
             <DialogDescription>
-              Sélectionnez un type et uploadez des photos (jpeg, png, max 5 MB).
+              Sélectionnez un type et uploadez des photos (jpeg, png, max {maxImageSizeMB} MB).
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -5675,7 +5676,7 @@ export default function AgencesPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="photo-files">Photos (jpeg, png, max 5 MB)</Label>
+              <Label htmlFor="photo-files">Photos (jpeg, png, max {maxImageSizeMB} MB)</Label>
               <Input
                 id="photo-files"
                 type="file"
@@ -5683,7 +5684,7 @@ export default function AgencesPage() {
                 multiple
                 onChange={(e) => {
                   const files = Array.from(e.target.files || [])
-                  const MAX_SIZE = 5 * 1024 * 1024 // 5 MB
+                  const MAX_SIZE = maxImageSizeMB * 1024 * 1024 // Convertir Mo en octets
                   
                   // Vérifier la taille de chaque fichier
                   const validFiles: File[] = []
@@ -5700,7 +5701,7 @@ export default function AgencesPage() {
                   // Afficher un message d'erreur si des fichiers sont trop volumineux
                   if (invalidFiles.length > 0) {
                     alert(
-                      `Les fichiers suivants dépassent la taille maximale de 5 MB et n'ont pas été ajoutés :\n${invalidFiles.join("\n")}\n\nLa taille maximale autorisée est de 5 MB par fichier.`
+                      `Les fichiers suivants dépassent la taille maximale de ${maxImageSizeMB} MB et n'ont pas été ajoutés :\n${invalidFiles.join("\n")}\n\nLa taille maximale autorisée est de ${maxImageSizeMB} MB par fichier.`
                     )
                   }
                   
