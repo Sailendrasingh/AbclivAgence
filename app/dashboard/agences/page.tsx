@@ -6260,12 +6260,19 @@ export default function AgencesPage() {
             <div className="relative w-full h-[85vh] flex items-center justify-center bg-black/90 overflow-hidden">
               {/* Image avec zoom et drag */}
               <div
-                className="relative w-full h-full flex items-center justify-center cursor-grab active:cursor-grabbing"
+                className={`relative w-full h-full flex items-center justify-center ${
+                  imageZoom > 1 
+                    ? "cursor-grab active:cursor-grabbing" 
+                    : viewingImageList.length > 1 
+                      ? "cursor-pointer" 
+                      : ""
+                }`}
                 onWheel={handleImageZoom}
                 onMouseDown={handleImageMouseDown}
                 onMouseMove={handleImageMouseMove}
                 onMouseUp={handleImageMouseUp}
                 onMouseLeave={handleImageMouseUp}
+                onClick={handleImageClick}
                 style={{ touchAction: 'none' }}
               >
                 <img
