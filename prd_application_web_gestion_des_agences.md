@@ -1118,6 +1118,23 @@ Aucun autre type autorisé.
     * **API** :
       * `GET /api/files/orphaned` : Scanne et retourne la liste des fichiers orphelins
       * `DELETE /api/files/orphaned` : Supprime les fichiers orphelins sélectionnés
+  * **Images manquantes** (onglet Général) : ✅ **IMPLÉMENTÉ** (2026-01-30)
+    * **Fonctionnalité** : Scan des images référencées dans la base de données pour trouver celles qui sont manquantes physiquement
+    * **Processus** :
+      * Bouton "Rechercher les images manquantes" pour lancer le scan
+      * Vérification de toutes les références dans la base de données :
+        * Photos dans les groupes (`PhotoGroup.photos`)
+        * Photos d'agences (`Agency.photo`)
+        * Photos de profil (`User.photo`)
+        * Photos des tâches (`Task.photos`) ✅ **IMPLÉMENTÉ** (2026-01-31)
+      * Affichage de la liste des images manquantes trouvées avec :
+        * Nom de l'agence (ou utilisateur pour les photos de profil)
+        * Type de photo
+        * Libellé (titre de la tâche pour les photos de tâches)
+        * Date physique
+        * Nom physique (chemin du fichier)
+    * **Accès** : Réservé aux Super Admin
+    * **API** : `GET /api/files/missing` : Scanne et retourne la liste des images manquantes
     * **Valeur par défaut** : 1 minute (60 secondes)
     * **Validation** : Validation côté client et serveur pour s'assurer que la valeur est un nombre positif d'au moins 1 minute
     * **Enregistrement** : Les paramètres sont sauvegardés dans la base de données (modèle `AppSettings`)
