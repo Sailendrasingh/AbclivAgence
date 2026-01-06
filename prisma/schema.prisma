@@ -267,10 +267,12 @@ model Task {
 }
 
 model AppSettings {
-  id             String   @id @default("settings")
-  sessionTimeout Int      @default(60)
-  maxImageSizeMB Int      @default(5)
-  updatedAt      DateTime @updatedAt
+  id                String   @id @default("settings")
+  sessionTimeout    Int      @default(60)
+  maxImageSizeMB    Int      @default(5)
+  maxPhotosPerType  Int      @default(50)
+  maxPhotosPerTask  Int      @default(5)
+  updatedAt         DateTime @updatedAt
 }
 
 model Alert {

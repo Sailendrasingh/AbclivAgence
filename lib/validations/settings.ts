@@ -20,5 +20,17 @@ export const updateSettingsSchema = z.object({
     .min(1, "La taille maximale doit être d'au moins 1 Mo")
     .max(100, "La taille maximale ne peut pas dépasser 100 Mo")
     .optional(),
+  maxPhotosPerType: z
+    .number()
+    .int("Le nombre maximum de photos par type doit être un nombre entier")
+    .min(1, "Le nombre maximum de photos par type doit être d'au moins 1")
+    .max(1000, "Le nombre maximum de photos par type ne peut pas dépasser 1000")
+    .optional(),
+  maxPhotosPerTask: z
+    .number()
+    .int("Le nombre maximum de photos par tâche doit être un nombre entier")
+    .min(1, "Le nombre maximum de photos par tâche doit être d'au moins 1")
+    .max(100, "Le nombre maximum de photos par tâche ne peut pas dépasser 100")
+    .optional(),
 })
 

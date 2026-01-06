@@ -205,6 +205,8 @@ export default function AgencesPage() {
   const [editedDateFermeture, setEditedDateFermeture] = useState("")
   const [userRole, setUserRole] = useState<string | null>(null)
   const [maxImageSizeMB, setMaxImageSizeMB] = useState(5) // Taille maximale des images en Mo
+  const [maxPhotosPerType, setMaxPhotosPerType] = useState(50) // Nombre max de photos par type
+  const [maxPhotosPerTask, setMaxPhotosPerTask] = useState(5) // Nombre max de photos par tâche
   
   // États pour adresses
   const [isAddressDialogOpen, setIsAddressDialogOpen] = useState(false)
@@ -415,21 +417,23 @@ export default function AgencesPage() {
       }
     }
 
-    // Charger la taille maximale des images depuis les paramètres
-    const loadMaxImageSize = async () => {
+    // Charger les paramètres depuis l'API
+    const loadSettings = async () => {
       try {
         const response = await apiFetch("/api/settings")
         if (response.ok) {
           const data = await response.json()
           setMaxImageSizeMB(data.maxImageSizeMB || 5)
+          setMaxPhotosPerType(data.maxPhotosPerType || 50)
+          setMaxPhotosPerTask(data.maxPhotosPerTask || 5)
         }
       } catch (error) {
-        console.error("Error loading max image size:", error)
+        console.error("Error loading settings:", error)
       }
     }
 
-    // Exécuter fetchUserRole et loadMaxImageSize en premier, puis loadAgencies
-    Promise.all([fetchUserRole(), loadMaxImageSize()]).then(() => {
+    // Exécuter fetchUserRole et loadSettings en premier, puis loadAgencies
+    Promise.all([fetchUserRole(), loadSettings()]).then(() => {
       loadAgencies()
     })
   }, [loadAgencies, isMounted])
@@ -2112,6 +2116,47 @@ export default function AgencesPage() {
           ? { path: firstPhoto, createdAt: new Date().toISOString() } // Seulement si c'est une ancienne photo sans date
           : firstPhoto // Conserver la date createdAt si elle existe déjà
         photos = [normalizedPhoto]
+      } else if (photoGroupType !== "Agence") {
+        // Vérifier le nombre maximum de photos par type (sauf pour la photo d'agence)
+        // Compter les photos existantes du même type pour cette agence
+        const existingGroupsOfSameType = fullAgencyData?.photos?.filter(
+          (pg) => pg.type === photoGroupType && pg.id !== selectedPhotoGroup?.id
+        ) || []
+        
+        let totalExistingPhotos = 0
+        existingGroupsOfSameType.forEach((group) => {
+          try {
+            const groupPhotos = JSON.parse(group.photos)
+            if (Array.isArray(groupPhotos)) {
+              totalExistingPhotos += groupPhotos.length
+            }
+          } catch {
+            // Ignorer les erreurs de parsing
+          }
+        })
+        
+        // Ajouter les photos du groupe en cours d'édition (si on est en mode édition)
+        if (selectedPhotoGroup && selectedPhotoGroup.type === photoGroupType) {
+          try {
+            const currentGroupPhotos = JSON.parse(selectedPhotoGroup.photos)
+            if (Array.isArray(currentGroupPhotos)) {
+              totalExistingPhotos += currentGroupPhotos.length
+            }
+          } catch {
+            // Ignorer les erreurs de parsing
+          }
+        }
+        
+        const totalPhotos = totalExistingPhotos + photos.length
+        
+        if (totalPhotos > maxPhotosPerType) {
+          alert(
+            `Le nombre maximum de photos autorisées pour le type "${photoGroupType}" est de ${maxPhotosPerType}.\n` +
+            `Vous avez actuellement ${totalExistingPhotos} photo(s) existante(s) et vous essayez d'ajouter ${photos.length} photo(s).\n` +
+            `Total: ${totalPhotos} photo(s), maximum autorisé: ${maxPhotosPerType}.`
+          )
+          return
+        }
       }
 
       const photoGroupData = {
@@ -6180,8 +6225,8 @@ export default function AgencesPage() {
                 multiple
                 onChange={async (e) => {
                   const files = Array.from(e.target.files || [])
-                  if ((taskFormData.photos?.length || 0) + files.length > 5) {
-                    alert("Maximum 5 photos autorisées")
+                  if ((taskFormData.photos?.length || 0) + files.length > maxPhotosPerTask) {
+                    alert(`Maximum ${maxPhotosPerTask} photo(s) autorisée(s)`)
                     return
                   }
                   for (const file of files) {
@@ -6215,7 +6260,7 @@ export default function AgencesPage() {
                   }
                   e.target.value = ""
                 }}
-                disabled={(taskFormData.photos?.length || 0) >= 5}
+                disabled={(taskFormData.photos?.length || 0) >= maxPhotosPerTask}
               />
               {(taskFormData.photos?.length || 0) > 0 && (
                 <div className="flex flex-wrap gap-2 mt-2">
@@ -6250,8 +6295,8 @@ export default function AgencesPage() {
                   ))}
                 </div>
               )}
-              {(taskFormData.photos?.length || 0) >= 5 && (
-                <p className="text-sm text-muted-foreground">Maximum 5 photos atteint</p>
+              {(taskFormData.photos?.length || 0) >= maxPhotosPerTask && (
+                <p className="text-sm text-muted-foreground">Maximum {maxPhotosPerTask} photo(s) atteint</p>
               )}
             </div>
           </div>
@@ -6439,8 +6484,8 @@ export default function AgencesPage() {
                 multiple
                 onChange={async (e) => {
                   const files = Array.from(e.target.files || [])
-                  if ((taskFormData.photos?.length || 0) + files.length > 5) {
-                    alert("Maximum 5 photos autorisées")
+                  if ((taskFormData.photos?.length || 0) + files.length > maxPhotosPerTask) {
+                    alert(`Maximum ${maxPhotosPerTask} photo(s) autorisée(s)`)
                     return
                   }
                   for (const file of files) {
@@ -6474,7 +6519,7 @@ export default function AgencesPage() {
                   }
                   e.target.value = ""
                 }}
-                disabled={(taskFormData.photos?.length || 0) >= 5}
+                disabled={(taskFormData.photos?.length || 0) >= maxPhotosPerTask}
               />
               {(taskFormData.photos?.length || 0) > 0 && (
                 <div className="flex flex-wrap gap-2 mt-2">
@@ -6509,8 +6554,8 @@ export default function AgencesPage() {
                   ))}
                 </div>
               )}
-              {(taskFormData.photos?.length || 0) >= 5 && (
-                <p className="text-sm text-muted-foreground">Maximum 5 photos atteint</p>
+              {(taskFormData.photos?.length || 0) >= maxPhotosPerTask && (
+                <p className="text-sm text-muted-foreground">Maximum {maxPhotosPerTask} photo(s) atteint</p>
               )}
             </div>
           </div>

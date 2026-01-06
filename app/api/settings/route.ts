@@ -35,6 +35,8 @@ export async function GET(request: NextRequest) {
           id: "settings",
           sessionTimeout: 60, // 1 minute par défaut
           maxImageSizeMB: 5, // 5 Mo par défaut
+          maxPhotosPerType: 50, // 50 photos par défaut
+          maxPhotosPerTask: 5, // 5 photos par défaut
         },
       })
     }
@@ -82,18 +84,22 @@ export async function PUT(request: NextRequest) {
       return validation.error
     }
 
-    const { sessionTimeout, maxImageSizeMB } = validation.data
+    const { sessionTimeout, maxImageSizeMB, maxPhotosPerType, maxPhotosPerTask } = validation.data
 
     const settings = await prisma.appSettings.upsert({
       where: { id: "settings" },
       update: {
         sessionTimeout: sessionTimeout,
         ...(maxImageSizeMB !== undefined && { maxImageSizeMB }),
+        ...(maxPhotosPerType !== undefined && { maxPhotosPerType }),
+        ...(maxPhotosPerTask !== undefined && { maxPhotosPerTask }),
       },
       create: {
         id: "settings",
         sessionTimeout: sessionTimeout,
         maxImageSizeMB: maxImageSizeMB || 5,
+        maxPhotosPerType: maxPhotosPerType || 50,
+        maxPhotosPerTask: maxPhotosPerTask || 5,
       },
     })
 

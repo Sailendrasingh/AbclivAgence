@@ -52,6 +52,8 @@ function ParametresPageContent() {
   }, [searchParams])
   const [sessionTimeout, setSessionTimeout] = useState(60) // En minutes, défaut 1 minute
   const [maxImageSizeMB, setMaxImageSizeMB] = useState(5) // En Mo, défaut 5 Mo
+  const [maxPhotosPerType, setMaxPhotosPerType] = useState(50) // Nombre max de photos par type, défaut 50
+  const [maxPhotosPerTask, setMaxPhotosPerTask] = useState(5) // Nombre max de photos par tâche, défaut 5
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [userRole, setUserRole] = useState<string | null>(null)
@@ -181,6 +183,8 @@ function ParametresPageContent() {
           const data = await response.json()
           setSessionTimeout(data.sessionTimeout || 60)
           setMaxImageSizeMB(data.maxImageSizeMB || 5)
+          setMaxPhotosPerType(data.maxPhotosPerType || 50)
+          setMaxPhotosPerTask(data.maxPhotosPerTask || 5)
         }
       } catch (error) {
         console.error("Error loading settings:", error)
@@ -952,6 +956,16 @@ function ParametresPageContent() {
       return
     }
 
+    if (maxPhotosPerType < 1 || maxPhotosPerType > 1000) {
+      alert("Le nombre maximum de photos par type doit être entre 1 et 1000")
+      return
+    }
+
+    if (maxPhotosPerTask < 1 || maxPhotosPerTask > 100) {
+      alert("Le nombre maximum de photos par tâche doit être entre 1 et 100")
+      return
+    }
+
     setSaving(true)
     try {
       const response = await apiFetch("/api/settings", {
@@ -959,6 +973,8 @@ function ParametresPageContent() {
         body: JSON.stringify({
           sessionTimeout: Number(sessionTimeout), // S'assurer que c'est un nombre
           maxImageSizeMB: Number(maxImageSizeMB), // S'assurer que c'est un nombre
+          maxPhotosPerType: Number(maxPhotosPerType), // S'assurer que c'est un nombre
+          maxPhotosPerTask: Number(maxPhotosPerTask), // S'assurer que c'est un nombre
         }),
       })
 
@@ -1099,6 +1115,40 @@ function ParametresPageContent() {
                 />
                 <p className="text-sm text-muted-foreground">
                   Taille maximale autorisée pour l&apos;upload d&apos;images (entre 1 et 100 Mo). Les images déjà importées avec une taille supérieure seront conservées.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="max-photos-per-type">
+                  Nombre maximum de photos par type
+                </Label>
+                <Input
+                  id="max-photos-per-type"
+                  type="number"
+                  min="1"
+                  max="1000"
+                  value={maxPhotosPerType}
+                  onChange={(e) => setMaxPhotosPerType(Number(e.target.value))}
+                  placeholder="50"
+                />
+                <p className="text-sm text-muted-foreground">
+                  Nombre maximum de photos autorisées par type de photo dans un groupe (entre 1 et 1000).
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="max-photos-per-task">
+                  Nombre maximum de photos par tâche
+                </Label>
+                <Input
+                  id="max-photos-per-task"
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={maxPhotosPerTask}
+                  onChange={(e) => setMaxPhotosPerTask(Number(e.target.value))}
+                  placeholder="5"
+                />
+                <p className="text-sm text-muted-foreground">
+                  Nombre maximum de photos autorisées par tâche (entre 1 et 100).
                 </p>
               </div>
               <Button onClick={handleSave} disabled={saving} className="gap-2">
