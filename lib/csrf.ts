@@ -25,10 +25,16 @@ export async function getCSRFToken(): Promise<string | null> {
  */
 export async function setCSRFToken(token: string): Promise<void> {
   const cookieStore = await cookies()
+  // Détecter automatiquement si on est en HTTPS ou HTTP
+  // En production avec HTTPS, secure: true est requis par OWASP
+  // En développement local avec HTTP, secure: false est nécessaire
+  const isSecure = process.env.NODE_ENV === "production" && 
+                   process.env.ALLOW_INSECURE_COOKIES !== "true"
+  
   cookieStore.set(CSRF_TOKEN_COOKIE, token, {
     httpOnly: true,
-    secure: false, // Désactivé pour permettre l'accès via IP en HTTP
-    sameSite: "lax", // Changé de "strict" à "lax" pour permettre la redirection
+    secure: isSecure, // true en production HTTPS, false en développement HTTP
+    sameSite: "lax", // OWASP recommande "lax" (équilibre sécurité/fonctionnalité)
     maxAge: 60 * 60 * 24, // 24 heures
     path: "/",
   })
@@ -41,10 +47,16 @@ export async function setCSRFToken(token: string): Promise<void> {
 export async function createCSRFToken(response?: any): Promise<string> {
   const token = generateCSRFToken()
   
+  // Détecter automatiquement si on est en HTTPS ou HTTP
+  // En production avec HTTPS, secure: true est requis par OWASP
+  // En développement local avec HTTP, secure: false est nécessaire
+  const isSecure = process.env.NODE_ENV === "production" && 
+                   process.env.ALLOW_INSECURE_COOKIES !== "true"
+  
   const cookieOptions = {
     httpOnly: true,
-    secure: false, // Désactivé pour permettre l'accès via IP en HTTP
-    sameSite: "lax" as const, // Changé de "strict" à "lax" pour permettre la redirection
+    secure: isSecure, // true en production HTTPS, false en développement HTTP
+    sameSite: "lax" as const, // OWASP recommande "lax" (équilibre sécurité/fonctionnalité)
     maxAge: 60 * 60 * 24, // 24 heures
     path: "/",
   }

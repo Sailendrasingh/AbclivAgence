@@ -208,8 +208,10 @@
    - Validation de la présence des variables critiques en production
 4. **Cookies sécurisés** : ✅ **VERIFIÉ** - Configuration correcte selon l'environnement
    - `httpOnly: true` (protection XSS)
-   - `secure: true` en production (HTTPS uniquement)
-   - `sameSite: "lax"` (protection CSRF)
+   - `secure: true` en production (HTTPS uniquement) - Détection automatique via NODE_ENV
+   - `secure: false` en développement local (HTTP) - Permet l'accès via IP pour les tests
+   - `sameSite: "lax"` (protection CSRF) - Recommandation OWASP pour équilibrer sécurité et fonctionnalité
+   - **Note** : Pour forcer `secure: false` en production (non recommandé), définir `ALLOW_INSECURE_COOKIES=true`
 5. **Optimisation du cache des images** : ✅ **VERIFIÉ** - En-têtes HTTP de cache optimisés
    - `Cache-Control: public, max-age=31536000, immutable` pour les assets statiques
    - `ETag` et `Last-Modified` pour validation conditionnelle

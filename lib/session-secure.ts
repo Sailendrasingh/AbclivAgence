@@ -64,11 +64,16 @@ export async function createSecureSession(userId: string, response?: any): Promi
   })
 
   // Définir le cookie de session
-  // Désactiver secure pour permettre l'accès via IP en HTTP (développement local)
+  // Détecter automatiquement si on est en HTTPS ou HTTP
+  // En production avec HTTPS, secure: true est requis par OWASP
+  // En développement local avec HTTP, secure: false est nécessaire
+  const isSecure = process.env.NODE_ENV === "production" && 
+                   process.env.ALLOW_INSECURE_COOKIES !== "true"
+  
   const cookieOptions = {
     httpOnly: true,
-    secure: false, // Désactivé pour permettre l'accès via IP en HTTP
-    sameSite: "lax" as const,
+    secure: isSecure, // true en production HTTPS, false en développement HTTP
+    sameSite: "lax" as const, // OWASP recommande "lax" (équilibre sécurité/fonctionnalité)
     maxAge: 60 * 60 * 24 * 7, // 7 jours
     path: "/",
   }

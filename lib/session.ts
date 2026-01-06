@@ -89,11 +89,20 @@ export async function createSession(userId: string): Promise<void> {
         ;(global as any).__sessionFallbackLogged = true
       }
       const cookieStore = await (await import("next/headers")).cookies()
+      // Détecter automatiquement si on est en HTTPS ou HTTP
+      // En production avec HTTPS, secure: true est requis par OWASP
+      // En développement local avec HTTP, secure: false est nécessaire
+      const isSecure = process.env.NODE_ENV === "production" && 
+                       process.env.ALLOW_INSECURE_COOKIES !== "true"
+      
       cookieStore.set("session", userId, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
+        secure: isSecure, // true en production HTTPS, false en développement HTTP
+        sameSite: "lax", // OWASP recommande "lax" (équilibre sécurité/fonctionnalité)
         maxAge: 60 * 60 * 24 * 7, // 7 jours
+        path: "/",
+        // Ne pas définir de domaine pour permettre l'accès via IP et localhost
+        // domain: undefined
       })
       return
     }
