@@ -133,6 +133,29 @@ export async function GET(request: NextRequest) {
       }
     })
 
+    // 5. Photos dans Task (JSON array)
+    const tasks = await prisma.task.findMany({
+      where: { photos: { not: null } },
+      select: { photos: true },
+    })
+    tasks.forEach((task) => {
+      if (task.photos) {
+        try {
+          const photos = JSON.parse(task.photos)
+          if (Array.isArray(photos)) {
+            photos.forEach((photo: string) => {
+              if (photo && typeof photo === "string") {
+                referencedPaths.add(photo)
+                referencedPaths.add(join(process.cwd(), photo))
+              }
+            })
+          }
+        } catch {
+          // Ignorer les erreurs de parsing JSON
+        }
+      }
+    })
+
     // Fonction récursive pour scanner un dossier
     async function scanDirectory(dir: string, relativePath: string = "") {
       try {
