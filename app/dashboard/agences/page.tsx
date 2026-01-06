@@ -1437,7 +1437,7 @@ export default function AgencesPage() {
     setIsImageDragging(false)
   }
 
-  const handleImageClick = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleTaskImageClick = (e: React.MouseEvent<HTMLDivElement>) => {
     // Ne naviguer que si on n'a pas dragué et qu'il y a plusieurs images
     if (!imageHasDragged && viewingImageList.length > 1 && imageZoom === 1) {
       const rect = e.currentTarget.getBoundingClientRect()
