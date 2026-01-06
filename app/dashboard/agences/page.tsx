@@ -171,6 +171,7 @@ interface Task {
   closedBy: string | null
   notes: string
   importance: "URGENT" | "CRITIQUE" | "INFO"
+  photos: string | null
   creator: {
     id: string
     login: string
@@ -294,7 +295,10 @@ export default function AgencesPage() {
     createdAt: "",
     notes: "",
     importance: "INFO" as "URGENT" | "CRITIQUE" | "INFO",
+    photos: [] as string[],
   })
+  const [taskPhotos, setTaskPhotos] = useState<Array<{ path: string; preview?: string }>>([])
+  const [viewingImage, setViewingImage] = useState<string | null>(null)
   const [taskFilter, setTaskFilter] = useState<"ALL" | "URGENT" | "CRITIQUE" | "INFO">("ALL")
   const [showClosedTasks, setShowClosedTasks] = useState(true)
   const [expandedTaskNotes, setExpandedTaskNotes] = useState<Record<string, boolean>>({})
@@ -1346,18 +1350,30 @@ export default function AgencesPage() {
       createdAt: new Date().toISOString().slice(0, 16),
       notes: "",
       importance: "INFO",
+      photos: [],
     })
+    setTaskPhotos([])
     setIsTaskDialogOpen(true)
   }
 
   const handleEditTask = (task: Task) => {
     setEditingTask(task)
+    let photos: string[] = []
+    if (task.photos) {
+      try {
+        photos = JSON.parse(task.photos)
+      } catch {
+        photos = []
+      }
+    }
     setTaskFormData({
       title: task.title,
       createdAt: new Date(task.createdAt).toISOString().slice(0, 16),
       notes: task.notes,
       importance: task.importance,
+      photos,
     })
+    setTaskPhotos(photos.map(path => ({ path })))
     setIsTaskEditDialogOpen(true)
   }
 
@@ -1380,6 +1396,7 @@ export default function AgencesPage() {
           createdAt: taskFormData.createdAt,
           notes: taskFormData.notes,
           importance: taskFormData.importance,
+          photos: taskFormData.photos,
         }),
       })
 
@@ -1421,6 +1438,7 @@ export default function AgencesPage() {
           createdAt: taskFormData.createdAt,
           notes: taskFormData.notes,
           importance: taskFormData.importance,
+          photos: taskFormData.photos,
         }),
       })
 
@@ -3407,6 +3425,31 @@ export default function AgencesPage() {
                                   {/* Description */}
                                   <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{task.notes}</p>
 
+                                  {/* Photos */}
+                                  {task.photos && (() => {
+                                    try {
+                                      const photos = JSON.parse(task.photos)
+                                      if (Array.isArray(photos) && photos.length > 0) {
+                                        return (
+                                          <div className="flex flex-wrap gap-2 mb-4">
+                                            {photos.map((photoPath: string, photoIndex: number) => (
+                                              <img
+                                                key={photoIndex}
+                                                src={photoPath}
+                                                alt={`Photo ${photoIndex + 1}`}
+                                                className="w-16 h-16 object-cover rounded border cursor-pointer hover:opacity-80 transition-opacity"
+                                                onClick={() => setViewingImage(photoPath)}
+                                              />
+                                            ))}
+                                          </div>
+                                        )
+                                      }
+                                    } catch {
+                                      return null
+                                    }
+                                    return null
+                                  })()}
+
                                   {/* Informations de création */}
                                   {!isClosed ? (
                                     <div className="flex items-center gap-2 mb-2">
@@ -3613,6 +3656,31 @@ export default function AgencesPage() {
                                         </button>
                                       )}
                                     </div>
+
+                                    {/* Photos */}
+                                    {task.photos && (() => {
+                                      try {
+                                        const photos = JSON.parse(task.photos)
+                                        if (Array.isArray(photos) && photos.length > 0) {
+                                          return (
+                                            <div className="flex flex-wrap gap-2 mb-4">
+                                              {photos.map((photoPath: string, photoIndex: number) => (
+                                                <img
+                                                  key={photoIndex}
+                                                  src={photoPath}
+                                                  alt={`Photo ${photoIndex + 1}`}
+                                                  className="w-16 h-16 object-cover rounded border cursor-pointer hover:opacity-80 transition-opacity"
+                                                  onClick={() => setViewingImage(photoPath)}
+                                                />
+                                              ))}
+                                            </div>
+                                          )
+                                        }
+                                      } catch {
+                                        return null
+                                      }
+                                      return null
+                                    })()}
 
                                     {/* Informations de création */}
                                     {!isClosed ? (
@@ -5930,12 +5998,114 @@ export default function AgencesPage() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="task-photos">Photos (max 5)</Label>
+              <Input
+                id="task-photos"
+                type="file"
+                accept="image/jpeg,image/png"
+                multiple
+                onChange={async (e) => {
+                  const files = Array.from(e.target.files || [])
+                  if (taskFormData.photos.length + files.length > 5) {
+                    alert("Maximum 5 photos autorisées")
+                    return
+                  }
+                  for (const file of files) {
+                    const formData = new FormData()
+                    formData.append("file", file)
+                    const csrfToken = await fetchCSRFToken()
+                    if (csrfToken) {
+                      formData.append("_csrf", csrfToken)
+                    }
+                    try {
+                      const response = await apiFetch("/api/upload", {
+                        method: "POST",
+                        body: formData,
+                        skipCSRF: true,
+                      })
+                      if (response.ok) {
+                        const data = await response.json()
+                        setTaskFormData((prev) => ({
+                          ...prev,
+                          photos: [...prev.photos, data.path],
+                        }))
+                        setTaskPhotos((prev) => [...prev, { path: data.path, preview: URL.createObjectURL(file) }])
+                      } else {
+                        const error = await response.json()
+                        alert(error.error || "Erreur lors de l'upload")
+                      }
+                    } catch (error) {
+                      console.error("Error uploading photo:", error)
+                      alert("Erreur lors de l'upload")
+                    }
+                  }
+                  e.target.value = ""
+                }}
+                disabled={taskFormData.photos.length >= 5}
+              />
+              {taskFormData.photos.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {taskPhotos.map((photo, index) => (
+                    <div key={index} className="relative group">
+                      <img
+                        src={photo.preview || photo.path}
+                        alt={`Photo ${index + 1}`}
+                        className="w-20 h-20 object-cover rounded border cursor-pointer hover:opacity-80"
+                        onClick={() => setViewingImage(photo.path)}
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => {
+                          setTaskFormData((prev) => ({
+                            ...prev,
+                            photos: prev.photos.filter((_, i) => i !== index),
+                          }))
+                          setTaskPhotos((prev) => prev.filter((_, i) => i !== index))
+                        }}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {taskFormData.photos.length >= 5 && (
+                <p className="text-sm text-muted-foreground">Maximum 5 photos atteint</p>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsTaskDialogOpen(false)}>
               Annuler
             </Button>
             <Button onClick={handleSaveTask}>Enregistrer</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog pour voir l'image en grand */}
+      <Dialog open={!!viewingImage} onOpenChange={(open) => !open && setViewingImage(null)}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Photo</DialogTitle>
+          </DialogHeader>
+          {viewingImage && (
+            <div className="flex justify-center">
+              <img
+                src={viewingImage}
+                alt="Photo agrandie"
+                className="max-w-full max-h-[80vh] object-contain rounded"
+              />
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewingImage(null)}>
+              Fermer
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -5996,6 +6166,85 @@ export default function AgencesPage() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="task-edit-photos">Photos (max 5)</Label>
+              <Input
+                id="task-edit-photos"
+                type="file"
+                accept="image/jpeg,image/png"
+                multiple
+                onChange={async (e) => {
+                  const files = Array.from(e.target.files || [])
+                  if (taskFormData.photos.length + files.length > 5) {
+                    alert("Maximum 5 photos autorisées")
+                    return
+                  }
+                  for (const file of files) {
+                    const formData = new FormData()
+                    formData.append("file", file)
+                    const csrfToken = await fetchCSRFToken()
+                    if (csrfToken) {
+                      formData.append("_csrf", csrfToken)
+                    }
+                    try {
+                      const response = await apiFetch("/api/upload", {
+                        method: "POST",
+                        body: formData,
+                        skipCSRF: true,
+                      })
+                      if (response.ok) {
+                        const data = await response.json()
+                        setTaskFormData((prev) => ({
+                          ...prev,
+                          photos: [...prev.photos, data.path],
+                        }))
+                        setTaskPhotos((prev) => [...prev, { path: data.path, preview: URL.createObjectURL(file) }])
+                      } else {
+                        const error = await response.json()
+                        alert(error.error || "Erreur lors de l'upload")
+                      }
+                    } catch (error) {
+                      console.error("Error uploading photo:", error)
+                      alert("Erreur lors de l'upload")
+                    }
+                  }
+                  e.target.value = ""
+                }}
+                disabled={taskFormData.photos.length >= 5}
+              />
+              {taskFormData.photos.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {taskPhotos.map((photo, index) => (
+                    <div key={index} className="relative group">
+                      <img
+                        src={photo.preview || photo.path}
+                        alt={`Photo ${index + 1}`}
+                        className="w-20 h-20 object-cover rounded border cursor-pointer hover:opacity-80"
+                        onClick={() => setViewingImage(photo.path)}
+                      />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => {
+                          setTaskFormData((prev) => ({
+                            ...prev,
+                            photos: prev.photos.filter((_, i) => i !== index),
+                          }))
+                          setTaskPhotos((prev) => prev.filter((_, i) => i !== index))
+                        }}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {taskFormData.photos.length >= 5 && (
+                <p className="text-sm text-muted-foreground">Maximum 5 photos atteint</p>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => {
@@ -6006,7 +6255,9 @@ export default function AgencesPage() {
                 createdAt: "",
                 notes: "",
                 importance: "INFO",
+                photos: [],
               })
+              setTaskPhotos([])
             }}>
               Annuler
             </Button>

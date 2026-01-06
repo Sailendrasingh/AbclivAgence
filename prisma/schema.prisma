@@ -259,6 +259,7 @@ model Task {
   closedBy    String?
   notes       String
   importance  String    @default("INFO") // URGENT, CRITIQUE, INFO
+  photos      String?   // JSON array de chemins de photos (max 5)
   updatedAt   DateTime  @updatedAt
   agency      Agency    @relation(fields: [agencyId], references: [id], onDelete: Cascade)
   creator     User      @relation("TaskCreator", fields: [createdBy], references: [id])

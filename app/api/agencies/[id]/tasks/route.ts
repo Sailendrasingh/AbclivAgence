@@ -73,7 +73,7 @@ export async function POST(
     }
 
     const body = await request.json()
-    const { title, createdAt, notes, importance } = body
+    const { title, createdAt, notes, importance, photos } = body
 
     // Validation
     if (!title || title.trim() === "") {
@@ -109,6 +109,24 @@ export async function POST(
       )
     }
 
+    // Valider les photos (max 5)
+    let photosJson = null
+    if (photos) {
+      if (!Array.isArray(photos)) {
+        return NextResponse.json(
+          { error: "photos doit être un tableau" },
+          { status: 400 }
+        )
+      }
+      if (photos.length > 5) {
+        return NextResponse.json(
+          { error: "Maximum 5 photos autorisées" },
+          { status: 400 }
+        )
+      }
+      photosJson = JSON.stringify(photos)
+    }
+
     // Créer la tâche
     const task = await prisma.task.create({
       data: {
@@ -117,6 +135,7 @@ export async function POST(
         title: title.trim(),
         notes: notes.trim(),
         importance,
+        photos: photosJson,
         createdAt: createdAt ? new Date(createdAt) : new Date(),
       },
       include: {

@@ -24,7 +24,7 @@ export async function PUT(
     }
 
     const body = await request.json()
-    const { title, createdAt, notes, importance, closedAt } = body
+    const { title, createdAt, notes, importance, closedAt, photos } = body
 
     // Vérifier que la tâche existe et appartient à l'agence
     const existingTask = await prisma.task.findFirst({
@@ -86,6 +86,28 @@ export async function PUT(
       )
     }
 
+    // Valider les photos (max 5)
+    let photosJson = undefined
+    if (photos !== undefined) {
+      if (photos === null) {
+        photosJson = null
+      } else {
+        if (!Array.isArray(photos)) {
+          return NextResponse.json(
+            { error: "photos doit être un tableau" },
+            { status: 400 }
+          )
+        }
+        if (photos.length > 5) {
+          return NextResponse.json(
+            { error: "Maximum 5 photos autorisées" },
+            { status: 400 }
+          )
+        }
+        photosJson = photos.length > 0 ? JSON.stringify(photos) : null
+      }
+    }
+
     // Mettre à jour la tâche
     const updatedTask = await prisma.task.update({
       where: { id: taskId },
@@ -97,6 +119,7 @@ export async function PUT(
           notes: notes.trim()
         }),
         ...(importance && { importance }),
+        ...(photosJson !== undefined && { photos: photosJson }),
         ...(closedAt !== undefined && {
           closedAt: closedAt ? new Date(closedAt) : null,
           closedBy: closedAt ? session.id : null,
