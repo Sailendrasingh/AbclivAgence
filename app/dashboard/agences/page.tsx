@@ -1333,11 +1333,14 @@ export default function AgencesPage() {
         const data = await response.json()
         setTasks(data)
       } else {
-        console.error("Error loading tasks")
+        const errorData = await response.json().catch(() => ({ error: "Erreur inconnue" }))
+        console.error("Error loading tasks:", response.status, errorData)
+        alert(`Erreur lors du chargement des tâches: ${errorData.error || "Erreur serveur"}`)
         setTasks([])
       }
     } catch (error) {
       console.error("Error loading tasks:", error)
+      alert(`Erreur lors du chargement des tâches: ${error instanceof Error ? error.message : "Erreur inconnue"}`)
       setTasks([])
     } finally {
       setLoadingTasks(false)

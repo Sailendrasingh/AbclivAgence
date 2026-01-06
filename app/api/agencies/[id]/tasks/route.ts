@@ -51,9 +51,45 @@ export async function GET(
       message: error?.message,
       code: error?.code,
       meta: error?.meta,
+      stack: error?.stack,
     })
+    
+    // Si c'est une erreur Prisma liée au champ photos, essayer sans le champ
+    if (error?.code === 'P2001' || error?.message?.includes('photos') || error?.message?.includes('column')) {
+      console.error("Erreur potentiellement liée au champ photos, tentative sans normalisation...")
+      try {
+        const tasksRaw = await prisma.task.findMany({
+          where: { agencyId: id },
+          include: {
+            creator: {
+              select: {
+                id: true,
+                login: true,
+              },
+            },
+            closer: {
+              select: {
+                id: true,
+                login: true,
+              },
+            },
+          },
+          orderBy: {
+            createdAt: "desc",
+          },
+        })
+        return NextResponse.json(tasksRaw)
+      } catch (retryError: any) {
+        console.error("Erreur lors de la tentative de récupération sans normalisation:", retryError)
+      }
+    }
+    
     return NextResponse.json(
-      { error: "Erreur serveur", details: process.env.NODE_ENV === "development" ? error?.message : undefined },
+      { 
+        error: "Erreur serveur", 
+        details: process.env.NODE_ENV === "development" ? error?.message : undefined,
+        code: error?.code,
+      },
       { status: 500 }
     )
   }
