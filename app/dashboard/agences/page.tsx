@@ -415,8 +415,21 @@ export default function AgencesPage() {
       }
     }
 
-    // Exécuter fetchUserRole en premier, puis loadAgencies
-    fetchUserRole().then(() => {
+    // Charger la taille maximale des images depuis les paramètres
+    const loadMaxImageSize = async () => {
+      try {
+        const response = await apiFetch("/api/settings")
+        if (response.ok) {
+          const data = await response.json()
+          setMaxImageSizeMB(data.maxImageSizeMB || 5)
+        }
+      } catch (error) {
+        console.error("Error loading max image size:", error)
+      }
+    }
+
+    // Exécuter fetchUserRole et loadMaxImageSize en premier, puis loadAgencies
+    Promise.all([fetchUserRole(), loadMaxImageSize()]).then(() => {
       loadAgencies()
     })
   }, [loadAgencies, isMounted])
