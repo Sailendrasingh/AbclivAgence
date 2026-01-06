@@ -268,6 +268,7 @@ export async function POST(request: NextRequest) {
       const csrfToken = await createCSRFToken()
 
       // Créer la réponse avec le token CSRF
+      // Les cookies sont déjà définis par createSecureSession et createCSRFToken
       const response = NextResponse.json({ 
         success: true,
         csrfToken, // Retourner le token CSRF au client

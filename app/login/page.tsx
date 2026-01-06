@@ -67,6 +67,16 @@ export default function LoginPage() {
       }
 
       console.log("Login successful, redirecting...")
+      console.log("Response headers:", response.headers)
+      console.log("Cookies:", document.cookie)
+
+      // Attendre un court délai pour s'assurer que le cookie de session est bien défini
+      // et que le navigateur a le temps de le traiter
+      await new Promise(resolve => setTimeout(resolve, 200))
+
+      // Vérifier que le cookie de session est présent avant de rediriger
+      const hasSessionCookie = document.cookie.includes("session=")
+      console.log("Session cookie present:", hasSessionCookie)
 
       // Si le 2FA doit être configuré, rediriger vers la page de configuration
       if (data.requiresTwoFactorSetup) {
