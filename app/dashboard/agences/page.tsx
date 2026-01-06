@@ -305,7 +305,7 @@ export default function AgencesPage() {
   const [imageZoom, setImageZoom] = useState(1)
   const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 })
   const [isImageDragging, setIsImageDragging] = useState(false)
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const [imageDragStart, setImageDragStart] = useState({ x: 0, y: 0 })
   const [taskFilter, setTaskFilter] = useState<"ALL" | "URGENT" | "CRITIQUE" | "INFO">("ALL")
   const [showClosedTasks, setShowClosedTasks] = useState(true)
   const [expandedTaskNotes, setExpandedTaskNotes] = useState<Record<string, boolean>>({})
@@ -1413,15 +1413,15 @@ export default function AgencesPage() {
   const handleImageMouseDown = (e: React.MouseEvent) => {
     if (imageZoom > 1) {
       setIsImageDragging(true)
-      setDragStart({ x: e.clientX - imagePosition.x, y: e.clientY - imagePosition.y })
+      setImageDragStart({ x: e.clientX - imagePosition.x, y: e.clientY - imagePosition.y })
     }
   }
 
   const handleImageMouseMove = (e: React.MouseEvent) => {
     if (isImageDragging && imageZoom > 1) {
       setImagePosition({
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y,
+        x: e.clientX - imageDragStart.x,
+        y: e.clientY - imageDragStart.y,
       })
     }
   }
