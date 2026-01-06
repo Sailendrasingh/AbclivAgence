@@ -51,6 +51,7 @@ function ParametresPageContent() {
     setActiveTab(tab)
   }, [searchParams])
   const [sessionTimeout, setSessionTimeout] = useState(60) // En minutes, défaut 1 minute
+  const [maxImageSizeMB, setMaxImageSizeMB] = useState(5) // En Mo, défaut 5 Mo
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [userRole, setUserRole] = useState<string | null>(null)
@@ -179,6 +180,7 @@ function ParametresPageContent() {
         if (response.ok) {
           const data = await response.json()
           setSessionTimeout(data.sessionTimeout || 60)
+          setMaxImageSizeMB(data.maxImageSizeMB || 5)
         }
       } catch (error) {
         console.error("Error loading settings:", error)
@@ -945,12 +947,18 @@ function ParametresPageContent() {
       return
     }
 
+    if (maxImageSizeMB < 1 || maxImageSizeMB > 100) {
+      alert("La taille maximale des images doit être entre 1 et 100 Mo")
+      return
+    }
+
     setSaving(true)
     try {
       const response = await apiFetch("/api/settings", {
         method: "PUT",
         body: JSON.stringify({
           sessionTimeout: Number(sessionTimeout), // S'assurer que c'est un nombre
+          maxImageSizeMB: Number(maxImageSizeMB), // S'assurer que c'est un nombre
         }),
       })
 
@@ -1074,6 +1082,23 @@ function ParametresPageContent() {
                 />
                 <p className="text-sm text-muted-foreground">
                   Durée d&apos;inactivité avant déconnexion automatique (minimum 1 minute)
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="max-image-size">
+                  Taille maximale des images (en Mo)
+                </Label>
+                <Input
+                  id="max-image-size"
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={maxImageSizeMB}
+                  onChange={(e) => setMaxImageSizeMB(Number(e.target.value))}
+                  placeholder="5"
+                />
+                <p className="text-sm text-muted-foreground">
+                  Taille maximale autorisée pour l&apos;upload d&apos;images (entre 1 et 100 Mo). Les images déjà importées avec une taille supérieure seront conservées.
                 </p>
               </div>
               <Button onClick={handleSave} disabled={saving} className="gap-2">

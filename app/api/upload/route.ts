@@ -6,8 +6,22 @@ import { createLog } from "@/lib/logs"
 import exifr from "exifr"
 import { requireCSRF } from "@/lib/csrf-middleware"
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5 MB
 const ALLOWED_TYPES = ["image/jpeg", "image/png"]
+
+// Fonction pour récupérer la taille maximale depuis les paramètres
+async function getMaxFileSize(): Promise<number> {
+  try {
+    const { prisma } = await import("@/lib/prisma")
+    const settings = await prisma.appSettings.findUnique({
+      where: { id: "settings" },
+      select: { maxImageSizeMB: true },
+    })
+    return (settings?.maxImageSizeMB || 5) * 1024 * 1024 // Convertir Mo en octets
+  } catch (error) {
+    console.warn("Erreur lors de la récupération de la taille maximale, utilisation de 5 Mo par défaut:", error)
+    return 5 * 1024 * 1024 // 5 MB par défaut
+  }
+}
 
 // Magic bytes pour vérifier le vrai type de fichier
 const MAGIC_BYTES: Record<string, number[]> = {
@@ -78,10 +92,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Récupérer la taille maximale depuis les paramètres
+    const MAX_FILE_SIZE = await getMaxFileSize()
+    const maxSizeMB = MAX_FILE_SIZE / (1024 * 1024)
+
     // Vérifier la taille
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
-        { error: "Fichier trop volumineux. Maximum 5 MB." },
+        { error: `Fichier trop volumineux. Maximum ${maxSizeMB} MB.` },
         { status: 400 }
       )
     }
