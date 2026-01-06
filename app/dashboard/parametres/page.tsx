@@ -1119,7 +1119,7 @@ function ParametresPageContent() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="max-photos-per-type">
-                  Nombre maximum de photos par type
+                  Nombre maximum de photos par type de photo
                 </Label>
                 <Input
                   id="max-photos-per-type"
