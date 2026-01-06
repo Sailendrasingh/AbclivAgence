@@ -306,6 +306,7 @@ export default function AgencesPage() {
   const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 })
   const [isImageDragging, setIsImageDragging] = useState(false)
   const [imageDragStart, setImageDragStart] = useState({ x: 0, y: 0 })
+  const [imageHasDragged, setImageHasDragged] = useState(false)
   const [taskFilter, setTaskFilter] = useState<"ALL" | "URGENT" | "CRITIQUE" | "INFO">("ALL")
   const [showClosedTasks, setShowClosedTasks] = useState(true)
   const [expandedTaskNotes, setExpandedTaskNotes] = useState<Record<string, boolean>>({})
@@ -1413,12 +1414,17 @@ export default function AgencesPage() {
   const handleImageMouseDown = (e: React.MouseEvent) => {
     if (imageZoom > 1) {
       setIsImageDragging(true)
+      setImageHasDragged(false)
       setImageDragStart({ x: e.clientX - imagePosition.x, y: e.clientY - imagePosition.y })
+    } else {
+      // Si pas zoomé, on peut naviguer au clic
+      setImageHasDragged(false)
     }
   }
 
   const handleImageMouseMove = (e: React.MouseEvent) => {
     if (isImageDragging && imageZoom > 1) {
+      setImageHasDragged(true)
       setImagePosition({
         x: e.clientX - imageDragStart.x,
         y: e.clientY - imageDragStart.y,
@@ -1428,6 +1434,28 @@ export default function AgencesPage() {
 
   const handleImageMouseUp = () => {
     setIsImageDragging(false)
+  }
+
+  const handleImageClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Ne naviguer que si on n'a pas dragué et qu'il y a plusieurs images
+    if (!imageHasDragged && viewingImageList.length > 1 && imageZoom === 1) {
+      const rect = e.currentTarget.getBoundingClientRect()
+      const clickX = e.clientX - rect.left
+      const width = rect.width
+      const middleX = width / 2
+
+      // Clic sur la partie gauche = photo précédente
+      // Clic sur la partie droite = photo suivante
+      if (clickX < middleX) {
+        handlePrevImage()
+      } else {
+        handleNextImage()
+      }
+    } else if (imageZoom > 1 && !imageHasDragged) {
+      // Si zoomé et qu'on n'a pas dragué, réinitialiser le zoom
+      setImageZoom(1)
+      setImagePosition({ x: 0, y: 0 })
+    }
   }
 
   const handleNextImage = () => {
