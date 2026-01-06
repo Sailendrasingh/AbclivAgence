@@ -38,7 +38,13 @@ export async function GET(
       },
     })
 
-    return NextResponse.json(tasks)
+    // Normaliser les photos pour s'assurer que null est bien géré
+    const normalizedTasks = tasks.map(task => ({
+      ...task,
+      photos: task.photos || null, // S'assurer que null est explicite
+    }))
+
+    return NextResponse.json(normalizedTasks)
   } catch (error: any) {
     console.error("Error fetching tasks:", error)
     console.error("Error details:", {
