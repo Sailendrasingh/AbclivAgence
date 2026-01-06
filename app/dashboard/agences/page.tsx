@@ -6013,7 +6013,7 @@ export default function AgencesPage() {
                 multiple
                 onChange={async (e) => {
                   const files = Array.from(e.target.files || [])
-                  if (taskFormData.photos.length + files.length > 5) {
+                  if ((taskFormData.photos?.length || 0) + files.length > 5) {
                     alert("Maximum 5 photos autorisées")
                     return
                   }
@@ -6034,7 +6034,7 @@ export default function AgencesPage() {
                         const data = await response.json()
                         setTaskFormData((prev) => ({
                           ...prev,
-                          photos: [...prev.photos, data.path],
+                          photos: [...(prev.photos || []), data.path],
                         }))
                         setTaskPhotos((prev) => [...prev, { path: data.path, preview: URL.createObjectURL(file) }])
                       } else {
@@ -6048,9 +6048,9 @@ export default function AgencesPage() {
                   }
                   e.target.value = ""
                 }}
-                disabled={taskFormData.photos.length >= 5}
+                disabled={(taskFormData.photos?.length || 0) >= 5}
               />
-              {taskFormData.photos.length > 0 && (
+              {(taskFormData.photos?.length || 0) > 0 && (
                 <div className="flex flex-wrap gap-2 mt-2">
                   {taskPhotos.map((photo, index) => (
                     <div key={index} className="relative group">
@@ -6068,7 +6068,7 @@ export default function AgencesPage() {
                         onClick={() => {
                           setTaskFormData((prev) => ({
                             ...prev,
-                            photos: prev.photos.filter((_, i) => i !== index),
+                            photos: (prev.photos || []).filter((_, i) => i !== index),
                           }))
                           setTaskPhotos((prev) => prev.filter((_, i) => i !== index))
                         }}
@@ -6079,7 +6079,7 @@ export default function AgencesPage() {
                   ))}
                 </div>
               )}
-              {taskFormData.photos.length >= 5 && (
+              {(taskFormData.photos?.length || 0) >= 5 && (
                 <p className="text-sm text-muted-foreground">Maximum 5 photos atteint</p>
               )}
             </div>
@@ -6181,7 +6181,7 @@ export default function AgencesPage() {
                 multiple
                 onChange={async (e) => {
                   const files = Array.from(e.target.files || [])
-                  if (taskFormData.photos.length + files.length > 5) {
+                  if ((taskFormData.photos?.length || 0) + files.length > 5) {
                     alert("Maximum 5 photos autorisées")
                     return
                   }
@@ -6202,7 +6202,7 @@ export default function AgencesPage() {
                         const data = await response.json()
                         setTaskFormData((prev) => ({
                           ...prev,
-                          photos: [...prev.photos, data.path],
+                          photos: [...(prev.photos || []), data.path],
                         }))
                         setTaskPhotos((prev) => [...prev, { path: data.path, preview: URL.createObjectURL(file) }])
                       } else {
@@ -6216,9 +6216,9 @@ export default function AgencesPage() {
                   }
                   e.target.value = ""
                 }}
-                disabled={taskFormData.photos.length >= 5}
+                disabled={(taskFormData.photos?.length || 0) >= 5}
               />
-              {taskFormData.photos.length > 0 && (
+              {(taskFormData.photos?.length || 0) > 0 && (
                 <div className="flex flex-wrap gap-2 mt-2">
                   {taskPhotos.map((photo, index) => (
                     <div key={index} className="relative group">
@@ -6236,7 +6236,7 @@ export default function AgencesPage() {
                         onClick={() => {
                           setTaskFormData((prev) => ({
                             ...prev,
-                            photos: prev.photos.filter((_, i) => i !== index),
+                            photos: (prev.photos || []).filter((_, i) => i !== index),
                           }))
                           setTaskPhotos((prev) => prev.filter((_, i) => i !== index))
                         }}
@@ -6247,7 +6247,7 @@ export default function AgencesPage() {
                   ))}
                 </div>
               )}
-              {taskFormData.photos.length >= 5 && (
+              {(taskFormData.photos?.length || 0) >= 5 && (
                 <p className="text-sm text-muted-foreground">Maximum 5 photos atteint</p>
               )}
             </div>
