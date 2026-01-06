@@ -29,9 +29,10 @@ function generateSessionToken(): string {
 /**
  * Crée une nouvelle session sécurisée pour un utilisateur
  * @param userId - ID de l'utilisateur
+ * @param response - Optionnel : NextResponse sur laquelle définir le cookie
  * @returns Le token de session généré
  */
-export async function createSecureSession(userId: string): Promise<string> {
+export async function createSecureSession(userId: string, response?: any): Promise<string> {
   // Vérifier que l'utilisateur existe et est actif
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -63,14 +64,22 @@ export async function createSecureSession(userId: string): Promise<string> {
   })
 
   // Définir le cookie de session
-  const cookieStore = await cookies()
-  cookieStore.set(SESSION_COOKIE, token, {
+  const cookieOptions = {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    sameSite: "lax" as const,
     maxAge: 60 * 60 * 24 * 7, // 7 jours
     path: "/",
-  })
+  }
+
+  if (response) {
+    // Si une réponse est fournie, définir le cookie dessus
+    response.cookies.set(SESSION_COOKIE, token, cookieOptions)
+  } else {
+    // Sinon, utiliser cookies() pour définir le cookie dans le contexte
+    const cookieStore = await cookies()
+    cookieStore.set(SESSION_COOKIE, token, cookieOptions)
+  }
 
   return token
 }

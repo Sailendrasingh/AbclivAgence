@@ -36,10 +36,27 @@ export async function setCSRFToken(token: string): Promise<void> {
 
 /**
  * Génère un nouveau token CSRF et le définit dans les cookies
+ * @param response - Optionnel : NextResponse sur laquelle définir le cookie
  */
-export async function createCSRFToken(): Promise<string> {
+export async function createCSRFToken(response?: any): Promise<string> {
   const token = generateCSRFToken()
-  await setCSRFToken(token)
+  
+  const cookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict" as const,
+    maxAge: 60 * 60 * 24, // 24 heures
+    path: "/",
+  }
+  
+  if (response) {
+    // Si une réponse est fournie, définir le cookie dessus
+    response.cookies.set(CSRF_TOKEN_COOKIE, token, cookieOptions)
+  } else {
+    // Sinon, utiliser cookies() pour définir le cookie dans le contexte
+    await setCSRFToken(token)
+  }
+  
   return token
 }
 

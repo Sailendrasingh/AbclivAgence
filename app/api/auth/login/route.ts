@@ -262,22 +262,42 @@ export async function POST(request: NextRequest) {
     // Créer une session sécurisée avec token aléatoire
     try {
       const { createSecureSession } = await import("@/lib/session-secure")
-      const sessionToken = await createSecureSession(user.id)
       
-      // Créer un token CSRF pour cette session
-      const csrfToken = await createCSRFToken()
-
-      // Créer la réponse avec le token CSRF
-      // Les cookies sont déjà définis par createSecureSession et createCSRFToken
+      // Créer la réponse d'abord
       const response = NextResponse.json({ 
         success: true,
-        csrfToken, // Retourner le token CSRF au client
         requiresTwoFactorSetup, // Indiquer si le 2FA doit être configuré
+      })
+      
+      // Créer la session et définir le cookie sur la réponse
+      const sessionToken = await createSecureSession(user.id, response)
+      
+      // Créer un token CSRF pour cette session et le définir sur la réponse
+      const csrfToken = await createCSRFToken(response)
+      
+      // Ajouter le token CSRF dans le corps de la réponse
+      const responseData = { 
+        success: true,
+        csrfToken,
+        requiresTwoFactorSetup,
+      }
+      const finalResponse = NextResponse.json(responseData)
+      
+      // Copier tous les cookies de la réponse originale (session + CSRF)
+      response.cookies.getAll().forEach(cookie => {
+        finalResponse.cookies.set(cookie.name, cookie.value, {
+          httpOnly: cookie.httpOnly,
+          secure: cookie.secure,
+          sameSite: cookie.sameSite as any,
+          maxAge: cookie.maxAge,
+          path: cookie.path,
+        })
       })
 
       console.log(`[LOGIN] Session sécurisée créée pour l'utilisateur ${user.login} (${user.id}) avec token ${sessionToken.substring(0, 16)}...`)
+      console.log(`[LOGIN] Cookies dans la réponse:`, finalResponse.cookies.getAll().map(c => c.name))
 
-      return response
+      return finalResponse
     } catch (sessionError: any) {
       console.error("[LOGIN] Erreur lors de createSecureSession:", sessionError)
       // Si le modèle Session n'est pas disponible, utiliser l'ancien système temporairement
