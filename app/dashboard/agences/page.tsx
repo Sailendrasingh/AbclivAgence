@@ -6276,7 +6276,7 @@ export default function AgencesPage() {
                 onMouseMove={handleImageMouseMove}
                 onMouseUp={handleImageMouseUp}
                 onMouseLeave={handleImageMouseUp}
-                onClick={handleImageClick}
+                onClick={handleTaskImageClick}
                 style={{ touchAction: 'none' }}
               >
                 <img
