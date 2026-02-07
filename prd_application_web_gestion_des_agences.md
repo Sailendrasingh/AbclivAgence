@@ -104,7 +104,6 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
 * **@types/qrcode** (^1.5.5) : Types TypeScript pour qrcode
 * **@types/react** (^19.0.6) : Types TypeScript pour React
 * **@types/react-dom** (^19.0.2) : Types TypeScript pour React DOM
-* **@types/uuid** (^10.0.0) : Types TypeScript pour uuid (si utilisé)
 * **@types/validator** (^13.15.10) : Types TypeScript pour validator
 * **@types/yauzl** (^2.10.3) : Types TypeScript pour yauzl
 * **autoprefixer** (^10.4.19) : Plugin PostCSS pour ajouter automatiquement les préfixes vendeurs CSS
@@ -799,7 +798,7 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
 
   * Photos : jpeg, png
   * Fichiers : jpeg, png
-  * **Photos de profil** : jpeg, png uniquement (maximum 1 MB)
+  * **Photos de profil** : jpeg, png uniquement (taille max selon paramètre global `maxImageSizeMB`, voir Paramètres)
 
 Aucun autre type autorisé.
 * **Photos de profil** :
@@ -897,7 +896,7 @@ Aucun autre type autorisé.
 * **Modifier** : Bouton "Modifier" sur chaque utilisateur permettant de modifier login, mot de passe (optionnel), rôle, statut actif et photo de profil
 * **Photo de profil** :
   * **Affichage** : Photo de profil affichée en 40x40px dans la liste des utilisateurs (ou avatar avec initiales si aucune photo)
-  * **Upload** : Possibilité d'uploader une photo de profil lors de la création ou modification d'un utilisateur (JPEG ou PNG, maximum 1 MB)
+  * **Upload** : Possibilité d'uploader une photo de profil lors de la création ou modification d'un utilisateur (JPEG ou PNG, taille max selon paramètre global `maxImageSizeMB`)
   * **Redimensionnement automatique** : La photo est automatiquement redimensionnée en 100x100px (carré) lors de l'upload
   * **Prévisualisation** : Aperçu de la nouvelle photo avant l'enregistrement
   * **Suppression** : Possibilité de supprimer la photo de profil existante
@@ -941,30 +940,6 @@ Aucun autre type autorisé.
 
 ### 11.2.2 Mon profil
 
-* **Compte Admin protégé** : Le compte avec le login "Admin" (identifié par `login === "Admin"`) bénéficie de protections spéciales pour garantir la sécurité et la disponibilité du système
-* **Protections côté serveur** :
-  * **API PUT `/api/users/[id]`** : Empêche toute modification du compte Admin (désactivation, changement de rôle, changement de login)
-    * Vérification avant modification : Si l'utilisateur cible a le login "Admin", l'API retourne une erreur 403 avec le message "Le compte Admin ne peut pas être modifié"
-    * **Exception** : Seul le mot de passe peut être modifié pour le compte Admin
-  * **API DELETE `/api/users/[id]`** : Empêche la suppression du compte Admin
-    * Vérification avant suppression : Si l'utilisateur cible a le login "Admin", l'API retourne une erreur 403 avec le message "Le compte Admin ne peut pas être supprimé"
-* **Protections côté client** :
-  * **Bouton "Désactiver/Activer"** : Désactivé visuellement pour le compte Admin avec un tooltip explicatif "Le compte Admin ne peut pas être désactivé"
-  * **Bouton "Supprimer"** : Désactivé visuellement pour le compte Admin avec un tooltip explicatif "Le compte Admin ne peut pas être supprimé"
-  * **Formulaire d'édition** :
-    * **Champ "Login"** : Désactivé et non modifiable pour le compte Admin avec un tooltip "Le login du compte Admin ne peut pas être modifié"
-    * **Champ "Rôle"** : Désactivé et non modifiable pour le compte Admin
-    * **Switch "Actif"** : Désactivé et non modifiable pour le compte Admin avec un tooltip "Le compte Admin ne peut pas être désactivé"
-    * **Champ "Mot de passe"** : Reste modifiable (seul champ modifiable pour le compte Admin)
-  * **Fonction `handleToggleActive`** : Vérification préalable empêchant la désactivation avec un message d'alerte "Le compte Admin ne peut pas être désactivé"
-  * **Fonction `handleDeleteUser`** : Vérification préalable empêchant la suppression avec un message d'alerte "Le compte Admin ne peut pas être supprimé"
-  * **Fonction `handleSaveUser`** :
-    * Empêche la modification du login du compte Admin (vérification `selectedUser.login === "Admin" && userFormData.login !== "Admin"`)
-    * Pour le compte Admin, seule la modification du mot de passe est autorisée (les autres champs sont ignorés dans la requête API)
-* **Justification** : Ces protections garantissent qu'un compte administrateur principal reste toujours disponible pour la gestion du système, même en cas d'erreur ou de tentative malveillante
-
-### 11.2.1 Mon profil
-
 * **Page dédiée** : `/dashboard/profil` accessible depuis le bouton "Mon profil" dans la barre latérale
 * **Fonctionnalités** :
   * Affichage du rôle (lecture seule)
@@ -972,7 +947,7 @@ Aucun autre type autorisé.
   * Modification du mot de passe (optionnel, avec confirmation)
   * **Photo de profil** :
     * **Affichage** : Photo de profil affichée en 100x100px (ou avatar avec initiales si aucune photo)
-    * **Upload** : Possibilité d'uploader une photo de profil (JPEG ou PNG, maximum 1 MB)
+    * **Upload** : Possibilité d'uploader une photo de profil (JPEG ou PNG, taille max selon paramètre global `maxImageSizeMB`, voir Paramètres)
     * **Redimensionnement automatique** : La photo est automatiquement redimensionnée en 100x100px (carré) lors de l'upload
     * **Prévisualisation** : Aperçu de la nouvelle photo avant l'enregistrement
     * **Suppression** : Possibilité de supprimer la photo de profil existante
@@ -1023,7 +998,7 @@ Aucun autre type autorisé.
   * **Validation côté serveur** : Toutes les routes API modifiantes utilisent un middleware de validation avec Zod
   * **Messages d'erreur détaillés** : Les erreurs de validation retournent des messages explicites pour faciliter le débogage
   * **Sanitization** : Après validation, toutes les entrées utilisateur sont sanitizées pour prévenir les attaques XSS
-* **Conformité OWASP Top 10 2021** : Voir section 16 pour les détails complets des mesures de sécurité implémentées
+* **Conformité OWASP Top 10 2021** : Voir section 15 pour les détails complets des mesures de sécurité implémentées
 
 ### 11.4 Gestion de la session et timeout d'inactivité
 
@@ -1135,32 +1110,6 @@ Aucun autre type autorisé.
         * Nom physique (chemin du fichier)
     * **Accès** : Réservé aux Super Admin
     * **API** : `GET /api/files/missing` : Scanne et retourne la liste des images manquantes
-  * **Gestion des fichiers orphelins** (onglet Général) :
-    * **Fonctionnalité** : Scan du dossier uploads pour trouver les images non référencées dans la base de données
-    * **Processus** :
-      * Bouton "Scanner les fichiers orphelins" pour lancer le scan
-      * Vérification de toutes les références dans la base de données :
-        * Photos de profil (`User.photo`)
-        * Photos d'agences (`Agency.photo`)
-        * Photos dans les groupes (`PhotoGroup.photos`)
-        * Photos et fichiers des imprimantes (`Printer.photos`, `Printer.files`)
-        * Photos des tâches (`Task.photos`) ✅ **IMPLÉMENTÉ** (2026-01-31)
-      * Affichage de la liste des fichiers orphelins trouvés avec :
-        * Chemin du fichier
-        * Taille formatée
-        * Date de modification
-    * **Sélection multiple** : Cases à cocher pour sélectionner les fichiers à supprimer
-    * **Actions** :
-      * Bouton "Tout sélectionner" / "Tout désélectionner"
-      * Bouton "Supprimer" avec confirmation pour supprimer les fichiers sélectionnés
-    * **Sécurité** :
-      * Accès réservé aux Super Admin
-      * Protection CSRF sur l'API de suppression
-      * Validation des chemins (protection path traversal)
-      * Logging des suppressions
-    * **API** :
-      * `GET /api/files/orphaned` : Scanne et retourne la liste des fichiers orphelins
-      * `DELETE /api/files/orphaned` : Supprime les fichiers orphelins sélectionnés
 * **API Routes** :
   * **GET `/api/settings`** : Récupère les paramètres de l'application
     * Vérification du rôle Super Admin
@@ -1366,14 +1315,14 @@ Aucun autre type autorisé.
 
 ---
 
-## 16. Conformité OWASP Top 10 2021
+## 15. Conformité OWASP Top 10 2021
 
 L'application doit être conforme aux standards de sécurité OWASP Top 10 2021. Les mesures suivantes sont **obligatoires** et **implémentées** :
 
-### 16.1 A01:2021 – Broken Access Control
+### 15.1 A01:2021 – Broken Access Control
 
 * **Vérification de session** : Toutes les routes API vérifient la session via `getSession()`
-* **Contrôle d'accès basé sur les rôles (RBAC)** : Implémenté avec vérification des rôles (Super Admin, Admin, User)
+* **Contrôle d'accès basé sur les rôles (RBAC)** : Implémenté avec vérification des rôles (Super Admin, Super user, User)
 * **Vérification des permissions** : Les actions sensibles vérifient le rôle (ex: historique, sauvegardes)
 * **Protection des routes** : Proxy (anciennement middleware) protège les routes `/dashboard` et `/api`
 * **Protection path traversal** : Validation stricte des chemins de fichiers pour éviter l'accès non autorisé aux fichiers système
@@ -1384,7 +1333,7 @@ L'application doit être conforme aux standards de sécurité OWASP Top 10 2021.
   * Implémenté dans `lib/rate-limit.ts`
   * Application sur l'endpoint de login (`/api/auth/login`)
 
-### 16.2 A02:2021 – Cryptographic Failures
+### 15.2 A02:2021 – Cryptographic Failures
 
 * **Hachage des mots de passe** : Utilisation d'**argon2** (algorithme moderne et sécurisé)
 * **2FA** : Implémenté avec TOTP (Google Authenticator)
@@ -1408,7 +1357,7 @@ L'application doit être conforme aux standards de sécurité OWASP Top 10 2021.
   * Erreur si la clé n'est pas définie en production
   * Clé par défaut uniquement en développement (non sécurisée, avec avertissement)
 
-### 16.3 A03:2021 – Injection
+### 15.3 A03:2021 – Injection
 
 * **Prisma ORM** : Utilisation de Prisma protège contre les injections SQL
 * **Pas de requêtes SQL brutes** : Aucune utilisation de `$queryRaw` ou `$executeRaw`
@@ -1419,13 +1368,13 @@ L'application doit être conforme aux standards de sécurité OWASP Top 10 2021.
 * **Sanitization des entrées** : Toutes les entrées utilisateur sont sanitizées après validation pour prévenir les attaques XSS
 * **Sanitization des chemins** : Protection contre path traversal dans restauration de sauvegarde (`entry.fileName.includes("..")`)
 
-### 16.4 A04:2021 – Insecure Design
+### 15.4 A04:2021 – Insecure Design
 
 * **Architecture en couches** : Séparation claire entre API, logique métier, et données
 * **Validation côté serveur** : Toutes les validations sont faites côté serveur
 * **Gestion des erreurs** : Messages d'erreur génériques (pas d'exposition de détails)
 
-### 16.5 A05:2021 – Security Misconfiguration
+### 15.5 A05:2021 – Security Misconfiguration
 
 * **Headers de sécurité HTTP** : Configuration dans `next.config.js`
   * `X-Frame-Options: DENY` (protection clickjacking)
@@ -1456,7 +1405,7 @@ L'application doit être conforme aux standards de sécurité OWASP Top 10 2021.
   * **NODE_ENV** : Environnement d'exécution (`development`, `production`, `test`)
 * **Cookies sécurisés** : Configuration correcte selon l'environnement
 
-### 16.6 A06:2021 – Vulnerable and Outdated Components
+### 15.6 A06:2021 – Vulnerable and Outdated Components
 
 * **Dépendances récentes** : La plupart des dépendances sont à jour
 * **Next.js 16.1.1** : Version récente (migration depuis 15.5.9)
@@ -1466,7 +1415,7 @@ L'application doit être conforme aux standards de sécurité OWASP Top 10 2021.
 * **Routes API asynchrones** : Toutes les routes API avec paramètres dynamiques utilisent désormais `Promise<{ params }>` pour la compatibilité Next.js 16
 * **Recommandation** : Utiliser `npm audit` régulièrement et intégrer Snyk ou Dependabot
 
-### 16.7 A07:2021 – Identification and Authentication Failures
+### 15.7 A07:2021 – Identification and Authentication Failures
 
 * **Hachage sécurisé** : argon2 pour les mots de passe
 * **2FA** : Implémenté avec TOTP
@@ -1481,7 +1430,7 @@ L'application doit être conforme aux standards de sécurité OWASP Top 10 2021.
   * Réinitialisation automatique après connexion réussie
   * Messages d'erreur indiquant le temps restant avant déverrouillage
 
-### 16.8 A08:2021 – Software and Data Integrity Failures
+### 15.8 A08:2021 – Software and Data Integrity Failures
 
 * **Validation des fichiers uploadés** : 
   * Type MIME vérifié via `file.type`
@@ -1490,7 +1439,7 @@ L'application doit être conforme aux standards de sécurité OWASP Top 10 2021.
     * PNG : `0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A`
   * Vérification que le type déclaré correspond au type réel détecté
   * Protection contre l'upload de fichiers malveillants renommés (ex: `.exe` renommé en `.jpg`)
-* **Taille maximale** : 5 MB
+* **Taille maximale** : Configurable (paramètre `maxImageSizeMB`, défaut 5 MB)
 * **Types autorisés** : `image/jpeg`, `image/png` uniquement
 * **Noms de fichiers uniques** : Génération de noms uniques pour éviter les collisions
 * **Protection path traversal** : Vérification des chemins dans restauration
@@ -1499,7 +1448,7 @@ L'application doit être conforme aux standards de sécurité OWASP Top 10 2021.
   * Contenu statique et contrôlé par le code source (pas de risque XSS)
   * Documenté avec commentaire explicatif
 
-### 16.9 A09:2021 – Security Logging and Monitoring Failures
+### 15.9 A09:2021 – Security Logging and Monitoring Failures
 
 * **Journalisation centralisée** : ✅ **IMPLÉMENTÉ** (2026-01-30)
   * **Système Winston** : Logging structuré avec fichiers séparés
@@ -1540,13 +1489,13 @@ L'application doit être conforme aux standards de sécurité OWASP Top 10 2021.
 * **Export des logs** : Export CSV disponible
 * **Logs des tentatives de connexion** : Toutes les tentatives échouées sont loggées avec la raison
 
-### 16.10 A10:2021 – Server-Side Request Forgery (SSRF)
+### 15.10 A10:2021 – Server-Side Request Forgery (SSRF)
 
 * **API BAN** : URL fixe et validée (`https://api-adresse.data.gouv.fr`)
 * **Pas d'URLs utilisateur** : Aucun endpoint ne fait de requêtes vers des URLs fournies par l'utilisateur
 * **Validation de l'URL** : URL BAN hardcodée (whitelist)
 
-### 16.11 Mesures de sécurité supplémentaires
+### 15.11 Mesures de sécurité supplémentaires
 
 * **Rate limiting** : Protection contre les attaques par force brute et DoS
   * Implémenté dans `lib/rate-limit.ts`
@@ -1566,7 +1515,7 @@ L'application doit être conforme aux standards de sécurité OWASP Top 10 2021.
 
 ---
 
-## 17. Architecture événementielle pour les statistiques
+## 16. Architecture événementielle pour les statistiques
 
 * **Système de mise à jour événementielle** :
   * Les statistiques d'agences dans le header sont mises à jour via un système d'événements personnalisés, sans polling automatique
@@ -1799,7 +1748,7 @@ L'application doit être conforme aux standards de sécurité OWASP Top 10 2021.
 * **Sauvegardes automatiques** :
   * Script de sauvegarde à créer selon les besoins (`scripts/backup.sh`)
   * Cron recommandé : Tous les jours à 2h du matin (`0 2 * * *`)
-  * Rétention : 30 jours (configurable)
+  * Rétention : 10 jours (conforme à la section 14)
 
 ### 20.8 Sécurité en production
 
@@ -1861,7 +1810,7 @@ L'application doit être conforme aux standards de sécurité OWASP Top 10 2021.
 
 ---
 
-**Dernière mise à jour** : 2026-01-30
+**Dernière mise à jour** : 2026-01-31
 
 ---
 
