@@ -1567,6 +1567,7 @@ export default function AgencesPage() {
           createdAt: "",
           notes: "",
           importance: "INFO",
+          photos: [],
         })
       } else {
         const error = await response.json()
@@ -1610,6 +1611,7 @@ export default function AgencesPage() {
           createdAt: "",
           notes: "",
           importance: "INFO",
+          photos: [],
         })
       } else {
         const error = await response.json()
@@ -6761,33 +6763,292 @@ export default function AgencesPage() {
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <div className="space-y-2 text-sm">
-                        <div>
-                          <span className="font-medium">Nom:</span> {agencyData.name || "N/A"}
+                      <div className="space-y-4 text-sm">
+                        {/* Informations générales */}
+                        <div className="space-y-2">
+                          <h4 className="font-semibold text-base mb-2">Informations générales</h4>
+                          <div>
+                            <span className="font-medium">Nom:</span> {agencyData.name || "N/A"}
+                          </div>
+                          {agencyData.photo && (
+                            <div>
+                              <span className="font-medium">Photo:</span> {agencyData.photo}
+                            </div>
+                          )}
+                          <div>
+                            <span className="font-medium">État:</span> {agencyData.state || "N/A"}
+                          </div>
+                          {agencyData.codeAgence && (
+                            <div>
+                              <span className="font-medium">Code Agence:</span> {agencyData.codeAgence}
+                            </div>
+                          )}
+                          {agencyData.codeRayon && (
+                            <div>
+                              <span className="font-medium">Code Rayon:</span> {agencyData.codeRayon}
+                            </div>
+                          )}
+                          {agencyData.dateOuverture && (
+                            <div>
+                              <span className="font-medium">Date ouverture:</span>{" "}
+                              {new Date(agencyData.dateOuverture).toLocaleDateString("fr-FR")}
+                            </div>
+                          )}
+                          {agencyData.dateFermeture && (
+                            <div>
+                              <span className="font-medium">Date fermeture:</span>{" "}
+                              {new Date(agencyData.dateFermeture).toLocaleDateString("fr-FR")}
+                            </div>
+                          )}
+                          {agencyData.validatedAt && (
+                            <div>
+                              <span className="font-medium">Validé le:</span>{" "}
+                              {new Date(agencyData.validatedAt).toLocaleDateString("fr-FR")}
+                            </div>
+                          )}
                         </div>
-                        <div>
-                          <span className="font-medium">État:</span> {agencyData.state || "N/A"}
-                        </div>
-                        {agencyData.codeAgence && (
-                          <div>
-                            <span className="font-medium">Code Agence:</span> {agencyData.codeAgence}
+
+                        {/* Adresses */}
+                        {agencyData.addresses && Array.isArray(agencyData.addresses) && agencyData.addresses.length > 0 && (
+                          <div className="space-y-2">
+                            <h4 className="font-semibold text-base mb-2">Adresses ({agencyData.addresses.length})</h4>
+                            {agencyData.addresses.map((addr: any, idx: number) => (
+                              <div key={addr.id || idx} className="border-l-2 border-blue-200 pl-3 py-1">
+                                <div className="font-medium">{addr.label || "Adresse"}</div>
+                                <div className="text-muted-foreground">
+                                  {addr.street && <div>{addr.street}</div>}
+                                  {addr.city && addr.postalCode && (
+                                    <div>{addr.postalCode} {addr.city}</div>
+                                  )}
+                                  {addr.country && (
+                                    <div className="text-xs text-muted-foreground">{addr.country}</div>
+                                  )}
+                                  {addr.latitude && addr.longitude && (
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                      Coordonnées: {addr.latitude}, {addr.longitude}
+                                    </div>
+                                  )}
+                                  {addr.banId && (
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                      BAN ID: {addr.banId}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         )}
-                        {agencyData.codeRayon && (
-                          <div>
-                            <span className="font-medium">Code Rayon:</span> {agencyData.codeRayon}
+
+                        {/* Contacts */}
+                        {agencyData.contacts && Array.isArray(agencyData.contacts) && agencyData.contacts.length > 0 && (
+                          <div className="space-y-2">
+                            <h4 className="font-semibold text-base mb-2">Contacts ({agencyData.contacts.length})</h4>
+                            {agencyData.contacts.map((contact: any, idx: number) => (
+                              <div key={contact.id || idx} className="border-l-2 border-green-200 pl-3 py-1">
+                                <div className="font-medium">{contact.managerName || "Contact"}</div>
+                                {contact.postNumber && (
+                                  <div className="text-muted-foreground">Poste: {contact.postNumber}</div>
+                                )}
+                                {contact.agentNumber && (
+                                  <div className="text-muted-foreground">Agent: {contact.agentNumber}</div>
+                                )}
+                                {contact.directLine && (
+                                  <div className="text-muted-foreground">Ligne directe: {contact.directLine}</div>
+                                )}
+                                {contact.emails && contact.emails.length > 0 && (
+                                  <div className="text-muted-foreground">
+                                    Emails: {Array.isArray(contact.emails) ? contact.emails.join(", ") : contact.emails}
+                                  </div>
+                                )}
+                                {contact.note && (
+                                  <div className="text-muted-foreground text-xs mt-1">Note: {contact.note}</div>
+                                )}
+                              </div>
+                            ))}
                           </div>
                         )}
-                        {agencyData.dateOuverture && (
-                          <div>
-                            <span className="font-medium">Date ouverture:</span>{" "}
-                            {new Date(agencyData.dateOuverture).toLocaleDateString("fr-FR")}
+
+                        {/* Technique */}
+                        {agencyData.technical && (
+                          <div className="space-y-2">
+                            <h4 className="font-semibold text-base mb-2">Technique</h4>
+                            {agencyData.technical.networkIp && (
+                              <div>
+                                <span className="font-medium">Adresse IP LAN (CIDR):</span> {agencyData.technical.networkIp}
+                              </div>
+                            )}
+                            {/* Machine à affranchir */}
+                            {(agencyData.technical.machineBrand || agencyData.technical.machineModel || agencyData.technical.machineConnection || agencyData.technical.machineIp || agencyData.technical.machineMac) && (
+                              <div className="border-l-2 border-orange-200 pl-3 py-2">
+                                <div className="font-medium mb-1">Machine à affranchir</div>
+                                {agencyData.technical.machineBrand && <div className="text-xs text-muted-foreground">Marque: {agencyData.technical.machineBrand}</div>}
+                                {agencyData.technical.machineModel && <div className="text-xs text-muted-foreground">Modèle: {agencyData.technical.machineModel}</div>}
+                                {agencyData.technical.machineConnection && <div className="text-xs text-muted-foreground">Connexion: {agencyData.technical.machineConnection}</div>}
+                                {agencyData.technical.machineIp && <div className="text-xs text-muted-foreground">IP: {agencyData.technical.machineIp}</div>}
+                                {agencyData.technical.machineMac && <div className="text-xs text-muted-foreground">MAC: {agencyData.technical.machineMac}</div>}
+                              </div>
+                            )}
+                            {/* Routeur WiFi */}
+                            {(agencyData.technical.wifiRouterBrand || agencyData.technical.wifiRouterModel || agencyData.technical.wifiRouterIp || agencyData.technical.wifiRouterSerial) && (
+                              <div className="border-l-2 border-purple-200 pl-3 py-2">
+                                <div className="font-medium mb-1">Routeur WiFi</div>
+                                {agencyData.technical.wifiRouterBrand && <div className="text-xs text-muted-foreground">Marque: {agencyData.technical.wifiRouterBrand}</div>}
+                                {agencyData.technical.wifiRouterModel && <div className="text-xs text-muted-foreground">Modèle: {agencyData.technical.wifiRouterModel}</div>}
+                                {agencyData.technical.wifiRouterIp && <div className="text-xs text-muted-foreground">IP: {agencyData.technical.wifiRouterIp}</div>}
+                                {agencyData.technical.wifiRouterSerial && <div className="text-xs text-muted-foreground">N° série: {agencyData.technical.wifiRouterSerial}</div>}
+                              </div>
+                            )}
+                            {/* Routeur principal */}
+                            {(agencyData.technical.mainRouterBrand || agencyData.technical.mainRouterModel || agencyData.technical.mainRouterIp || agencyData.technical.mainRouterSerial || agencyData.technical.mainRouterLinkType) && (
+                              <div className="border-l-2 border-blue-200 pl-3 py-2">
+                                <div className="font-medium mb-1">Routeur principal</div>
+                                {agencyData.technical.mainRouterBrand && <div className="text-xs text-muted-foreground">Marque: {agencyData.technical.mainRouterBrand}</div>}
+                                {agencyData.technical.mainRouterModel && <div className="text-xs text-muted-foreground">Modèle: {agencyData.technical.mainRouterModel}</div>}
+                                {agencyData.technical.mainRouterIp && <div className="text-xs text-muted-foreground">IP: {agencyData.technical.mainRouterIp}</div>}
+                                {agencyData.technical.mainRouterSerial && <div className="text-xs text-muted-foreground">N° série: {agencyData.technical.mainRouterSerial}</div>}
+                                {agencyData.technical.mainRouterLinkType && <div className="text-xs text-muted-foreground">Type de liaison: {agencyData.technical.mainRouterLinkType}</div>}
+                              </div>
+                            )}
+                            {/* Routeur secours */}
+                            {(agencyData.technical.backupRouterBrand || agencyData.technical.backupRouterModel || agencyData.technical.backupRouterIp || agencyData.technical.backupRouterSerial) && (
+                              <div className="border-l-2 border-yellow-200 pl-3 py-2">
+                                <div className="font-medium mb-1">Routeur secours</div>
+                                {agencyData.technical.backupRouterBrand && <div className="text-xs text-muted-foreground">Marque: {agencyData.technical.backupRouterBrand}</div>}
+                                {agencyData.technical.backupRouterModel && <div className="text-xs text-muted-foreground">Modèle: {agencyData.technical.backupRouterModel}</div>}
+                                {agencyData.technical.backupRouterIp && <div className="text-xs text-muted-foreground">IP: {agencyData.technical.backupRouterIp}</div>}
+                                {agencyData.technical.backupRouterSerial && <div className="text-xs text-muted-foreground">N° série: {agencyData.technical.backupRouterSerial}</div>}
+                              </div>
+                            )}
+                            {/* Enregistreur vidéo */}
+                            {(agencyData.technical.recorderBrand || agencyData.technical.recorderModel || agencyData.technical.recorderSerial || agencyData.technical.recorderMac || agencyData.technical.recorderIp || agencyData.technical.recorderStorage) && (
+                              <div className="border-l-2 border-red-200 pl-3 py-2">
+                                <div className="font-medium mb-1">Enregistreur vidéo</div>
+                                {agencyData.technical.recorderBrand && <div className="text-xs text-muted-foreground">Marque: {agencyData.technical.recorderBrand}</div>}
+                                {agencyData.technical.recorderModel && <div className="text-xs text-muted-foreground">Modèle: {agencyData.technical.recorderModel}</div>}
+                                {agencyData.technical.recorderSerial && <div className="text-xs text-muted-foreground">N° série: {agencyData.technical.recorderSerial}</div>}
+                                {agencyData.technical.recorderMac && <div className="text-xs text-muted-foreground">MAC: {agencyData.technical.recorderMac}</div>}
+                                {agencyData.technical.recorderIp && <div className="text-xs text-muted-foreground">IP: {agencyData.technical.recorderIp}</div>}
+                                {agencyData.technical.recorderStorage && <div className="text-xs text-muted-foreground">Stockage: {agencyData.technical.recorderStorage}</div>}
+                              </div>
+                            )}
+                            {agencyData.technical.technicalNotes && (
+                              <div>
+                                <span className="font-medium">Notes techniques:</span>
+                                <div className="text-muted-foreground whitespace-pre-wrap mt-1 p-2 bg-muted rounded">
+                                  {agencyData.technical.technicalNotes}
+                                </div>
+                              </div>
+                            )}
+                            {agencyData.technical.pcs && Array.isArray(agencyData.technical.pcs) && agencyData.technical.pcs.length > 0 && (
+                              <div>
+                                <span className="font-medium">PCs ({agencyData.technical.pcs.length}):</span>
+                                <div className="ml-4 mt-1 space-y-2">
+                                  {agencyData.technical.pcs.map((pc: any, idx: number) => (
+                                    <div key={pc.id || idx} className="text-muted-foreground border-l-2 border-gray-200 pl-2">
+                                      <div className="font-medium">• {pc.name || "PC"}</div>
+                                      {pc.ip && <div className="text-xs ml-2">IP: {pc.ip}</div>}
+                                      {pc.mac && <div className="text-xs ml-2">MAC: {pc.mac}</div>}
+                                      {pc.brand && <div className="text-xs ml-2">Marque: {pc.brand}</div>}
+                                      {pc.model && <div className="text-xs ml-2">Modèle: {pc.model}</div>}
+                                      {pc.serialNumber && <div className="text-xs ml-2">N° série: {pc.serialNumber}</div>}
+                                      {pc.purchaseDate && <div className="text-xs ml-2">Achat: {new Date(pc.purchaseDate).toLocaleDateString("fr-FR")}</div>}
+                                      {pc.warrantyDate && <div className="text-xs ml-2">Garantie: {new Date(pc.warrantyDate).toLocaleDateString("fr-FR")}</div>}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {agencyData.technical.printers && Array.isArray(agencyData.technical.printers) && agencyData.technical.printers.length > 0 && (
+                              <div>
+                                <span className="font-medium">Imprimantes ({agencyData.technical.printers.length}):</span>
+                                <div className="ml-4 mt-1 space-y-2">
+                                  {agencyData.technical.printers.map((printer: any, idx: number) => (
+                                    <div key={printer.id || idx} className="text-muted-foreground border-l-2 border-gray-200 pl-2">
+                                      <div className="font-medium">• {printer.name || "Imprimante"}</div>
+                                      {printer.ip && <div className="text-xs ml-2">IP: {printer.ip}</div>}
+                                      {printer.mac && <div className="text-xs ml-2">MAC: {printer.mac}</div>}
+                                      {printer.brand && <div className="text-xs ml-2">Marque: {printer.brand}</div>}
+                                      {printer.model && <div className="text-xs ml-2">Modèle: {printer.model}</div>}
+                                      {printer.serialNumber && <div className="text-xs ml-2">N° série: {printer.serialNumber}</div>}
+                                      {printer.purchaseDate && <div className="text-xs ml-2">Achat: {new Date(printer.purchaseDate).toLocaleDateString("fr-FR")}</div>}
+                                      {printer.warrantyDate && <div className="text-xs ml-2">Garantie: {new Date(printer.warrantyDate).toLocaleDateString("fr-FR")}</div>}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {agencyData.technical.wifiAccessPoints && Array.isArray(agencyData.technical.wifiAccessPoints) && agencyData.technical.wifiAccessPoints.length > 0 && (
+                              <div>
+                                <span className="font-medium">Points d'accès WiFi ({agencyData.technical.wifiAccessPoints.length}):</span>
+                                <div className="ml-4 mt-1 space-y-2">
+                                  {agencyData.technical.wifiAccessPoints.map((ap: any, idx: number) => (
+                                    <div key={ap.id || idx} className="text-muted-foreground border-l-2 border-gray-200 pl-2">
+                                      <div className="font-medium">• Point d'accès {idx + 1}</div>
+                                      {ap.brand && <div className="text-xs ml-2">Marque: {ap.brand}</div>}
+                                      {ap.model && <div className="text-xs ml-2">Modèle: {ap.model}</div>}
+                                      {ap.ip && <div className="text-xs ml-2">IP: {ap.ip}</div>}
+                                      {ap.ssid && <div className="text-xs ml-2">SSID: {ap.ssid}</div>}
+                                      {ap.serialNumber && <div className="text-xs ml-2">N° série: {ap.serialNumber}</div>}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {agencyData.technical.cameras && Array.isArray(agencyData.technical.cameras) && agencyData.technical.cameras.length > 0 && (
+                              <div>
+                                <span className="font-medium">Caméras ({agencyData.technical.cameras.length}):</span>
+                                <div className="ml-4 mt-1 space-y-2">
+                                  {agencyData.technical.cameras.map((camera: any, idx: number) => (
+                                    <div key={camera.id || idx} className="text-muted-foreground border-l-2 border-gray-200 pl-2">
+                                      <div className="font-medium">• Caméra {idx + 1}</div>
+                                      {camera.brand && <div className="text-xs ml-2">Marque: {camera.brand}</div>}
+                                      {camera.model && <div className="text-xs ml-2">Modèle: {camera.model}</div>}
+                                      {camera.type && <div className="text-xs ml-2">Type: {camera.type}</div>}
+                                      {camera.ip && <div className="text-xs ml-2">IP: {camera.ip}</div>}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {agencyData.technical.dynamicFields && Array.isArray(agencyData.technical.dynamicFields) && agencyData.technical.dynamicFields.length > 0 && (
+                              <div>
+                                <span className="font-medium">Champs dynamiques ({agencyData.technical.dynamicFields.length}):</span>
+                                <div className="ml-4 mt-1 space-y-1">
+                                  {agencyData.technical.dynamicFields.map((field: any, idx: number) => (
+                                    <div key={field.id || idx} className="text-muted-foreground">
+                                      • {field.label || "Champ"}: {field.value || "N/A"}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )}
-                        {agencyData.dateFermeture && (
-                          <div>
-                            <span className="font-medium">Date fermeture:</span>{" "}
-                            {new Date(agencyData.dateFermeture).toLocaleDateString("fr-FR")}
+
+                        {/* Photos */}
+                        {agencyData.photos && Array.isArray(agencyData.photos) && agencyData.photos.length > 0 && (
+                          <div className="space-y-2">
+                            <h4 className="font-semibold text-base mb-2">Groupes de photos ({agencyData.photos.length})</h4>
+                            {agencyData.photos.map((photoGroup: any, idx: number) => {
+                              let photosCount = 0
+                              try {
+                                const photos = JSON.parse(photoGroup.photos || "[]")
+                                photosCount = Array.isArray(photos) ? photos.length : 0
+                              } catch {
+                                photosCount = 0
+                              }
+                              return (
+                                <div key={photoGroup.id || idx} className="border-l-2 border-purple-200 pl-3 py-1">
+                                  <div className="font-medium">
+                                    {photoGroup.type || "Type inconnu"}
+                                    {photoGroup.title && ` - ${photoGroup.title}`}
+                                  </div>
+                                  <div className="text-muted-foreground text-xs">
+                                    {photosCount} photo{photosCount > 1 ? "s" : ""}
+                                  </div>
+                                </div>
+                              )
+                            })}
                           </div>
                         )}
                       </div>

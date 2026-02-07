@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
       settings = await prisma.appSettings.create({
         data: {
           id: "settings",
-          sessionTimeout: 60, // 1 minute par défaut
+          sessionTimeout: 1, // 1 minute par défaut
           maxImageSizeMB: 5, // 5 Mo par défaut
           maxPhotosPerType: 50, // 50 photos par défaut
           maxPhotosPerTask: 5, // 5 photos par défaut

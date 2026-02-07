@@ -46,7 +46,7 @@ export default async function DashboardLayout({
                   priority
                   unoptimized
                   className="w-full h-auto max-w-full"
-                  style={{ width: "auto", height: "auto", maxHeight: "3rem" }}
+                  style={{ width: "auto", height: "auto", maxWidth: "100%", maxHeight: "3rem" }}
                 />
               </div>
             </div>

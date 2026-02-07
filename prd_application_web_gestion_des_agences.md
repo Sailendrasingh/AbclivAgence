@@ -869,6 +869,7 @@ Aucun autre type autorisé.
 ### 11.1.1 Processus de connexion
 
 * **Formulaire de connexion** : Page `/login` avec champs login et mot de passe
+* **Thème clair/sombre** : Bouton de bascule (icône lune/soleil) visible en haut à droite, persistant via localStorage, avec fallback sur la préférence système `prefers-color-scheme`; aucune différence d'hydratation (contenu initial identique avant montage)
 * **Vérification du mot de passe** : Validation du mot de passe avec argon2
 * **Gestion du 2FA** :
   * Si l'utilisateur a le 2FA activé (`twoFactorEnabled = true`), l'API retourne `{ needsTwoFactor: true }` avec un status 200
@@ -1124,7 +1125,7 @@ Aucun autre type autorisé.
 * **Modèle de données** :
   * **Table `AppSettings`** : Stockage des paramètres de l'application
     * `id` : String (clé primaire, valeur fixe `"settings"`)
-    * `sessionTimeout` : Int (durée en minutes, défaut: 60)
+* `sessionTimeout` : Int (durée en minutes, défaut: 1)
     * `maxImageSizeMB` : Int (taille maximale des images en Mo, défaut: 5) ✅ **IMPLÉMENTÉ** (2026-01-31)
     * `maxPhotosPerType` : Int (nombre maximum de photos par type de photo, défaut: 50) ✅ **IMPLÉMENTÉ** (2026-01-31)
     * `maxPhotosPerTask` : Int (nombre maximum de photos par tâche, défaut: 5) ✅ **IMPLÉMENTÉ** (2026-01-31)

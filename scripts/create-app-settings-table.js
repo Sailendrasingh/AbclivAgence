@@ -20,7 +20,7 @@ async function createAppSettingsTable() {
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS AppSettings (
         id TEXT PRIMARY KEY,
-        sessionTimeout INTEGER NOT NULL DEFAULT 60,
+        sessionTimeout INTEGER NOT NULL DEFAULT 1,
         updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
     `)
@@ -32,7 +32,7 @@ async function createAppSettingsTable() {
       await prisma.appSettings.create({
         data: {
           id: "settings",
-          sessionTimeout: 60,
+          sessionTimeout: 1,
         },
       })
       console.log('✅ Paramètres par défaut créés')

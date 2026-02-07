@@ -156,7 +156,7 @@ function SidebarContent() {
                 priority
                 unoptimized
                 className="lg:w-20 lg:h-20"
-                style={{ width: "auto", height: "auto" }}
+                style={{ width: "auto", height: "auto", maxWidth: "100%", maxHeight: "100%" }}
               />
             </div>
             <h2 className="text-base sm:text-lg lg:text-base font-bold text-center">Gestion Agences</h2>

@@ -50,7 +50,7 @@ function ParametresPageContent() {
     const tab = searchParams.get("tab") || "general"
     setActiveTab(tab)
   }, [searchParams])
-  const [sessionTimeout, setSessionTimeout] = useState(60) // En minutes, défaut 1 minute
+  const [sessionTimeout, setSessionTimeout] = useState(1) // En minutes, défaut 1 minute
   const [maxImageSizeMB, setMaxImageSizeMB] = useState(5) // En Mo, défaut 5 Mo
   const [maxPhotosPerType, setMaxPhotosPerType] = useState(50) // Nombre max de photos par type, défaut 50
   const [maxPhotosPerTask, setMaxPhotosPerTask] = useState(5) // Nombre max de photos par tâche, défaut 5
@@ -181,7 +181,7 @@ function ParametresPageContent() {
         const response = await apiFetch("/api/settings")
         if (response.ok) {
           const data = await response.json()
-          setSessionTimeout(data.sessionTimeout || 60)
+          setSessionTimeout(data.sessionTimeout ?? 1)
           setMaxImageSizeMB(data.maxImageSizeMB || 5)
           setMaxPhotosPerType(data.maxPhotosPerType || 50)
           setMaxPhotosPerTask(data.maxPhotosPerTask || 5)

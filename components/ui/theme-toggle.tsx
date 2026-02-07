@@ -28,7 +28,7 @@ const getSystemTheme = (): "light" | "dark" => {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
 }
 
-export function ThemeToggle() {
+export function ThemeToggle({ compact = false }: { compact?: boolean }) {
   const [theme, setTheme] = useState<"light" | "dark">("light")
   const [mounted, setMounted] = useState(false)
 
@@ -97,29 +97,33 @@ export function ThemeToggle() {
 
   // Éviter le flash pendant l'hydratation - toujours retourner le même contenu initial
   // Le contenu sera mis à jour après l'hydratation via useEffect
+  const btnClass = compact
+    ? "h-10 w-10 p-0 rounded-full"
+    : "w-full justify-start gap-2 text-base min-h-[44px]"
+
   return (
     <Button 
       variant="ghost" 
       onClick={toggleTheme} 
       aria-label="Basculer le thème"
-      className="w-full justify-start gap-2 text-base min-h-[44px]"
+      className={btnClass}
       suppressHydrationWarning
     >
       {!mounted ? (
         // Contenu par défaut pour éviter les différences d'hydratation
         <>
           <Moon className="h-5 w-5 shrink-0" />
-          <span>Sombre</span>
+          {!compact && <span>Sombre</span>}
         </>
       ) : theme === "light" ? (
         <>
           <Moon className="h-5 w-5 shrink-0" />
-          <span>Sombre</span>
+          {!compact && <span>Sombre</span>}
         </>
       ) : (
         <>
           <Sun className="h-5 w-5 shrink-0" />
-          <span>Clair</span>
+          {!compact && <span>Clair</span>}
         </>
       )}
     </Button>

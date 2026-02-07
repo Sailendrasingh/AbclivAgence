@@ -13,7 +13,7 @@ async function initSettings() {
       },
       create: {
         id: "settings",
-        sessionTimeout: 60, // 1 minute par défaut
+        sessionTimeout: 1, // 1 minute par défaut
       },
     })
 
