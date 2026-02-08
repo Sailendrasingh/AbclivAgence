@@ -1,0 +1,17 @@
+node_modules
+.next
+.turbo
+coverage
+playwright-report
+tmp
+*.log
+backups/*.zip
+backups/*.encrypted.zip
+backups/*.sha256
+uploads
+logs
+npm-debug.log*
+Dockerfile
+docker-compose.yml
+.git
+.gitignore

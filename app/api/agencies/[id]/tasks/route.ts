@@ -9,7 +9,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params
+  const { id: agencyId } = await params
   try {
     const session = await getSession()
 
@@ -18,7 +18,7 @@ export async function GET(
     }
 
     const tasks = await prisma.task.findMany({
-      where: { agencyId: id },
+      where: { agencyId },
       include: {
         creator: {
           select: {
@@ -59,7 +59,7 @@ export async function GET(
       console.error("Erreur potentiellement liée au champ photos, tentative sans normalisation...")
       try {
         const tasksRaw = await prisma.task.findMany({
-          where: { agencyId: id },
+          where: { agencyId },
           include: {
             creator: {
               select: {
@@ -101,7 +101,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params
+    const { id: agencyId } = await params
 
     // Vérifier le token CSRF
     const csrfError = await requireCSRF(request)
@@ -141,7 +141,7 @@ export async function POST(
 
     // Vérifier que l'agence existe
     const agency = await prisma.agency.findUnique({
-      where: { id },
+      where: { id: agencyId },
     })
 
     if (!agency) {
@@ -172,7 +172,7 @@ export async function POST(
     // Créer la tâche
     const task = await prisma.task.create({
       data: {
-        agencyId: id,
+        agencyId: agencyId,
         createdBy: session.id,
         title: title.trim(),
         notes: notes.trim(),
@@ -201,7 +201,7 @@ export async function POST(
       "TACHE_CREEE",
       {
         taskId: task.id,
-        agencyId: id,
+        agencyId: agencyId,
         agencyName: agency.name,
         importance,
       },

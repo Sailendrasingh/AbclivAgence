@@ -1,0 +1,19 @@
+services:
+  web:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: "production"
+    volumes:
+      # Base SQLite persistante
+      - ./prisma/dev.db:/app/prisma/dev.db
+      # Fichiers uploadés persistants
+      - ./uploads:/app/uploads
+      # Sauvegardes chiffrées persistantes
+      - ./backups:/app/backups
+      # Logs applicatifs (si utilisés)
+      - ./logs:/app/logs
+    restart: unless-stopped
