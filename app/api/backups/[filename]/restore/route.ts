@@ -155,6 +155,7 @@ export async function POST(
     }
 
     // Restaurer la sauvegarde
+    let devDbWritten = false
     try {
       if (isZip) {
         // Extraire l'archive ZIP avec yauzl
@@ -175,7 +176,6 @@ export async function POST(
         await mkdir(prismaDir, { recursive: true })
         
         // Extraire l'archive avec yauzl
-        let devDbWritten = false
         await new Promise<void>((resolve, reject) => {
           yauzl.open(fileToRestore, { lazyEntries: true }, (err: Error | null, zipfile: any) => {
           if (err) {
