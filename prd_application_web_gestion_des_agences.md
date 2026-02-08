@@ -1232,7 +1232,8 @@ Aucun autre type autorisé.
   * Commande : `npm run backup`
   * Format du nom de fichier : `backup-YYYY-MM-DDTHH-mm-ss-sssZ.encrypted.zip` (timestamp ISO)
   * **Format de sauvegarde** : Archive ZIP compressée et chiffrée contenant :
-    * La base de données SQLite complète (`prisma/dev.db`)
+    * La base de données SQLite complète (chemin fourni par **DATABASE_URL** : ex. `prisma/dev.db` en dev, `/app/data/prod.db` en production)
+    * Dans l'archive, le fichier base est nommé **dev.db** (convention fixe) quel que soit le nom du fichier sur disque
     * Le dossier `/uploads` complet avec toutes les photos et fichiers uploadés
   * **Compression** : Niveau de compression maximal (zlib level 9) pour optimiser l'espace disque
   * **Chiffrement** : **AES-256-GCM** (Advanced Encryption Standard avec Galois/Counter Mode)
@@ -1282,18 +1283,21 @@ Aucun autre type autorisé.
         * Pour les sauvegardes `.encrypted.zip` : Déchiffrement automatique puis extraction complète de l'archive (base de données + dossier uploads)
           * **Déchiffrement** : Détection automatique du format chiffré et déchiffrement avec la clé `ENCRYPTION_KEY`
           * **Bibliothèque d'extraction** : `yauzl` (bibliothèque légère sans dépendances externes)
-          * La base de données est restaurée dans `prisma/dev.db`
-          * Le dossier `/uploads` est remplacé par celui de la sauvegarde
+          * **Chemin de la base** : La base est restaurée dans le chemin défini par **DATABASE_URL** (ex. `prisma/dev.db` en dev, `/app/data/prod.db` en production)
+          * **Fichier base dans l'archive** : Accepte `dev.db`, `prod.db` ou tout fichier `.db` à la racine de l'archive (normalisation des noms : préfixe `./`, antislashs)
+          * **Dossier uploads** : Le contenu de `/uploads` est vidé puis remplacé par celui de la sauvegarde (sous Docker/volumes montés, le dossier n'est pas supprimé pour éviter EBUSY)
           * Une sauvegarde de l'état actuel est créée automatiquement avant la restauration
+          * **Sauvegarde avant restauration** : Format `backup-before-restore-*.zip` (ZIP non chiffré), avec checksum SHA-256 pour affichage "valide" dans la liste
           * **Sécurité** : Protection contre les chemins malformés (chemins avec `..`, chemins absolus) - ces entrées sont ignorées lors de l'extraction
           * **Gestion d'erreurs** : Les erreurs individuelles lors de l'extraction sont loggées sans interrompre le processus complet, permettant la restauration partielle en cas de problème sur certains fichiers
+          * **Déploiement Docker** : Variable optionnelle **RESTART_AFTER_RESTORE=true** pour redémarrer le processus après une restauration réussie (recommandé en production pour que tous les workers voient la nouvelle base)
         * Pour les sauvegardes `.zip` non chiffrées (rétrocompatibilité) : Détection automatique du format et extraction directe
         * Pour les anciennes sauvegardes `.db` (rétrocompatibilité) : 
           * Détection automatique du format chiffré
           * Si chiffré : Déchiffrement puis restauration de la base de données
           * Si non chiffré : Restauration directe de la base de données
-      * **Note** : La restauration remplace complètement la base de données ET les fichiers uploadés par la version sauvegardée
-      * **Sauvegarde avant restauration** : Une sauvegarde automatique de l'état actuel est créée avant chaque restauration (format `backup-before-restore-YYYY-MM-DDTHH-mm-ss-sssZ.zip`)
+      * **Note** : La restauration remplace complètement la base de données ET les fichiers uploadés par la version sauvegardée. Prisma est déconnecté avant l'écriture de la base puis reconnecté après pour éviter les verrous SQLite.
+      * **Sauvegarde avant restauration** : Une sauvegarde automatique de l'état actuel est créée avant chaque restauration (format `backup-before-restore-YYYY-MM-DDTHH-mm-ss-sssZ.zip`, ZIP non chiffré avec checksum pour statut valide)
 * **Purge de toutes les sauvegardes** :
   * **Bouton** : "Purger toutes les sauvegardes" visible uniquement si des sauvegardes existent
   * **Confirmation obligatoire** : Dialog de confirmation avec saisie du mot "PURGER" (en majuscules)
@@ -1313,6 +1317,7 @@ Aucun autre type autorisé.
 * **Accès** :
   * Menu "Sauvegardes" dans la barre latérale : Visible uniquement pour les utilisateurs avec le rôle **Super Admin**
   * Icône : HardDrive
+* **Mise à jour PRD (2026-02-08)** : Alignement avec l’implémentation — création et restauration utilisent **DATABASE_URL** pour le chemin de la base (support prod.db en production) ; restauration accepte dev.db/prod.db ou tout .db à la racine dans l’archive ; sauvegarde avant restauration en ZIP avec checksum ; option **RESTART_AFTER_RESTORE** et gestion Docker (vidage uploads, pas suppression).
 
 ---
 
@@ -1398,12 +1403,13 @@ L'application doit être conforme aux standards de sécurité OWASP Top 10 2021.
   * `Permissions-Policy` (limitation des APIs)
 * **Mode strict React** : `reactStrictMode: true` dans `next.config.js`
 * **Variables d'environnement** : Utilisation de `.env` pour la configuration
-  * **DATABASE_URL** : Chemin vers la base de données SQLite (ex: `file:./prisma/dev.db`)
+  * **DATABASE_URL** : Chemin vers la base de données SQLite (ex: `file:./prisma/dev.db` en dev, `file:/app/data/prod.db` en production Docker). Utilisé pour la création et la restauration des sauvegardes.
   * **ENCRYPTION_KEY** : **OBLIGATOIRE** - Clé de chiffrement pour les sauvegardes et la base de données (minimum 32 caractères)
     * **Génération** : Utiliser `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` pour générer une clé sécurisée
     * **Sécurité** : Ne jamais commiter cette clé dans Git, utiliser `.env.local` en développement et variables d'environnement sécurisées en production
     * **Usage** : Utilisée pour chiffrer les backups et potentiellement la base de données
   * **NODE_ENV** : Environnement d'exécution (`development`, `production`, `test`)
+  * **RESTART_AFTER_RESTORE** (optionnel) : Si `true`, le processus redémarre après une restauration de sauvegarde réussie (recommandé en production Docker pour que tous les workers voient la nouvelle base)
 * **Cookies sécurisés** : Configuration correcte selon l'environnement
 
 ### 15.6 A06:2021 – Vulnerable and Outdated Components
