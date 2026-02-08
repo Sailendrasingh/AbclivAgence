@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { readFile, writeFile, mkdir, rm, unlink, readdir } from "fs/promises"
+import { readFile, writeFile, mkdir, rm, unlink, readdir, stat } from "fs/promises"
 import { createWriteStream } from "fs"
 import { join, dirname } from "path"
 import { existsSync } from "fs"
@@ -40,6 +40,7 @@ export async function POST(
     const dbPathRaw = dbUrl.replace(/^file:/, "").trim()
     const dbPath = dbPathRaw.startsWith("/") ? dbPathRaw : join(process.cwd(), dbPathRaw)
     const backupPath = join(backupsDir, filename)
+    console.log("[RESTORE] dbPath=", dbPath, "filename=", filename)
 
     // Vérifier que le fichier de sauvegarde existe
     if (!existsSync(backupPath)) {
@@ -174,6 +175,7 @@ export async function POST(
         await mkdir(prismaDir, { recursive: true })
         
         // Extraire l'archive avec yauzl
+        let devDbWritten = false
         await new Promise<void>((resolve, reject) => {
           yauzl.open(fileToRestore, { lazyEntries: true }, (err: Error | null, zipfile: any) => {
           if (err) {
@@ -239,6 +241,7 @@ export async function POST(
                     readStream.pipe(writeStream)
                     
                     writeStream.on("close", () => {
+                      if (filePath === dbPath) devDbWritten = true
                       zipfile.readEntry()
                     })
                     writeStream.on("error", (err) => {
@@ -286,6 +289,23 @@ export async function POST(
       // Nettoyer le fichier temporaire si créé
       if (fileToRestore !== backupPath && existsSync(fileToRestore)) {
         await unlink(fileToRestore)
+      }
+
+      // Vérifier que la base a bien été écrite (évite "restauration qui ne fait rien")
+      if (isZip) {
+        if (!devDbWritten) {
+          throw new Error("L'archive ne contient pas dev.db. Utilisez une sauvegarde créée par cette application.")
+        }
+      }
+      if (isZip || isDb) {
+        if (!existsSync(dbPath)) {
+          throw new Error(`La base n'a pas été écrite à ${dbPath}. Vérifiez les permissions ou le volume Docker.`)
+        }
+        const dbStat = await stat(dbPath)
+        if (dbStat.size === 0) {
+          throw new Error(`Le fichier base est vide (0 octet) à ${dbPath}. L'archive est peut-être invalide.`)
+        }
+        console.log("[RESTORE] Base écrite:", dbPath, "taille:", dbStat.size)
       }
     } catch (restoreError: any) {
       // Nettoyer le fichier temporaire en cas d'erreur
