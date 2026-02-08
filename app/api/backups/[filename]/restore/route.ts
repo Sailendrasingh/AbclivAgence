@@ -9,6 +9,7 @@ import yauzl from "yauzl"
 import { decryptFile, isEncryptedFile } from "@/lib/encryption"
 import { verifyFileIntegrity } from "@/lib/backup-integrity"
 import { alertSensitiveAction } from "@/lib/alerts"
+import { prisma } from "@/lib/prisma"
 
 export async function POST(
   request: NextRequest,
@@ -116,6 +117,9 @@ export async function POST(
         }
       }
     }
+
+    // Déconnecter Prisma pour libérer le verrou SQLite avant d'écraser la base
+    await prisma.$disconnect()
 
     // Créer une sauvegarde de la base actuelle avant restauration
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-")
@@ -306,9 +310,13 @@ export async function POST(
       backupCreatedBefore: `backup-before-restore-${timestamp}.zip`,
     })
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
     console.error("Error restoring backup:", error)
     return NextResponse.json(
-      { error: "Erreur lors de la restauration de la sauvegarde" },
+      {
+        error: "Erreur lors de la restauration de la sauvegarde",
+        details: message,
+      },
       { status: 500 }
     )
   }

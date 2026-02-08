@@ -25,4 +25,5 @@ RUN npm run build
 
 EXPOSE 3000
 
+# En production : définir DATABASE_URL (ex: file:/app/data/prod.db) et ENCRYPTION_KEY (≥32 car.) via env_file ou variables d'environnement
 CMD ["npm", "run", "start"]

@@ -8,8 +8,8 @@ services:
     environment:
       NODE_ENV: "production"
     volumes:
-      # Base SQLite persistante
-      - ./prisma/dev.db:/app/prisma/dev.db
+      # Base SQLite dans un dossier dédié (évite conflits avec prisma/)
+      - ./data:/app/data
       # Fichiers uploadés persistants
       - ./uploads:/app/uploads
       # Sauvegardes chiffrées persistantes
