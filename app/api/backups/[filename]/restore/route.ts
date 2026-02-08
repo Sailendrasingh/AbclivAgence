@@ -313,11 +313,19 @@ export async function POST(
       backupCreatedBefore: `backup-before-restore-${timestamp}.zip`,
     }, ipAddress)
 
+    const restartScheduled = process.env.RESTART_AFTER_RESTORE === "true"
+    if (restartScheduled) {
+      setImmediate(() => setTimeout(() => process.exit(0), 2000))
+    }
+
     return NextResponse.json({
       success: true,
       message: "Sauvegarde restaurée avec succès",
       backupCreatedBefore: `backup-before-restore-${timestamp}.zip`,
-      restartHint: "Si les données ne se mettent pas à jour après rechargement, redémarrez le conteneur Docker (ou l’application).",
+      restartHint: restartScheduled
+        ? "L'application redémarre. Rechargez la page dans 10 secondes."
+        : "Si les données ne se mettent pas à jour, redémarrez le conteneur Docker.",
+      restartScheduled,
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
