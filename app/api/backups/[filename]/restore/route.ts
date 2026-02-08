@@ -156,6 +156,7 @@ export async function POST(
 
     // Restaurer la sauvegarde
     let devDbWritten = false
+    const zipEntriesSeen: string[] = []
     try {
       if (isZip) {
         // Extraire l'archive ZIP avec yauzl
@@ -191,6 +192,7 @@ export async function POST(
           zipfile.readEntry()
           
           zipfile.on("entry", (entry: any) => {
+            zipEntriesSeen.push(entry.fileName)
             // Ignorer les entrées malformées ou dangereuses
             if (entry.fileName.includes("..") || entry.fileName.startsWith("/")) {
               zipfile.readEntry()
@@ -221,15 +223,17 @@ export async function POST(
                   return
                 }
                 
-                // Déterminer le chemin de destination (dev.db dans l'archive → chemin réel de la base)
+                // Normaliser le nom (certains ZIP ont "./dev.db", backslashes, ou prod.db)
+                const normalizedName = entry.fileName.replace(/\\/g, "/").replace(/^\.\/+/, "").trim()
+                const nameLower = normalizedName.toLowerCase()
+                const isDbEntry = nameLower === "dev.db" || nameLower === "prod.db" || (nameLower.endsWith(".db") && !normalizedName.includes("/"))
+                // Déterminer le chemin de destination (fichier .db dans l'archive → chemin réel de la base)
                 let filePath: string
-                if (entry.fileName === "dev.db") {
+                if (isDbEntry) {
                   filePath = dbPath
-                } else if (entry.fileName.startsWith("uploads/")) {
-                  // Les fichiers uploads/ vont dans uploads/
-                  filePath = join(process.cwd(), entry.fileName)
+                } else if (normalizedName.startsWith("uploads/")) {
+                  filePath = join(process.cwd(), normalizedName)
                 } else {
-                  // Autres fichiers à la racine
                   filePath = join(process.cwd(), entry.fileName)
                 }
                 
@@ -294,7 +298,9 @@ export async function POST(
       // Vérifier que la base a bien été écrite (évite "restauration qui ne fait rien")
       if (isZip) {
         if (!devDbWritten) {
-          throw new Error("L'archive ne contient pas dev.db. Utilisez une sauvegarde créée par cette application.")
+          const preview = zipEntriesSeen.slice(0, 15).join(", ")
+          console.warn("[RESTORE] Archive sans fichier base (.db). Entrées vues:", preview)
+          throw new Error(`L'archive ne contient pas de fichier base (dev.db / prod.db). Entrées: ${preview || "(vide)"}. Utilisez une sauvegarde créée par cette application.`)
         }
       }
       if (isZip || isDb) {
