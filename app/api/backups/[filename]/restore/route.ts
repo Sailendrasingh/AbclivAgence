@@ -34,7 +34,10 @@ export async function POST(
 
   try {
     const backupsDir = join(process.cwd(), "backups")
-    const dbPath = join(process.cwd(), "prisma", "dev.db")
+    // Utiliser le chemin de la base depuis DATABASE_URL (ex: file:/app/data/prod.db ou file:./prisma/dev.db)
+    const dbUrl = process.env.DATABASE_URL || "file:./prisma/dev.db"
+    const dbPathRaw = dbUrl.replace(/^file:/, "").trim()
+    const dbPath = dbPathRaw.startsWith("/") ? dbPathRaw : join(process.cwd(), dbPathRaw)
     const backupPath = join(backupsDir, filename)
 
     // Vérifier que le fichier de sauvegarde existe
@@ -206,11 +209,10 @@ export async function POST(
                   return
                 }
                 
-                // Déterminer le chemin de destination
+                // Déterminer le chemin de destination (dev.db dans l'archive → chemin réel de la base)
                 let filePath: string
                 if (entry.fileName === "dev.db") {
-                  // Le fichier dev.db va dans prisma/dev.db
-                  filePath = join(prismaDir, "dev.db")
+                  filePath = dbPath
                 } else if (entry.fileName.startsWith("uploads/")) {
                   // Les fichiers uploads/ vont dans uploads/
                   filePath = join(process.cwd(), entry.fileName)

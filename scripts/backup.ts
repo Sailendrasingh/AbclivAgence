@@ -8,7 +8,9 @@ import { saveChecksum, cleanupOrphanedChecksums } from "../lib/backup-integrity"
 
 async function backup() {
   const backupsDir = join(process.cwd(), "backups")
-  const dbPath = join(process.cwd(), "prisma", "dev.db")
+  const dbUrl = process.env.DATABASE_URL || "file:./prisma/dev.db"
+  const dbPathRaw = dbUrl.replace(/^file:/, "").trim()
+  const dbPath = dbPathRaw.startsWith("/") ? dbPathRaw : join(process.cwd(), dbPathRaw)
   const uploadsDir = join(process.cwd(), "uploads")
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-")
   const backupZipPath = join(backupsDir, `backup-${timestamp}.zip`)
