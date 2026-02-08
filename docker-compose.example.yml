@@ -1,3 +1,4 @@
+# Copier en docker-compose.yml et adapter (ports, volumes, .env)
 services:
   web:
     build: .

@@ -60,3 +60,6 @@ audit-report.json
 # logs
 /logs/*
 !/logs/.gitkeep
+
+# docker-compose local / déploiement (chaque env a sa config)
+docker-compose.yml
