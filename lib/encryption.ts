@@ -128,11 +128,17 @@ export async function decryptFile(
   await writeFile(outputPath, decrypted)
 }
 
+// Signature ZIP (PK) : les fichiers ZIP bruts ne doivent pas être pris pour du chiffré
+const ZIP_MAGIC = Buffer.from([0x50, 0x4b]) // "PK"
+
 /**
- * Vérifie si un fichier est chiffré (en vérifiant la taille minimale)
- * Un fichier chiffré doit contenir au moins salt + iv + tag = 64 bytes
+ * Vérifie si un fichier est au format chiffré (AES-GCM avec salt+iv+tag).
+ * Un fichier ZIP brut (ex. backup-before-restore) commence par "PK" et ne doit pas être déchiffré.
  */
 export function isEncryptedFile(data: Buffer): boolean {
-  return data.length >= SALT_LENGTH + IV_LENGTH + TAG_LENGTH
+  if (data.length < SALT_LENGTH + IV_LENGTH + TAG_LENGTH) return false
+  // Ne pas considérer un ZIP brut comme chiffré (évite erreur de déchiffrement sur backup-before-restore)
+  if (data.length >= 2 && data[0] === ZIP_MAGIC[0] && data[1] === ZIP_MAGIC[1]) return false
+  return true
 }
 
