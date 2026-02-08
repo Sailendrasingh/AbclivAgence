@@ -107,7 +107,10 @@ export async function POST(request: NextRequest) {
 
   try {
     const backupsDir = join(process.cwd(), "backups")
-    const dbPath = join(process.cwd(), "prisma", "dev.db")
+    // Utiliser le même chemin que l'app (ex: file:/app/data/prod.db en prod)
+    const dbUrl = process.env.DATABASE_URL || "file:./prisma/dev.db"
+    const dbPathRaw = dbUrl.replace(/^file:/, "").trim()
+    const dbPath = dbPathRaw.startsWith("/") ? dbPathRaw : join(process.cwd(), dbPathRaw)
 
     // Créer le dossier backups s'il n'existe pas
     if (!existsSync(backupsDir)) {
