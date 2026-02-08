@@ -272,9 +272,9 @@ function ParametresPageContent() {
 
       if (response.ok) {
         const result = await response.json()
-        alert(
-          `Sauvegarde restaurée avec succès !\n\nUne sauvegarde de la base actuelle a été créée : ${result.backupCreatedBefore}\n\nL'application va recharger...`
-        )
+        let msg = `Sauvegarde restaurée avec succès !\n\nUne sauvegarde de la base actuelle a été créée : ${result.backupCreatedBefore}\n\nL'application va recharger...`
+        if (result.restartHint) msg += `\n\n${result.restartHint}`
+        alert(msg)
         setRestoreDialogOpen(false)
         setSelectedBackup(null)
         window.location.reload()

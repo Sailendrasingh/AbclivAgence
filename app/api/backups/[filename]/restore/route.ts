@@ -7,7 +7,7 @@ import { getSession } from "@/lib/session"
 import { createLog } from "@/lib/logs"
 import yauzl from "yauzl"
 import { decryptFile, isEncryptedFile } from "@/lib/encryption"
-import { verifyFileIntegrity } from "@/lib/backup-integrity"
+import { verifyFileIntegrity, saveChecksum } from "@/lib/backup-integrity"
 import { alertSensitiveAction } from "@/lib/alerts"
 import { prisma } from "@/lib/prisma"
 
@@ -149,6 +149,8 @@ export async function POST(
         output.on("close", () => resolve())
         output.on("error", reject)
       })
+      // Checksum pour que la sauvegarde s'affiche avec un statut valide (pas de triangle jaune)
+      await saveChecksum(currentBackupPath)
     }
 
     // Restaurer la sauvegarde
@@ -295,6 +297,9 @@ export async function POST(
       throw restoreError
     }
 
+    // Reconnecter Prisma à la base restaurée (ce processus voit la nouvelle base)
+    await prisma.$connect()
+
     await createLog(session.id, "SAUVEGARDE_RESTAUREE", {
       restoredFrom: filename,
       backupCreatedBefore: `backup-before-restore-${timestamp}.zip`,
@@ -312,6 +317,7 @@ export async function POST(
       success: true,
       message: "Sauvegarde restaurée avec succès",
       backupCreatedBefore: `backup-before-restore-${timestamp}.zip`,
+      restartHint: "Si les données ne se mettent pas à jour après rechargement, redémarrez le conteneur Docker (ou l’application).",
     })
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
