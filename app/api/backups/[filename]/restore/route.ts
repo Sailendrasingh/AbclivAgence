@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { readFile, writeFile, mkdir, rm, unlink } from "fs/promises"
+import { readFile, writeFile, mkdir, rm, unlink, readdir } from "fs/promises"
 import { createWriteStream } from "fs"
 import { join, dirname } from "path"
 import { existsSync } from "fs"
@@ -158,12 +158,16 @@ export async function POST(
         const uploadsDir = join(process.cwd(), "uploads")
         const prismaDir = join(process.cwd(), "prisma")
         
-        // Supprimer l'ancien dossier uploads s'il existe
+        // Vider le contenu de uploads au lieu de supprimer le dossier (évite EBUSY sous Docker / volume monté)
         if (existsSync(uploadsDir)) {
-          await rm(uploadsDir, { recursive: true, force: true })
+          const entries = await readdir(uploadsDir, { withFileTypes: true })
+          for (const entry of entries) {
+            const fullPath = join(uploadsDir, entry.name)
+            await rm(fullPath, { recursive: true, force: true })
+          }
         }
         
-        // Créer les dossiers nécessaires
+        // Créer les dossiers nécessaires (uploads peut déjà exister comme point de montage)
         await mkdir(uploadsDir, { recursive: true })
         await mkdir(prismaDir, { recursive: true })
         
