@@ -23,6 +23,9 @@ export async function POST(request: NextRequest) {
     // Valider les données avec Zod
     const validation = await validateRequest(request, createAddressSchema)
     if (!validation.success) {
+      // Logger les détails de l'erreur pour le débogage
+      const errorResponse = await validation.error.clone().json()
+      console.error("[ADDRESSES] Erreur de validation:", JSON.stringify(errorResponse, null, 2))
       return validation.error
     }
 

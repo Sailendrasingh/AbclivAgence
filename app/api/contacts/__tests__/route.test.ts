@@ -3,6 +3,11 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { hashPassword } from '@/lib/auth'
 
+// Mock de la validation CSRF
+jest.mock('@/lib/csrf-middleware', () => ({
+  requireCSRF: jest.fn(() => Promise.resolve(null)),
+}));
+
 // Mock des logs
 jest.mock('@/lib/logs', () => ({
   createLog: jest.fn(),
@@ -128,7 +133,7 @@ describe('POST /api/contacts', () => {
     const response = await POST(request)
     expect(response.status).toBe(400)
     const data = await response.json()
-    expect(data.error).toContain('obligatoires')
+    expect(data.error).toContain('Invalid input')
   })
 
   it('should reject creation if managerName is missing', async () => {
@@ -259,7 +264,7 @@ describe('POST /api/contacts', () => {
     const response = await POST(request)
     expect(response.status).toBe(400)
     const data = await response.json()
-    expect(data.error).toContain('tableau')
+    expect(data.error).toContain('Invalid input')
   })
 
   it('should accept multiple valid emails', async () => {

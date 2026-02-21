@@ -173,6 +173,7 @@ export async function POST(request: NextRequest) {
     }
     
     // Écrire le fichier après avoir récupéré la date
+    console.log('[UPLOAD_DEBUG] About to write file');
     await writeFile(filepath, buffer)
     
     // Si toujours pas de date valide, utiliser la date de création du fichier système (dernier recours)

@@ -33,14 +33,14 @@ export async function GET(request: NextRequest) {
 
     // Lister tous les fichiers de sauvegarde (ZIP chiffrés, ZIP non chiffrés pour rétrocompatibilité, .db pour rétrocompatibilité)
     const files = await readdir(backupsDir)
-    const backupFiles = files.filter((file) => 
+    const backupFiles = files.filter((file) =>
       file.startsWith("backup-") && (
-        file.endsWith(".encrypted.zip") || 
-        file.endsWith(".zip") || 
+        file.endsWith(".encrypted.zip") ||
+        file.endsWith(".zip") ||
         file.endsWith(".db")
       )
     )
-    
+
     if (backupFiles.length === 0) {
       return NextResponse.json([])
     }
@@ -52,13 +52,13 @@ export async function GET(request: NextRequest) {
 
         // Utiliser la date de création du fichier système (plus fiable)
         // birthtime = date de création (Windows), mtime = date de modification (fallback)
-        const date = stats.birthtime && stats.birthtime.getTime() > 0 
-          ? stats.birthtime 
+        const date = stats.birthtime && stats.birthtime.getTime() > 0
+          ? stats.birthtime
           : stats.mtime
 
         // Vérifier l'intégrité de la sauvegarde (si un checksum existe)
         const integrityCheck = await verifyFileIntegrity(filePath)
-        const integrityStatus = integrityCheck.storedChecksum 
+        const integrityStatus = integrityCheck.storedChecksum
           ? (integrityCheck.valid ? "valid" : "corrupted")
           : "unknown"
 
@@ -110,7 +110,8 @@ export async function POST(request: NextRequest) {
     // Utiliser le même chemin que l'app (ex: file:/app/data/prod.db en prod)
     const dbUrl = process.env.DATABASE_URL || "file:./prisma/dev.db"
     const dbPathRaw = dbUrl.replace(/^file:/, "").trim()
-    const dbPath = dbPathRaw.startsWith("/") ? dbPathRaw : join(process.cwd(), dbPathRaw)
+    const { isAbsolute } = await import("path")
+    const dbPath = isAbsolute(dbPathRaw) ? dbPathRaw : join(process.cwd(), dbPathRaw)
 
     // Créer le dossier backups s'il n'existe pas
     if (!existsSync(backupsDir)) {
@@ -147,7 +148,7 @@ export async function POST(request: NextRequest) {
         console.error("Erreur lors de l'écriture de l'archive:", err)
         reject(err)
       })
-      
+
       // Gérer les erreurs de l'archive
       archive.on("error", (err: Error) => {
         console.error("Erreur lors de la création de l'archive:", err)
@@ -181,10 +182,10 @@ export async function POST(request: NextRequest) {
       // En cas d'erreur de chiffrement, supprimer les deux fichiers
       try {
         await unlink(backupZipPath)
-      } catch {}
+      } catch { }
       try {
         await unlink(backupPath)
-      } catch {}
+      } catch { }
       throw new Error(`Erreur lors du chiffrement de la sauvegarde: ${encryptError.message}`)
     }
 
@@ -206,8 +207,8 @@ export async function POST(request: NextRequest) {
     let deletedCount = 0
     for (const file of files) {
       if (file.startsWith("backup-") && (
-        file.endsWith(".encrypted.zip") || 
-        file.endsWith(".zip") || 
+        file.endsWith(".encrypted.zip") ||
+        file.endsWith(".zip") ||
         file.endsWith(".db")
       )) {
         const filePath = join(backupsDir, file)
@@ -221,7 +222,7 @@ export async function POST(request: NextRequest) {
             if (existsSync(checksumPath)) {
               try {
                 await unlink(checksumPath)
-              } catch {}
+              } catch { }
             }
             deletedCount++
           } catch (unlinkError) {
@@ -267,7 +268,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error("Error creating backup:", error)
     return NextResponse.json(
-      { 
+      {
         error: "Erreur lors de la création de la sauvegarde",
         details: error?.message || String(error)
       },
@@ -309,8 +310,8 @@ export async function DELETE(request: NextRequest) {
     const files = await readdir(backupsDir)
     const backupFiles = files.filter((file) =>
       file.startsWith("backup-") && (
-        file.endsWith(".encrypted.zip") || 
-        file.endsWith(".zip") || 
+        file.endsWith(".encrypted.zip") ||
+        file.endsWith(".zip") ||
         file.endsWith(".db")
       )
     )
@@ -328,15 +329,15 @@ export async function DELETE(request: NextRequest) {
       try {
         const filePath = join(backupsDir, file)
         await unlink(filePath)
-        
+
         // Supprimer aussi le fichier de checksum associé s'il existe
         const checksumPath = `${filePath}.sha256`
         if (existsSync(checksumPath)) {
           try {
             await unlink(checksumPath)
-          } catch {}
+          } catch { }
         }
-        
+
         deletedCount++
       } catch (error) {
         console.error(`Erreur lors de la suppression de ${file}:`, error)
@@ -371,18 +372,18 @@ function formatFileSize(bytes: number): string {
   if (bytes === 0) return "0 Ko"
   const k = 1024
   const sizes = ["Ko", "Mo", "Go", "To"]
-  
+
   // Trouver l'unité appropriée en testant chaque niveau
   // On commence à Ko (index 0), donc on divise une fois pour obtenir Ko
   let size = bytes / k  // Convertir en Ko
   let unitIndex = 0
-  
+
   // Si c'est >= 1024 Ko, convertir en Mo, etc.
   while (size >= k && unitIndex < sizes.length - 1) {
     size = size / k
     unitIndex++
   }
-  
+
   return Math.round(size * 100) / 100 + " " + sizes[unitIndex]
 }
 

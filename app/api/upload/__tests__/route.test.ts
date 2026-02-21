@@ -1,7 +1,13 @@
 import { POST } from '../route'
 import { NextRequest } from 'next/server'
-import { readFile } from 'fs/promises'
+import { writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
+
+// Mock de la validation CSRF - CIBLE LA BONNE FONCTION
+jest.mock('@/lib/csrf', () => ({
+  ...jest.requireActual('@/lib/csrf'),
+  verifyCSRFToken: jest.fn(() => Promise.resolve(true)),
+}));
 
 // Mock des logs
 jest.mock('@/lib/logs', () => ({
@@ -121,9 +127,8 @@ describe('POST /api/upload', () => {
     const file = new File([jpegMagicBytes], 'test.jpg', { type: 'image/jpeg' })
     formData.append('file', file)
 
-    const { writeFile, mkdir } = require('fs/promises')
-    writeFile.mockResolvedValue(undefined)
-    mkdir.mockResolvedValue(undefined)
+    ;(writeFile as jest.Mock).mockResolvedValue(undefined)
+    ;(mkdir as jest.Mock).mockResolvedValue(undefined)
 
     const request = new NextRequest('http://localhost/api/upload', {
       method: 'POST',
@@ -144,9 +149,8 @@ describe('POST /api/upload', () => {
     const file = new File([pngMagicBytes], 'test.png', { type: 'image/png' })
     formData.append('file', file)
 
-    const { writeFile, mkdir } = require('fs/promises')
-    writeFile.mockResolvedValue(undefined)
-    mkdir.mockResolvedValue(undefined)
+    ;(writeFile as jest.Mock).mockResolvedValue(undefined)
+    ;(mkdir as jest.Mock).mockResolvedValue(undefined)
 
     const request = new NextRequest('http://localhost/api/upload', {
       method: 'POST',
@@ -161,14 +165,14 @@ describe('POST /api/upload', () => {
   })
 
   it('should prevent path traversal in filename', async () => {
-    const jpegMagicBytes = Buffer.from([0xFF, 0xD8, 0xFF])
+    const jpegMagicBytes = Buffer.from([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46])
     const formData = new FormData()
+    formData.append('_csrf', 'test-csrf-token')
     const file = new File([jpegMagicBytes], '../../../etc/passwd.jpg', { type: 'image/jpeg' })
     formData.append('file', file)
 
-    const { writeFile, mkdir } = require('fs/promises')
-    writeFile.mockResolvedValue(undefined)
-    mkdir.mockResolvedValue(undefined)
+    ;(writeFile as jest.Mock).mockResolvedValue(undefined)
+    ;(mkdir as jest.Mock).mockResolvedValue(undefined)
 
     const request = new NextRequest('http://localhost/api/upload', {
       method: 'POST',
@@ -179,7 +183,7 @@ describe('POST /api/upload', () => {
     
     // Le fichier devrait être sauvegardé avec un nom sécurisé, pas le chemin original
     expect(writeFile).toHaveBeenCalled()
-    const writeFileCall = writeFile.mock.calls[0]
+    const writeFileCall = (writeFile as jest.Mock).mock.calls[0]
     const filepath = writeFileCall[0]
     
     // Vérifier que le chemin ne contient pas de path traversal

@@ -32,14 +32,16 @@ export const createPCSchema = z.object({
     .max(200, "Le nom ne peut pas dépasser 200 caractères"),
   ip: z
     .string()
-    .regex(/^(\d{1,3}\.){3}\d{1,3}$/, "L'adresse IP doit être valide (format: xxx.xxx.xxx.xxx)")
     .optional()
-    .nullable(),
+    .nullable()
+    .transform(val => val === "" ? null : val)
+    .refine(val => !val || /^(\d{1,3}\.){3}\d{1,3}$/.test(val), "L'adresse IP doit être valide (format: xxx.xxx.xxx.xxx)"),
   mac: z
     .string()
-    .regex(/^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/, "L'adresse MAC doit être valide (format: XX:XX:XX:XX:XX:XX)")
     .optional()
-    .nullable(),
+    .nullable()
+    .transform(val => val === "" ? null : val)
+    .refine(val => !val || /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/.test(val), "L'adresse MAC doit être valide (format: XX:XX:XX:XX:XX:XX)"),
   serialNumber: z
     .string()
     .max(100, "Le numéro de série ne peut pas dépasser 100 caractères")
@@ -56,15 +58,19 @@ export const createPCSchema = z.object({
     .optional()
     .nullable(),
   purchaseDate: z
-    .union([z.string().datetime(), z.date()])
-    .optional()
-    .nullable()
-    .transform((val) => val ? (typeof val === "string" ? new Date(val) : val) : null),
+    .union([z.string(), z.date(), z.null(), z.undefined()])
+    .transform((val) => {
+      if (!val || val === "") return null;
+      return typeof val === "string" ? new Date(val) : val;
+    })
+    .refine(val => val === null || !isNaN(val.getTime()), "Date invalide"),
   warrantyDate: z
-    .union([z.string().datetime(), z.date()])
-    .optional()
-    .nullable()
-    .transform((val) => val ? (typeof val === "string" ? new Date(val) : val) : null),
+    .union([z.string(), z.date(), z.null(), z.undefined()])
+    .transform((val) => {
+      if (!val || val === "") return null;
+      return typeof val === "string" ? new Date(val) : val;
+    })
+    .refine(val => val === null || !isNaN(val.getTime()), "Date invalide"),
   files: z
     .array(pcFileSchema)
     .optional()
@@ -86,14 +92,16 @@ export const updatePCSchema = z.object({
     .optional(),
   ip: z
     .string()
-    .regex(/^(\d{1,3}\.){3}\d{1,3}$/, "L'adresse IP doit être valide (format: xxx.xxx.xxx.xxx)")
     .optional()
-    .nullable(),
+    .nullable()
+    .transform(val => val === "" ? null : val)
+    .refine(val => !val || /^(\d{1,3}\.){3}\d{1,3}$/.test(val), "L'adresse IP doit être valide (format: xxx.xxx.xxx.xxx)"),
   mac: z
     .string()
-    .regex(/^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/, "L'adresse MAC doit être valide (format: XX:XX:XX:XX:XX:XX)")
     .optional()
-    .nullable(),
+    .nullable()
+    .transform(val => val === "" ? null : val)
+    .refine(val => !val || /^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$/.test(val), "L'adresse MAC doit être valide (format: XX:XX:XX:XX:XX:XX)"),
   serialNumber: z
     .string()
     .max(100, "Le numéro de série ne peut pas dépasser 100 caractères")
@@ -110,15 +118,19 @@ export const updatePCSchema = z.object({
     .optional()
     .nullable(),
   purchaseDate: z
-    .union([z.string().datetime(), z.date()])
-    .optional()
-    .nullable()
-    .transform((val) => val ? (typeof val === "string" ? new Date(val) : val) : null),
+    .union([z.string(), z.date(), z.null(), z.undefined()])
+    .transform((val) => {
+      if (!val || val === "") return null;
+      return typeof val === "string" ? new Date(val) : val;
+    })
+    .refine(val => val === null || !isNaN(val.getTime()), "Date invalide"),
   warrantyDate: z
-    .union([z.string().datetime(), z.date()])
-    .optional()
-    .nullable()
-    .transform((val) => val ? (typeof val === "string" ? new Date(val) : val) : null),
+    .union([z.string(), z.date(), z.null(), z.undefined()])
+    .transform((val) => {
+      if (!val || val === "") return null;
+      return typeof val === "string" ? new Date(val) : val;
+    })
+    .refine(val => val === null || !isNaN(val.getTime()), "Date invalide"),
   files: z
     .array(pcFileSchema)
     .optional()

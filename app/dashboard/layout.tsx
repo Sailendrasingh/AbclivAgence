@@ -3,6 +3,7 @@ import { getSession } from "@/lib/session"
 import { Sidebar } from "@/components/ui/sidebar"
 import { AgencyStats } from "@/components/agency-stats"
 import { SessionTimeoutWrapper } from "@/components/session-timeout-wrapper"
+import { DashboardToastProvider } from "@/components/toast-provider"
 import { ensureSessionTable } from "@/lib/ensure-session-table"
 import { Require2FASetup } from "@/components/require-2fa-setup"
 import Image from "next/image"
@@ -30,6 +31,7 @@ export default async function DashboardLayout({
 
   return (
     <Require2FASetup>
+      <DashboardToastProvider>
       <div className="flex h-screen overflow-hidden bg-background w-full max-w-full">
         <SessionTimeoutWrapper />
         <Sidebar />
@@ -61,6 +63,7 @@ export default async function DashboardLayout({
           </main>
         </div>
       </div>
+      </DashboardToastProvider>
     </Require2FASetup>
   )
 }

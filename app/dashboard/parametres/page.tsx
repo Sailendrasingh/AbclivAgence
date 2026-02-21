@@ -28,6 +28,7 @@ import {
 import { Switch } from "@/components/ui/switch"
 import { apiFetch } from "@/lib/api-client"
 import { fetchCSRFToken } from "@/lib/csrf-client"
+import { Breadcrumb } from "@/components/ui/breadcrumb"
 
 interface Backup {
   filename: string
@@ -1038,9 +1039,24 @@ function ParametresPageContent() {
     )
   }
 
+  const tabLabels: Record<string, string> = {
+    general: "Général",
+    utilisateurs: "Utilisateurs",
+    sauvegardes: "Sauvegardes",
+    logs: "Logs",
+    monitoring: "Monitoring",
+  }
+
   return (
       <div className="p-3 sm:p-6 w-full max-w-full min-w-0 overflow-x-hidden">
-        <div className="flex justify-between items-center mb-4 sm:mb-6">
+        <Breadcrumb
+          items={[
+            { label: "Tableau de bord", href: "/dashboard" },
+            { label: "Paramètres", href: "/dashboard/parametres" },
+            { label: tabLabels[activeTab] || activeTab },
+          ]}
+        />
+        <div className="flex justify-between items-center mb-4 sm:mb-6 mt-2">
           <h1 className="text-xl sm:text-2xl font-bold">Paramètres</h1>
         </div>
 
@@ -1830,7 +1846,8 @@ function ParametresPageContent() {
             {/* Dialog de résolution */}
             <Dialog open={resolveDialogOpen} onOpenChange={setResolveDialogOpen}>
               <DialogContent>
-                <DialogHeader>
+        <DialogTitle className="sr-only">Dialogue</DialogTitle>
+ <DialogHeader>
                   <DialogTitle>Résoudre l'alerte</DialogTitle>
                   <DialogDescription>
                     Êtes-vous sûr de vouloir marquer cette alerte comme résolue ?
@@ -1858,7 +1875,8 @@ function ParametresPageContent() {
         {/* Dialog de confirmation de purge des logs */}
         <Dialog open={purgeLogsDialogOpen} onOpenChange={setPurgeLogsDialogOpen}>
           <DialogContent>
-            <DialogHeader>
+        <DialogTitle className="sr-only">Dialogue</DialogTitle>
+ <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5 text-destructive" />
                 Purger tous les logs
@@ -1914,7 +1932,8 @@ function ParametresPageContent() {
         {/* Dialog de confirmation de purge */}
         <Dialog open={purgeDialogOpen} onOpenChange={setPurgeDialogOpen}>
           <DialogContent>
-            <DialogHeader>
+        <DialogTitle className="sr-only">Dialogue</DialogTitle>
+ <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5 text-destructive" />
                 Purger toutes les sauvegardes
@@ -1970,7 +1989,8 @@ function ParametresPageContent() {
         {/* Dialog de confirmation de restauration */}
         <Dialog open={restoreDialogOpen} onOpenChange={setRestoreDialogOpen}>
           <DialogContent>
-            <DialogHeader>
+        <DialogTitle className="sr-only">Dialogue</DialogTitle>
+ <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5 text-destructive" />
                 Confirmer la restauration
@@ -2034,7 +2054,8 @@ function ParametresPageContent() {
         {/* Dialog de confirmation de suppression d'une sauvegarde */}
         <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
           <DialogContent>
-            <DialogHeader>
+        <DialogTitle className="sr-only">Dialogue</DialogTitle>
+ <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5 text-destructive" />
                 Supprimer la sauvegarde
@@ -2091,7 +2112,8 @@ function ParametresPageContent() {
         {/* Dialog Créer/Modifier utilisateur */}
         <Dialog open={isUserDialogOpen} onOpenChange={setIsUserDialogOpen}>
           <DialogContent>
-            <DialogHeader>
+        <DialogTitle className="sr-only">Dialogue</DialogTitle>
+ <DialogHeader>
               <DialogTitle>
                 {selectedUser ? "Modifier l'utilisateur" : "Nouvel utilisateur"}
               </DialogTitle>
@@ -2252,7 +2274,8 @@ function ParametresPageContent() {
           }}
         >
           <DialogContent className="max-w-md">
-            <DialogHeader>
+        <DialogTitle className="sr-only">Dialogue</DialogTitle>
+ <DialogHeader>
               <DialogTitle>Configuration 2FA</DialogTitle>
               <DialogDescription>
                 Scannez le QR Code avec Google Authenticator ou entrez le secret

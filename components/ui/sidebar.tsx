@@ -6,7 +6,7 @@ import Image from "next/image"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Button } from "./button"
 import { ThemeToggle } from "./theme-toggle"
-import { Menu, X, LogOut, User, Building2, Users, FileText, HardDrive, Settings, ChevronDown, ChevronRight, Sliders, Activity } from "lucide-react"
+import { Menu, X, LogOut, User, Building2, Users, FileText, HardDrive, Settings, ChevronDown, ChevronRight, Sliders, Activity, LayoutDashboard } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { LucideIcon } from "lucide-react"
 
@@ -18,6 +18,7 @@ interface MenuItem {
 }
 
 const allMenuItems: MenuItem[] = [
+  { href: "/dashboard", label: "Tableau de bord", adminOnly: false, icon: LayoutDashboard },
   { href: "/dashboard/agences", label: "Agences", adminOnly: false, icon: Building2 },
   { href: "/dashboard/parametres", label: "Paramètres", adminOnly: true, icon: Settings },
 ]
@@ -31,12 +32,12 @@ function SidebarContent() {
   const pathname = usePathname()
   const router = useRouter()
   const searchParams = useSearchParams()
-  
+
   // Récupérer l'onglet actif depuis l'URL (sans state)
-  const currentTab = pathname === "/dashboard/parametres" 
+  const currentTab = pathname === "/dashboard/parametres"
     ? (searchParams.get("tab") || "general")
     : "general"
-  
+
   // Sous-pages de Paramètres (mémorisé)
   const parametresSubPages = useMemo(() => [
     { href: "/dashboard/parametres?tab=general", label: "Général", tab: "general", icon: Sliders },
@@ -45,7 +46,7 @@ function SidebarContent() {
     { href: "/dashboard/parametres?tab=logs", label: "Logs", tab: "logs", icon: FileText },
     { href: "/dashboard/parametres?tab=monitoring", label: "Monitoring", tab: "monitoring", icon: Activity },
   ], [])
-  
+
   // Vérifier si on est sur une page Paramètres pour ouvrir automatiquement le menu
   useEffect(() => {
     if (pathname === "/dashboard/parametres") {
@@ -87,11 +88,11 @@ function SidebarContent() {
       // Utiliser apiFetch pour envoyer le token CSRF si disponible
       const { apiFetch } = await import("@/lib/api-client")
       const { resetCSRF } = await import("@/lib/api-client")
-      
+
       await apiFetch("/api/auth/logout", {
         method: "POST",
       })
-      
+
       // Réinitialiser le token CSRF côté client
       resetCSRF()
     } catch (error) {
@@ -105,7 +106,7 @@ function SidebarContent() {
   }, [router])
 
   // Mémoriser menuItems pour éviter les recalculs
-  const menuItems = useMemo(() => 
+  const menuItems = useMemo(() =>
     allMenuItems.filter(
       (item) => !item.adminOnly || userRole === "Super Admin"
     ),
@@ -138,8 +139,8 @@ function SidebarContent() {
         className={cn(
           "h-full z-40 flex flex-col transition-transform duration-300 ease-in-out",
           "bg-background lg:bg-transparent",
-          // En mode mobile : fixed, 50% de largeur, hors écran par défaut, visible quand ouvert
-          "fixed left-0 top-0 w-1/2 h-full lg:relative lg:w-48",
+          // En mode mobile : fixed, 50% de largeur. Desktop : largeur calée sur le bouton "Tableau de bord" (icône + texte + padding)
+          "fixed left-0 top-0 w-1/2 h-full lg:relative lg:w-[14rem] lg:shrink-0",
           // Transition : translate-x pour mobile, normal pour desktop
           mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
           "lg:after:content-[''] lg:after:absolute lg:after:right-0 lg:after:top-0 lg:after:bottom-0 lg:after:w-px lg:after:bg-border lg:after:z-50"
@@ -161,11 +162,11 @@ function SidebarContent() {
             </div>
             <h2 className="text-base sm:text-lg lg:text-base font-bold text-center">Gestion Agences</h2>
           </div>
-          <nav className="space-y-1 flex-1">
+          <nav className="space-y-1 flex-1" aria-label="Navigation principale">
             {menuItems.map((item) => {
               const Icon = item.icon
               const isParametres = item.href === "/dashboard/parametres"
-              
+
               if (isParametres) {
                 return (
                   <div key={item.href} className="space-y-0.5">
@@ -178,7 +179,7 @@ function SidebarContent() {
                         }
                       }}
                       className={cn(
-                        "w-full flex items-center justify-between gap-3 px-4 py-2.5 rounded-md transition-colors text-sm min-h-[44px] relative",
+                        "w-full flex items-center justify-between gap-3 px-4 py-2.5 rounded-md transition-colors text-sm min-h-[44px] relative whitespace-nowrap",
                         pathname === "/dashboard/parametres"
                           ? "bg-primary/10 text-primary border-l-2 border-l-primary"
                           : "hover:bg-accent/50 text-muted-foreground hover:text-foreground"
@@ -187,7 +188,7 @@ function SidebarContent() {
                       {pathname === "/dashboard/parametres" && (
                         <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-primary"></div>
                       )}
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2 xl:gap-3 min-w-0">
                         <Icon className="h-4 w-4 shrink-0" />
                         <span className="font-medium">{item.label}</span>
                       </div>
@@ -229,7 +230,7 @@ function SidebarContent() {
                   </div>
                 )
               }
-              
+
               return (
                 <div key={item.href}>
                   <div className="border-b border-border/30 my-2"></div>
@@ -237,7 +238,7 @@ function SidebarContent() {
                     href={item.href}
                     onClick={() => setMobileOpen(false)}
                     className={cn(
-                      "flex items-center gap-3 px-4 py-2.5 rounded-md transition-colors text-sm min-h-[44px] relative",
+                      "flex items-center gap-2 xl:gap-3 px-4 py-2.5 rounded-md transition-colors text-sm min-h-[44px] relative",
                       pathname === item.href
                         ? "bg-primary/10 text-primary border-l-2 border-l-primary font-medium"
                         : "hover:bg-accent/50 text-muted-foreground hover:text-foreground"
@@ -247,13 +248,13 @@ function SidebarContent() {
                       <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-primary"></div>
                     )}
                     <Icon className="h-4 w-4 shrink-0" />
-                    <span>{item.label}</span>
+                    <span className="whitespace-nowrap" style={{ whiteSpace: 'nowrap' }}>{item.label}</span>
                   </Link>
                 </div>
               )
             })}
           </nav>
-          
+
           {/* Section utilisateur en bas */}
           <div className="mt-auto pt-4 border-t border-border/30 space-y-1">
             {userLogin && (
@@ -313,7 +314,7 @@ function SidebarContent() {
 export function Sidebar() {
   return (
     <Suspense fallback={
-      <aside className="w-full h-full z-40 lg:relative lg:w-48 flex flex-col">
+      <aside className="w-full h-full z-40 lg:relative lg:w-[14rem] lg:shrink-0 flex flex-col">
         <div className="p-4 sm:p-6 flex-1 flex flex-col">
           <div className="flex flex-col items-center mb-6">
             <div className="bg-gray-600 dark:bg-transparent rounded-lg p-2 mb-4 w-full flex justify-center">

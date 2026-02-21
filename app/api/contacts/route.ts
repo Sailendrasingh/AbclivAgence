@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     const validation = await validateRequest(request, createContactSchema)
     if (!validation.success) {
       // Logger les détails de l'erreur pour le débogage
-      const errorResponse = await validation.error.json()
+      const errorResponse = await validation.error.clone().json()
       console.error("[CONTACTS] Erreur de validation:", JSON.stringify(errorResponse, null, 2))
       return validation.error
     }

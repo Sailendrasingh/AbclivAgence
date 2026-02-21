@@ -35,6 +35,19 @@ module.exports = {
     min_uptime: '10s',
     max_restarts: 10,
     restart_delay: 4000
+  }, {
+    name: 'abcliv-agency-backup',
+    script: 'npm',
+    args: 'run backup',
+    cwd: process.cwd(),
+    instances: 1,
+    exec_mode: 'fork',
+    cron_restart: '0 2 * * *', // Tous les jours à 2h00 du matin
+    autorestart: false,
+    error_file: './logs/backup-error.log',
+    out_file: './logs/backup-out.log',
+    log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+    merge_logs: true
   }]
 }
 

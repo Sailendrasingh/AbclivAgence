@@ -56,7 +56,14 @@ describe('POST /api/auth/login', () => {
     const cookies = response.cookies.getAll()
     const sessionCookie = cookies.find(c => c.name === 'session')
     expect(sessionCookie).toBeDefined()
-    expect(sessionCookie?.value).toBe(user.id)
+    expect(sessionCookie?.value).toBeDefined()
+
+    // Vérifier que la session existe en base de données
+    const dbSession = await prisma.session.findUnique({
+        where: { token: sessionCookie!.value }
+    })
+    expect(dbSession).toBeDefined()
+    expect(dbSession?.userId).toBe(user.id)
   })
 
   it('should reject incorrect password', async () => {

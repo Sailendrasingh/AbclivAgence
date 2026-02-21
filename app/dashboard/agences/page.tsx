@@ -23,11 +23,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Plus, Save, MapPin, Mail, Phone, User, Settings, Camera, Edit, Trash2, X, ChevronLeft, ChevronRight, Eye, EyeOff, Clock, ChevronUp, ChevronDown, ArrowLeft, GripVertical, FileText, CheckCircle, ListTodo } from "lucide-react"
+import { Plus, Save, MapPin, Mail, Phone, User, Settings, Camera, Edit, Trash2, X, ChevronLeft, ChevronRight, Eye, EyeOff, Clock, ChevronUp, ChevronDown, ArrowLeft, GripVertical, FileText, CheckCircle, ListTodo, Users, CheckSquare, Monitor, Printer, Wifi, Video, AlertCircle } from "lucide-react"
 import { Search } from "lucide-react"
 import { AddressSearch } from "@/components/address-search"
 import { apiFetch } from "@/lib/api-client"
 import { fetchCSRFToken, setCSRFToken } from "@/lib/csrf-client"
+import { EmptyState } from "@/components/ui/empty-state"
+import { Skeleton } from "@/components/ui/skeleton"
+import { DashboardCockpit } from "@/components/ui/dashboard-cockpit"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { useToast } from "@/lib/toast-context"
 
 interface Agency {
   id: string
@@ -196,6 +201,7 @@ export default function AgencesPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [newAgencyName, setNewAgencyName] = useState("")
   const [creating, setCreating] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editedName, setEditedName] = useState("")
   const [editedState, setEditedState] = useState<"OK" | "ALERTE" | "INFO" | "FERMÉE">("ALERTE")
@@ -207,7 +213,7 @@ export default function AgencesPage() {
   const [maxImageSizeMB, setMaxImageSizeMB] = useState(5) // Taille maximale des images en Mo
   const [maxPhotosPerType, setMaxPhotosPerType] = useState(50) // Nombre max de photos par type
   const [maxPhotosPerTask, setMaxPhotosPerTask] = useState(5) // Nombre max de photos par tâche
-  
+
   // États pour adresses
   const [isAddressDialogOpen, setIsAddressDialogOpen] = useState(false)
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null)
@@ -217,7 +223,7 @@ export default function AgencesPage() {
   const [manualStreet, setManualStreet] = useState("")
   const [manualCity, setManualCity] = useState("")
   const [manualPostalCode, setManualPostalCode] = useState("")
-  
+
   // États pour contacts
   const [isContactDialogOpen, setIsContactDialogOpen] = useState(false)
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
@@ -228,7 +234,7 @@ export default function AgencesPage() {
   const [contactEmailInput, setContactEmailInput] = useState("")
   const [contactManagerName, setContactManagerName] = useState("")
   const [contactNote, setContactNote] = useState("")
-  
+
   // États pour photos
   const [isPhotoDialogOpen, setIsPhotoDialogOpen] = useState(false)
   const [selectedPhotoGroup, setSelectedPhotoGroup] = useState<PhotoGroup | null>(null)
@@ -237,7 +243,7 @@ export default function AgencesPage() {
   const [selectedPhotoTypeTab, setSelectedPhotoTypeTab] = useState<string>("")
   const [photoFiles, setPhotoFiles] = useState<File[]>([])
   const [photoSearch, setPhotoSearch] = useState("")
-  
+
   // États pour l'édition du titre d'une photo individuelle
   const [isEditPhotoTitleDialogOpen, setIsEditPhotoTitleDialogOpen] = useState(false)
   const [editingPhotoUrl, setEditingPhotoUrl] = useState("")
@@ -286,13 +292,18 @@ export default function AgencesPage() {
 
   // État pour mémoriser l'onglet actif
   const [activeTab, setActiveTab] = useState<"general" | "tasks" | "technical" | "photos">("general")
-  
+
   // États pour les tâches
   const [tasks, setTasks] = useState<Task[]>([])
   const [loadingTasks, setLoadingTasks] = useState(false)
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false)
   const [isTaskEditDialogOpen, setIsTaskEditDialogOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
+
+  // États Dirty State
+  const [pendingAgencyToSelect, setPendingAgencyToSelect] = useState<Agency | null>(null)
+  const [showDirtyDialog, setShowDirtyDialog] = useState(false)
+
   const [taskFormData, setTaskFormData] = useState({
     title: "",
     createdAt: "",
@@ -314,6 +325,27 @@ export default function AgencesPage() {
   const [showClosedTasks, setShowClosedTasks] = useState(true)
   const [expandedTaskNotes, setExpandedTaskNotes] = useState<Record<string, boolean>>({})
   const [expandedContactNotes, setExpandedContactNotes] = useState<Record<string, boolean>>({})
+
+  // Modale de confirmation (suppressions) et toasts
+  const { toast } = useToast()
+  const [confirmState, setConfirmState] = useState<{
+    open: boolean
+    title: string
+    description: string
+    confirmLabel?: string
+    variant?: "danger" | "default"
+    onConfirm: () => void | Promise<void>
+  }>({ open: false, title: "", description: "", onConfirm: () => {} })
+  const [confirmLoading, setConfirmLoading] = useState(false)
+  const openConfirm = useCallback(
+    (opts: { title: string; description: string; confirmLabel?: string; variant?: "danger" | "default"; onConfirm: () => void | Promise<void> }) => {
+      setConfirmState({ open: true, confirmLabel: "Supprimer", variant: "danger", ...opts })
+    },
+    []
+  )
+  const showError = useCallback((message: string) => {
+    toast({ title: message, variant: "destructive" })
+  }, [])
 
   // États pour l'historique des notes techniques
   const [isNotesHistoryDialogOpen, setIsNotesHistoryDialogOpen] = useState(false)
@@ -340,7 +372,7 @@ export default function AgencesPage() {
 
   const loadAgencies = useCallback(async () => {
     if (!isMounted) return
-    
+
     setLoading(true)
     try {
       const response = await fetch(
@@ -349,11 +381,11 @@ export default function AgencesPage() {
           credentials: 'include'
         }
       )
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
-      
+
       const data = await response.json()
       // Trier les agences par nom
       const sortedData = [...data].sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }))
@@ -366,8 +398,8 @@ export default function AgencesPage() {
         }
         // Si aucune agence n'est sélectionnée ou si l'agence sélectionnée n'existe plus, sélectionner la première
         if (sortedData.length > 0 && !currentSelectedId) {
-        setSelectedAgency(sortedData[0])
-      }
+          setSelectedAgency(sortedData[0])
+        }
         return sortedData
       })
     } catch (error) {
@@ -403,7 +435,7 @@ export default function AgencesPage() {
         if (response.ok) {
           const data = await response.json()
           setUserRole(data.role)
-          
+
           // Stocker le token CSRF si disponible (prioritaire)
           if (data.csrfToken) {
             setCSRFToken(data.csrfToken)
@@ -453,7 +485,7 @@ export default function AgencesPage() {
   // Détecter si on est sur mobile - après le montage pour éviter les différences d'hydratation
   useEffect(() => {
     if (!isMounted) return
-    
+
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768) // Breakpoint md de Tailwind
     }
@@ -582,7 +614,7 @@ export default function AgencesPage() {
       if (fullAgencyData?.technical) {
         // Utiliser latestTechnicalNotes si disponible, sinon utiliser technicalNotes de la base
         const notesToUse = latestTechnicalNotes !== null ? latestTechnicalNotes : (fullAgencyData.technical.technicalNotes || "")
-        
+
         setTechnicalData({
           networkIp: fullAgencyData.technical.networkIp || "",
           machineBrand: fullAgencyData.technical.machineBrand || "",
@@ -654,14 +686,14 @@ export default function AgencesPage() {
     setLoadingDetails(true)
     try {
       const response = await fetch(`/api/agencies/${agencyId}`)
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
         throw new Error(errorData.error || `HTTP error! status: ${response.status}`)
       }
-      
+
       const data = await response.json()
-      
+
       // S'assurer que les contacts ont un champ order (rétrocompatibilité)
       if (data.contacts && Array.isArray(data.contacts)) {
         data.contacts = data.contacts.map((contact: any, index: number) => ({
@@ -669,7 +701,7 @@ export default function AgencesPage() {
           order: contact.order !== undefined ? contact.order : index
         }))
       }
-      
+
       // S'assurer que les PC ont un champ order (rétrocompatibilité)
       if (data.technical?.pcs && Array.isArray(data.technical.pcs)) {
         data.technical.pcs = data.technical.pcs.map((pc: any, index: number) => ({
@@ -678,12 +710,12 @@ export default function AgencesPage() {
         }))
         console.log("[loadAgencyDetails] PCs chargés:", data.technical.pcs.map((p: any) => ({ id: p.id, name: p.name, order: p.order })))
       }
-      
+
       // Petit délai pour permettre la transition visuelle
       await new Promise(resolve => setTimeout(resolve, 100))
       setFullAgencyData(data)
       setEditedName(data.name)
-      
+
       // Charger les tâches
       if (agencyId) {
         await loadTasks(agencyId)
@@ -693,7 +725,7 @@ export default function AgencesPage() {
       setEditedCodeRayon(data.codeRayon || "")
       setEditedDateOuverture(data.dateOuverture ? new Date(data.dateOuverture).toISOString().split('T')[0] : "")
       setEditedDateFermeture(data.dateFermeture ? new Date(data.dateFermeture).toISOString().split('T')[0] : "")
-      
+
       // Récupérer la dernière version de l'historique des notes techniques
       if (data.technical?.id) {
         try {
@@ -754,7 +786,7 @@ export default function AgencesPage() {
 
       if (!response.ok) {
         const error = await response.json()
-        alert(error.error || "Erreur lors de la création")
+        toast({ title: error.error || "Erreur lors de la création", variant: "destructive" })
         return
       }
 
@@ -763,12 +795,13 @@ export default function AgencesPage() {
       setSelectedAgency(newAgency)
       setIsCreateDialogOpen(false)
       setNewAgencyName("")
-      
+
       // Déclencher le rafraîchissement des statistiques
       window.dispatchEvent(new CustomEvent('agencyStatsRefresh'))
+      toast({ title: "Agence créée", variant: "success" })
     } catch (error) {
       console.error("Error creating agency:", error)
-      alert("Erreur lors de la création de l'agence")
+      toast({ title: "Erreur lors de la création de l'agence", variant: "destructive" })
     } finally {
       setCreating(false)
     }
@@ -779,6 +812,7 @@ export default function AgencesPage() {
       return
     }
 
+    setSaving(true)
     try {
       // Sauvegarder d'abord l'agence
       const bodyData = {
@@ -805,7 +839,7 @@ export default function AgencesPage() {
           // Si la réponse n'est pas du JSON valide, utiliser le message par défaut
           errorMessage = `Erreur serveur (${response.status})`
         }
-        alert(errorMessage)
+        toast({ title: errorMessage, variant: "destructive" })
         return
       }
 
@@ -814,23 +848,23 @@ export default function AgencesPage() {
       if (editingTechnical && (fullAgencyData?.technical || Object.keys(technicalData).length > 0)) {
         try {
           console.log("Saving technical data from handleSaveAgency, technicalData:", technicalData)
-          
+
           // S'assurer que technicalNotes est toujours inclus
-          const technicalNotesValue = technicalData.technicalNotes !== undefined 
-            ? technicalData.technicalNotes 
+          const technicalNotesValue = technicalData.technicalNotes !== undefined
+            ? technicalData.technicalNotes
             : (fullAgencyData?.technical?.technicalNotes ?? "")
-          
+
           console.log("technicalNotesValue:", technicalNotesValue)
-          
+
           // Si technicalData est vide mais qu'on a des notes, créer un objet avec les notes
           const dataToSend = Object.keys(technicalData).length > 0
             ? {
-                ...technicalData,
-                technicalNotes: technicalNotesValue,
-              }
+              ...technicalData,
+              technicalNotes: technicalNotesValue,
+            }
             : {
-                technicalNotes: technicalNotesValue,
-              }
+              technicalNotes: technicalNotesValue,
+            }
 
           console.log("dataToSend from handleSaveAgency:", dataToSend)
 
@@ -838,9 +872,9 @@ export default function AgencesPage() {
           if (fullAgencyData?.technical) {
             // Mise à jour de données existantes
             const technicalBody = {
-                technicalId: fullAgencyData.technical.id,
-                ...dataToSend,
-              }
+              technicalId: fullAgencyData.technical.id,
+              ...dataToSend,
+            }
 
             console.log("technicalBody from handleSaveAgency (PUT):", technicalBody)
 
@@ -854,7 +888,7 @@ export default function AgencesPage() {
               const error = await technicalResponse.json()
               console.error("Error saving technical data:", error)
               // Ne pas bloquer la sauvegarde de l'agence si la sauvegarde technique échoue
-              alert("L'agence a été sauvegardée mais une erreur est survenue lors de la sauvegarde des données techniques")
+              toast({ title: "L'agence a été sauvegardée mais une erreur est survenue lors de la sauvegarde des données techniques", variant: "destructive" })
             } else {
               const technicalResponseData = await technicalResponse.json()
               // Mettre à jour latestTechnicalNotes avec la nouvelle valeur sauvegardée
@@ -865,35 +899,34 @@ export default function AgencesPage() {
           } else if (Object.keys(dataToSend).length > 0 && Object.values(dataToSend).some(v => v !== "" && v !== null)) {
             // Création de nouvelles données techniques seulement si on a des données non vides
             const technicalBody = {
-                agencyId: selectedAgency.id,
-                ...dataToSend,
-              }
+              agencyId: selectedAgency.id,
+              ...dataToSend,
+            }
 
             console.log("technicalBody from handleSaveAgency (POST):", technicalBody)
 
-          const technicalResponse = await fetch("/api/technical", {
+            const technicalResponse = await fetch("/api/technical", {
               method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(technicalBody),
-          })
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(technicalBody),
+            })
 
-          if (!technicalResponse.ok) {
-            const error = await technicalResponse.json()
+            if (!technicalResponse.ok) {
+              const error = await technicalResponse.json()
               console.error("Error creating technical data:", error)
-            // Ne pas bloquer la sauvegarde de l'agence si la sauvegarde technique échoue
-              alert("L'agence a été sauvegardée mais une erreur est survenue lors de la création des données techniques")
-          } else {
-            const technicalResponseData = await technicalResponse.json()
-            // Mettre à jour latestTechnicalNotes avec la nouvelle valeur sauvegardée
-            if (technicalResponseData.technicalNotes !== undefined) {
-              setLatestTechnicalNotes(technicalResponseData.technicalNotes)
+              // Ne pas bloquer la sauvegarde de l'agence si la sauvegarde technique échoue
+              toast({ title: "L'agence a été sauvegardée mais une erreur est survenue lors de la création des données techniques", variant: "destructive" })
+            } else {
+              const technicalResponseData = await technicalResponse.json()
+              // Mettre à jour latestTechnicalNotes avec la nouvelle valeur sauvegardée
+              if (technicalResponseData.technicalNotes !== undefined) {
+                setLatestTechnicalNotes(technicalResponseData.technicalNotes)
               }
             }
           }
         } catch (error) {
           console.error("Error saving technical data:", error)
-          // Ne pas bloquer la sauvegarde de l'agence si la sauvegarde technique échoue
-          alert("L'agence a été sauvegardée mais une erreur est survenue lors de la sauvegarde des données techniques")
+          toast({ title: "L'agence a été sauvegardée mais une erreur est survenue lors de la sauvegarde des données techniques", variant: "destructive" })
         }
       }
 
@@ -903,12 +936,15 @@ export default function AgencesPage() {
       setEditing(false)
       setEditingTechnical(false)
       setTechnicalData({})
-      
+
       // Déclencher le rafraîchissement des statistiques (surtout si l'état a changé)
       window.dispatchEvent(new CustomEvent('agencyStatsRefresh'))
+      toast({ title: "Agence enregistrée", variant: "success" })
     } catch (error) {
       console.error("Error saving agency:", error)
-      alert("Erreur lors de la sauvegarde")
+      toast({ title: "Erreur lors de la sauvegarde", variant: "destructive" })
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -921,41 +957,36 @@ export default function AgencesPage() {
     })
   }, [])
 
-  const handleDeleteAgency = async (agencyId: string, agencyName: string) => {
-    if (!confirm(`Êtes-vous sûr de vouloir supprimer l'agence "${agencyName}" ?`)) {
-      return
-    }
-
-    try {
-      const response = await apiFetch(`/api/agencies/${agencyId}`, {
-        method: "DELETE",
-      })
-
-      if (response.ok) {
-        // Retirer l'agence de la liste
-        setAgencies(agencies.filter((a) => a.id !== agencyId))
-        
-        // Si l'agence supprimée était sélectionnée, sélectionner la première disponible
-        if (selectedAgency?.id === agencyId) {
-          const remainingAgencies = agencies.filter((a) => a.id !== agencyId)
-          if (remainingAgencies.length > 0) {
-            setSelectedAgency(remainingAgencies[0])
+  const handleDeleteAgency = (agencyId: string, agencyName: string) => {
+    openConfirm({
+      title: "Supprimer l'agence",
+      description: `Êtes-vous sûr de vouloir supprimer l'agence « ${agencyName } » ?`,
+      confirmLabel: "Supprimer",
+      onConfirm: async () => {
+        setConfirmLoading(true)
+        try {
+          const response = await apiFetch(`/api/agencies/${agencyId}`, { method: "DELETE" })
+          if (response.ok) {
+            setAgencies(agencies.filter((a) => a.id !== agencyId))
+            if (selectedAgency?.id === agencyId) {
+              const remainingAgencies = agencies.filter((a) => a.id !== agencyId)
+              if (remainingAgencies.length > 0) setSelectedAgency(remainingAgencies[0])
+              else { setSelectedAgency(null); setFullAgencyData(null) }
+            }
+            window.dispatchEvent(new CustomEvent('agencyStatsRefresh'))
+            toast({ title: "Agence supprimée", variant: "success" })
           } else {
-            setSelectedAgency(null)
-            setFullAgencyData(null)
+            const error = await response.json()
+            toast({ title: error.error || "Erreur lors de la suppression", variant: "destructive" })
           }
+        } catch (error) {
+          console.error("Error deleting agency:", error)
+          toast({ title: "Erreur lors de la suppression", variant: "destructive" })
+        } finally {
+          setConfirmLoading(false)
         }
-        
-        // Déclencher le rafraîchissement des statistiques
-        window.dispatchEvent(new CustomEvent('agencyStatsRefresh'))
-      } else {
-        const error = await response.json()
-        alert(error.error || "Erreur lors de la suppression")
-      }
-    } catch (error) {
-      console.error("Error deleting agency:", error)
-      alert("Erreur lors de la suppression")
-    }
+      },
+    })
   }
 
   const handleEditAgencyFromMaster = async (agency: Agency) => {
@@ -963,9 +994,9 @@ export default function AgencesPage() {
     if (userRole === "User") {
       return
     }
-    
+
     setSelectedAgency(agency)
-    
+
     // En mode mobile, charger les détails complets et ouvrir la vue des détails
     if (isMobile) {
       setShowDetailsOnMobile(true)
@@ -973,17 +1004,17 @@ export default function AgencesPage() {
       await loadAgencyDetails(agency.id)
       setLoadingDetails(false)
     }
-    
+
     setEditing(true)
     setEditedName(agency.name)
     setEditedState(agency.state as "OK" | "ALERTE" | "INFO" | "FERMÉE")
-    
+
     // Attendre que les données complètes soient chargées avant d'initialiser
     if (isMobile) {
       // Les données seront initialisées après le chargement via useEffect
       return
     }
-    
+
     setEditedCodeAgence(fullAgencyData?.codeAgence || "")
     setEditedCodeRayon(fullAgencyData?.codeRayon || "")
     setEditedDateOuverture(fullAgencyData?.dateOuverture ? new Date(fullAgencyData.dateOuverture).toISOString().split('T')[0] : "")
@@ -994,7 +1025,7 @@ export default function AgencesPage() {
     if (fullAgencyData?.technical) {
       // Utiliser latestTechnicalNotes si disponible, sinon utiliser technicalNotes de la base
       const notesToUse = latestTechnicalNotes !== null ? latestTechnicalNotes : (fullAgencyData.technical.technicalNotes || "")
-      
+
       setTechnicalData({
         networkIp: fullAgencyData.technical.networkIp || "",
         machineBrand: fullAgencyData.technical.machineBrand || "",
@@ -1086,40 +1117,45 @@ export default function AgencesPage() {
     setIsAddressDialogOpen(true)
   }
 
-  const handleDeleteAddress = async (addressId: string) => {
-    if (!confirm("Êtes-vous sûr de vouloir supprimer cette adresse ?")) return
-
-    try {
-      const response = await apiFetch(`/api/addresses/${addressId}`, {
-        method: "DELETE",
-      })
-
-      if (response.ok) {
-        await loadAgencyDetails(selectedAgency!.id)
-      } else {
-        alert("Erreur lors de la suppression")
-      }
-    } catch (error) {
-      console.error("Error deleting address:", error)
-      alert("Erreur lors de la suppression")
-    }
+  const handleDeleteAddress = (addressId: string) => {
+    openConfirm({
+      title: "Supprimer l'adresse",
+      description: "Êtes-vous sûr de vouloir supprimer cette adresse ?",
+      onConfirm: async () => {
+        setConfirmLoading(true)
+        try {
+          const response = await apiFetch(`/api/addresses/${addressId}`, { method: "DELETE" })
+          if (response.ok) {
+            await loadAgencyDetails(selectedAgency!.id)
+            toast({ title: "Adresse supprimée", variant: "success" })
+          } else {
+            showError("Erreur lors de la suppression")
+          }
+        } catch (error) {
+          console.error("Error deleting address:", error)
+          showError("Erreur lors de la suppression")
+        } finally {
+          setConfirmLoading(false)
+        }
+      },
+    })
   }
 
   const handleSaveAddress = async () => {
     if (!selectedAgency || !addressLabel.trim()) {
-      alert("Veuillez saisir un label")
+      showError("Veuillez saisir un label")
       return
     }
 
     // Validation selon le mode
     if (addressMode === "ban") {
       if (!selectedBANAddress) {
-        alert("Veuillez sélectionner une adresse via l'API BAN")
+        showError("Veuillez sélectionner une adresse via l'API BAN")
         return
       }
     } else {
       if (!manualStreet.trim() || !manualCity.trim() || !manualPostalCode.trim()) {
-        alert("Veuillez remplir tous les champs de l'adresse (rue, ville, code postal)")
+        showError("Veuillez remplir tous les champs de l'adresse (rue, ville, code postal)")
         return
       }
     }
@@ -1134,7 +1170,7 @@ export default function AgencesPage() {
           // Construire la requête de géocodage avec l'adresse complète
           const geocodeQuery = `${manualStreet.trim()}, ${manualPostalCode.trim()} ${manualCity.trim()}`
           const geocodeResponse = await fetch(`/api/ban/search?q=${encodeURIComponent(geocodeQuery)}&limit=1`)
-          
+
           if (geocodeResponse.ok) {
             const geocodeData = await geocodeResponse.json()
             if (geocodeData.features && geocodeData.features.length > 0) {
@@ -1183,7 +1219,7 @@ export default function AgencesPage() {
 
       if (!response.ok) {
         const error = await response.json()
-        alert(error.error || "Erreur lors de la sauvegarde de l'adresse")
+        showError(error.error || "Erreur lors de la sauvegarde de l'adresse")
         return
       }
 
@@ -1198,7 +1234,7 @@ export default function AgencesPage() {
       setManualPostalCode("")
     } catch (error) {
       console.error("Error saving address:", error)
-      alert("Erreur lors de la sauvegarde")
+      showError("Erreur lors de la sauvegarde")
     }
   }
 
@@ -1227,23 +1263,28 @@ export default function AgencesPage() {
     setIsContactDialogOpen(true)
   }
 
-  const handleDeleteContact = async (contactId: string) => {
-    if (!confirm("Êtes-vous sûr de vouloir supprimer ce contact ?")) return
-
-    try {
-      const response = await apiFetch(`/api/contacts/${contactId}`, {
-        method: "DELETE",
-      })
-
-      if (response.ok) {
-        await loadAgencyDetails(selectedAgency!.id)
-      } else {
-        alert("Erreur lors de la suppression")
-      }
-    } catch (error) {
-      console.error("Error deleting contact:", error)
-      alert("Erreur lors de la suppression")
-    }
+  const handleDeleteContact = (contactId: string) => {
+    openConfirm({
+      title: "Supprimer le contact",
+      description: "Êtes-vous sûr de vouloir supprimer ce contact ?",
+      onConfirm: async () => {
+        setConfirmLoading(true)
+        try {
+          const response = await apiFetch(`/api/contacts/${contactId}`, { method: "DELETE" })
+          if (response.ok) {
+            await loadAgencyDetails(selectedAgency!.id)
+            toast({ title: "Contact supprimé", variant: "success" })
+          } else {
+            showError("Erreur lors de la suppression")
+          }
+        } catch (error) {
+          console.error("Error deleting contact:", error)
+          showError("Erreur lors de la suppression")
+        } finally {
+          setConfirmLoading(false)
+        }
+      },
+    })
   }
 
   const handleMoveContact = async (draggedId: string, targetId: string) => {
@@ -1257,7 +1298,7 @@ export default function AgencesPage() {
       order: contact.order !== undefined ? contact.order : index
     }))
     const contacts = [...contactsWithOrder].sort((a, b) => (a.order || 0) - (b.order || 0))
-    
+
     const draggedIndex = contacts.findIndex((c) => c.id === draggedId)
     const targetIndex = contacts.findIndex((c) => c.id === targetId)
 
@@ -1284,7 +1325,7 @@ export default function AgencesPage() {
       await loadAgencyDetails(selectedAgency.id)
     } catch (error) {
       console.error("[handleMoveContact] Erreur:", error)
-      alert("Erreur lors du déplacement")
+      showError("Erreur lors du déplacement")
     }
   }
 
@@ -1301,7 +1342,7 @@ export default function AgencesPage() {
 
   const handleSaveContact = async () => {
     if (!selectedAgency || !contactManagerName) {
-      alert("Veuillez saisir le nom du contact")
+      showError("Veuillez saisir le nom du contact")
       return
     }
 
@@ -1329,7 +1370,7 @@ export default function AgencesPage() {
 
       if (!response.ok) {
         const error = await response.json()
-        alert(error.error || "Erreur lors de la sauvegarde du contact")
+        showError(error.error || "Erreur lors de la sauvegarde du contact")
         return
       }
 
@@ -1346,7 +1387,7 @@ export default function AgencesPage() {
       setContactNote("")
     } catch (error: any) {
       console.error("Error saving contact:", error)
-      alert(error.message || "Erreur lors de la sauvegarde")
+      showError(error.message || "Erreur lors de la sauvegarde")
     }
   }
 
@@ -1361,12 +1402,12 @@ export default function AgencesPage() {
       } else {
         const errorData = await response.json().catch(() => ({ error: "Erreur inconnue" }))
         console.error("Error loading tasks:", response.status, errorData)
-        alert(`Erreur lors du chargement des tâches: ${errorData.error || "Erreur serveur"}`)
+        showError(`Erreur lors du chargement des tâches: ${errorData.error || "Erreur serveur"}`)
         setTasks([])
       }
     } catch (error) {
       console.error("Error loading tasks:", error)
-      alert(`Erreur lors du chargement des tâches: ${error instanceof Error ? error.message : "Erreur inconnue"}`)
+      showError(`Erreur lors du chargement des tâches: ${error instanceof Error ? error.message : "Erreur inconnue"}`)
       setTasks([])
     } finally {
       setLoadingTasks(false)
@@ -1499,51 +1540,45 @@ export default function AgencesPage() {
     }
   }
 
-  const handleDeleteImage = async () => {
+  const handleDeleteImage = () => {
     if (!viewingImage || !viewingImageTaskId || !editingTask) {
-      alert("Impossible de supprimer la photo")
+      showError("Impossible de supprimer la photo")
       return
     }
-
-    if (!confirm("Êtes-vous sûr de vouloir supprimer cette photo ?")) {
-      return
-    }
-
-    try {
-      const currentPhotos = taskFormData.photos || []
-      const updatedPhotos = currentPhotos.filter((_, i) => i !== viewingImageIndex)
-      
-      setTaskFormData((prev) => ({
-        ...prev,
-        photos: updatedPhotos,
-      }))
-      setTaskPhotos((prev) => prev.filter((_, i) => i !== viewingImageIndex))
-
-      // Mettre à jour la liste d'affichage
-      const newList = viewingImageList.filter((_, i) => i !== viewingImageIndex)
-      setViewingImageList(newList)
-
-      if (newList.length === 0) {
-        setViewingImage(null)
-      } else {
-        const newIndex = Math.min(viewingImageIndex, newList.length - 1)
-        setViewingImageIndex(newIndex)
-        setViewingImage(newList[newIndex])
-      }
-    } catch (error) {
-      console.error("Error deleting image:", error)
-      alert("Erreur lors de la suppression de la photo")
-    }
+    openConfirm({
+      title: "Supprimer la photo",
+      description: "Êtes-vous sûr de vouloir supprimer cette photo ?",
+      onConfirm: async () => {
+        try {
+          const currentPhotos = taskFormData.photos || []
+          const updatedPhotos = currentPhotos.filter((_, i) => i !== viewingImageIndex)
+          setTaskFormData((prev) => ({ ...prev, photos: updatedPhotos }))
+          setTaskPhotos((prev) => prev.filter((_, i) => i !== viewingImageIndex))
+          const newList = viewingImageList.filter((_, i) => i !== viewingImageIndex)
+          setViewingImageList(newList)
+          if (newList.length === 0) setViewingImage(null)
+          else {
+            const newIndex = Math.min(viewingImageIndex, newList.length - 1)
+            setViewingImageIndex(newIndex)
+            setViewingImage(newList[newIndex])
+          }
+          toast({ title: "Photo supprimée", variant: "success" })
+        } catch (error) {
+          console.error("Error deleting image:", error)
+          showError("Erreur lors de la suppression de la photo")
+        }
+      },
+    })
   }
 
   const handleSaveTask = async () => {
     if (!selectedAgency || !taskFormData.title.trim()) {
-      alert("Veuillez remplir le titre")
+      showError("Veuillez remplir le titre")
       return
     }
 
     if (!taskFormData.notes.trim()) {
-      alert("Veuillez remplir les notes")
+      showError("Veuillez remplir les notes")
       return
     }
 
@@ -1571,22 +1606,22 @@ export default function AgencesPage() {
         })
       } else {
         const error = await response.json()
-        alert(error.error || "Erreur lors de la création de la tâche")
+        showError(error.error || "Erreur lors de la création de la tâche")
       }
     } catch (error) {
       console.error("Error saving task:", error)
-      alert("Erreur lors de la création de la tâche")
+      showError("Erreur lors de la création de la tâche")
     }
   }
 
   const handleUpdateTask = async () => {
     if (!selectedAgency || !editingTask || !taskFormData.title.trim()) {
-      alert("Veuillez remplir le titre")
+      showError("Veuillez remplir le titre")
       return
     }
 
     if (!taskFormData.notes.trim()) {
-      alert("Veuillez remplir les notes")
+      showError("Veuillez remplir les notes")
       return
     }
 
@@ -1615,11 +1650,11 @@ export default function AgencesPage() {
         })
       } else {
         const error = await response.json()
-        alert(error.error || "Erreur lors de la modification de la tâche")
+        showError(error.error || "Erreur lors de la modification de la tâche")
       }
     } catch (error) {
       console.error("Error updating task:", error)
-      alert("Erreur lors de la modification de la tâche")
+      showError("Erreur lors de la modification de la tâche")
     }
   }
 
@@ -1638,34 +1673,38 @@ export default function AgencesPage() {
         await loadTasks(selectedAgency.id)
       } else {
         const error = await response.json()
-        alert(error.error || "Erreur lors de la clôture de la tâche")
+        showError(error.error || "Erreur lors de la clôture de la tâche")
       }
     } catch (error) {
       console.error("Error closing task:", error)
-      alert("Erreur lors de la clôture de la tâche")
+      showError("Erreur lors de la clôture de la tâche")
     }
   }
 
-  const handleDeleteTask = async (task: Task) => {
-    if (!confirm("Êtes-vous sûr de vouloir supprimer cette tâche ?")) return
-
+  const handleDeleteTask = (task: Task) => {
     if (!selectedAgency) return
-
-    try {
-      const response = await apiFetch(`/api/agencies/${selectedAgency.id}/tasks/${task.id}`, {
-        method: "DELETE",
-      })
-
-      if (response.ok) {
-        await loadTasks(selectedAgency.id)
-      } else {
-        const error = await response.json()
-        alert(error.error || "Erreur lors de la suppression de la tâche")
-      }
-    } catch (error) {
-      console.error("Error deleting task:", error)
-      alert("Erreur lors de la suppression de la tâche")
-    }
+    openConfirm({
+      title: "Supprimer la tâche",
+      description: "Êtes-vous sûr de vouloir supprimer cette tâche ?",
+      onConfirm: async () => {
+        setConfirmLoading(true)
+        try {
+          const response = await apiFetch(`/api/agencies/${selectedAgency.id}/tasks/${task.id}`, { method: "DELETE" })
+          if (response.ok) {
+            await loadTasks(selectedAgency.id)
+            toast({ title: "Tâche supprimée", variant: "success" })
+          } else {
+            const error = await response.json()
+            showError(error.error || "Erreur lors de la suppression de la tâche")
+          }
+        } catch (error) {
+          console.error("Error deleting task:", error)
+          showError("Erreur lors de la suppression de la tâche")
+        } finally {
+          setConfirmLoading(false)
+        }
+      },
+    })
   }
 
   // Fonctions pour photos
@@ -1707,10 +1746,10 @@ export default function AgencesPage() {
   const handleZoom = (e: React.WheelEvent<HTMLDivElement>) => {
     e.preventDefault()
     e.stopPropagation()
-    
+
     const delta = e.deltaY > 0 ? -0.2 : 0.2
     const newZoom = Math.max(1, Math.min(5, zoomLevel + delta))
-    
+
     if (newZoom !== zoomLevel) {
       // Calculer la position du zoom par rapport au curseur pour zoomer vers le point de la souris
       const rect = e.currentTarget.getBoundingClientRect()
@@ -1718,16 +1757,16 @@ export default function AgencesPage() {
       const centerY = rect.height / 2
       const mouseX = e.clientX - rect.left
       const mouseY = e.clientY - rect.top
-      
+
       // Calculer le décalage depuis le centre en pourcentage
       const offsetX = ((mouseX - centerX) / rect.width) * 100
       const offsetY = ((mouseY - centerY) / rect.height) * 100
-      
+
       // Ajuster la position pour zoomer vers le curseur
       const zoomChange = newZoom - zoomLevel
       const newX = zoomPosition.x - (offsetX * zoomChange / newZoom)
       const newY = zoomPosition.y - (offsetY * zoomChange / newZoom)
-      
+
       setZoomLevel(newZoom)
       setZoomPosition({ x: newX, y: newY })
     }
@@ -1748,23 +1787,23 @@ export default function AgencesPage() {
     if (isDragging && zoomLevel > 1) {
       e.preventDefault()
       e.stopPropagation()
-      
+
       const rect = e.currentTarget.getBoundingClientRect()
       const deltaX = e.clientX - dragStart.x
       const deltaY = e.clientY - dragStart.y
-      
+
       // Seulement considérer comme drag si le mouvement est significatif (> 5px)
       if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
         setHasDragged(true)
-        
+
         const deltaXPercent = (deltaX / rect.width) * 100
         const deltaYPercent = (deltaY / rect.height) * 100
-        
+
         setZoomPosition(prev => ({
           x: prev.x + deltaXPercent,
           y: prev.y + deltaYPercent
         }))
-        
+
         setDragStart({ x: e.clientX, y: e.clientY })
       }
     }
@@ -1775,7 +1814,7 @@ export default function AgencesPage() {
       e.preventDefault()
       e.stopPropagation()
       setIsDragging(false)
-      
+
       // Réinitialiser hasDragged après un court délai pour permettre le clic
       setTimeout(() => setHasDragged(false), 100)
     }
@@ -1816,46 +1855,46 @@ export default function AgencesPage() {
       // Un seul doigt : drag
       e.preventDefault()
       e.stopPropagation()
-      
+
       const touch = e.touches[0]
       const rect = e.currentTarget.getBoundingClientRect()
       const deltaX = touch.clientX - dragStart.x
       const deltaY = touch.clientY - dragStart.y
-      
+
       // Seulement considérer comme drag si le mouvement est significatif (> 5px)
       if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
         setHasDragged(true)
-        
+
         const deltaXPercent = (deltaX / rect.width) * 100
         const deltaYPercent = (deltaY / rect.height) * 100
-        
+
         setZoomPosition(prev => ({
           x: prev.x + deltaXPercent,
           y: prev.y + deltaYPercent
         }))
-        
+
         setDragStart({ x: touch.clientX, y: touch.clientY })
       }
     } else if (e.touches.length === 2 && touchStartDistance > 0) {
       // Deux doigts : pinch-to-zoom
       e.preventDefault()
       e.stopPropagation()
-      
+
       const distance = getTouchDistance(e.touches[0], e.touches[1])
       const scale = distance / touchStartDistance
       const newZoom = Math.max(1, Math.min(5, touchStartZoom * scale))
-      
+
       // Calculer le centre du pinch pour zoomer vers ce point
       const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2
       const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2
       const rect = e.currentTarget.getBoundingClientRect()
       const offsetX = ((centerX - rect.left) / rect.width - 0.5) * 100
       const offsetY = ((centerY - rect.top) / rect.height - 0.5) * 100
-      
+
       const zoomChange = newZoom - zoomLevel
       const newX = zoomPosition.x - (offsetX * zoomChange / newZoom)
       const newY = zoomPosition.y - (offsetY * zoomChange / newZoom)
-      
+
       setZoomLevel(newZoom)
       setZoomPosition({ x: newX, y: newY })
     }
@@ -1889,7 +1928,7 @@ export default function AgencesPage() {
       e.stopPropagation()
       return
     }
-    
+
     e.stopPropagation()
     // Si zoomé, réinitialiser le zoom, sinon photo suivante
     if (zoomLevel > 1) {
@@ -1901,28 +1940,33 @@ export default function AgencesPage() {
     }
   }
 
-  const handleDeletePhotoGroup = async (photoGroupId: string) => {
-    if (!confirm("Êtes-vous sûr de vouloir supprimer ce groupe de photos ?")) return
-
-    try {
-      const response = await apiFetch(`/api/photos/${photoGroupId}`, {
-        method: "DELETE",
-      })
-
-      if (response.ok) {
-        await loadAgencyDetails(selectedAgency!.id)
-      } else {
-        alert("Erreur lors de la suppression")
-      }
-    } catch (error) {
-      console.error("Error deleting photo group:", error)
-      alert("Erreur lors de la suppression")
-    }
+  const handleDeletePhotoGroup = (photoGroupId: string) => {
+    openConfirm({
+      title: "Supprimer le groupe de photos",
+      description: "Êtes-vous sûr de vouloir supprimer ce groupe de photos ?",
+      onConfirm: async () => {
+        setConfirmLoading(true)
+        try {
+          const response = await apiFetch(`/api/photos/${photoGroupId}`, { method: "DELETE" })
+          if (response.ok) {
+            await loadAgencyDetails(selectedAgency!.id)
+            toast({ title: "Groupe de photos supprimé", variant: "success" })
+          } else {
+            showError("Erreur lors de la suppression")
+          }
+        } catch (error) {
+          console.error("Error deleting photo group:", error)
+          showError("Erreur lors de la suppression")
+        } finally {
+          setConfirmLoading(false)
+        }
+      },
+    })
   }
 
   const handleSavePhotoTitle = async () => {
     if (!editingPhotoGroupId || !editingPhotoUrl || !fullAgencyData) {
-      alert("Données manquantes")
+      showError("Données manquantes")
       return
     }
 
@@ -1930,30 +1974,30 @@ export default function AgencesPage() {
       // Récupérer le groupe de photos
       const photoGroup = fullAgencyData.photos?.find((pg) => pg.id === editingPhotoGroupId)
       if (!photoGroup) {
-        alert("Groupe de photos non trouvé")
+        showError("Groupe de photos non trouvé")
         return
       }
 
       // Mettre à jour le titre et la date de création de la photo spécifique
       const photos = JSON.parse(photoGroup.photos || "[]")
       // Convertir la date du format "YYYY-MM-DD" en ISO string
-      const createdAtISO = editingPhotoCreatedAt 
+      const createdAtISO = editingPhotoCreatedAt
         ? new Date(editingPhotoCreatedAt + "T00:00:00").toISOString()
         : null
-      
+
       const updatedPhotos = photos.map((p: string | { path: string; createdAt?: string; title?: string }) => {
         const path = typeof p === "string" ? p : p.path
         if (path === editingPhotoUrl) {
           // Mettre à jour le titre et la date de création de cette photo
           if (typeof p === "string") {
-            return { 
-              path: p, 
+            return {
+              path: p,
               title: editingPhotoTitle || null,
               createdAt: createdAtISO || new Date().toISOString()
             }
           } else {
-            return { 
-              ...p, 
+            return {
+              ...p,
               title: editingPhotoTitle || null,
               createdAt: createdAtISO || p.createdAt || new Date().toISOString()
             }
@@ -1981,80 +2025,79 @@ export default function AgencesPage() {
         setEditingPhotoCreatedAt("")
       } else {
         const error = await response.json()
-        alert(error.error || "Erreur lors de la mise à jour du titre")
+        showError(error.error || "Erreur lors de la mise à jour du titre")
       }
     } catch (error) {
       console.error("Error saving photo title:", error)
-      alert("Erreur lors de la mise à jour du titre")
+      showError("Erreur lors de la mise à jour du titre")
     }
   }
 
-  const handleDeletePhoto = async (photoGroupId: string, photoUrl: string) => {
-    if (!confirm("Êtes-vous sûr de vouloir supprimer cette photo ?")) return
-
+  const handleDeletePhoto = (photoGroupId: string, photoUrl: string) => {
     if (!fullAgencyData) {
-      alert("Données de l'agence non disponibles")
+      showError("Données de l'agence non disponibles")
       return
     }
-
-    try {
-      // Récupérer le groupe de photos
-      const photoGroup = fullAgencyData.photos?.find((pg) => pg.id === photoGroupId)
-      if (!photoGroup) {
-        alert("Groupe de photos non trouvé")
-        return
-      }
-
-      // Retirer la photo du tableau
-      const photos = JSON.parse(photoGroup.photos || "[]")
-      // Normaliser : gérer les strings et les objets
-      const updatedPhotos = photos.filter((p: string | { path: string; createdAt?: string; title?: string }) => {
-        const path = typeof p === "string" ? p : p.path
-        return path !== photoUrl
-      })
-
-      // Si c'est la photo de l'agence et qu'on supprime la dernière photo
-      if (photoGroup.type === "Agence" && updatedPhotos.length === 0) {
-        // Supprimer le groupe entier
-        await handleDeletePhotoGroup(photoGroupId)
-        return
-      }
-
-      // Mettre à jour le groupe avec les photos restantes
-      const response = await apiFetch(`/api/photos/${photoGroupId}`, {
-        method: "PUT",
-        body: JSON.stringify({
-          type: photoGroup.type,
-          title: photoGroup.title,
-          photos: updatedPhotos,
-        }),
-      })
-
-      if (response.ok) {
-        await loadAgencyDetails(selectedAgency!.id)
-        await loadAgencies()
-      } else {
-        const error = await response.json()
-        alert(error.error || "Erreur lors de la suppression de la photo")
-      }
-    } catch (error) {
-      console.error("Error deleting photo:", error)
-      alert("Erreur lors de la suppression de la photo")
-    }
+    openConfirm({
+      title: "Supprimer la photo",
+      description: "Êtes-vous sûr de vouloir supprimer cette photo ?",
+      onConfirm: async () => {
+        setConfirmLoading(true)
+        try {
+          const photoGroup = fullAgencyData.photos?.find((pg) => pg.id === photoGroupId)
+          if (!photoGroup) {
+            showError("Groupe de photos non trouvé")
+            return
+          }
+          const photos = JSON.parse(photoGroup.photos || "[]")
+          const updatedPhotos = photos.filter((p: string | { path: string; createdAt?: string; title?: string }) => {
+            const path = typeof p === "string" ? p : p.path
+            return path !== photoUrl
+          })
+          if (photoGroup.type === "Agence" && updatedPhotos.length === 0) {
+            await apiFetch(`/api/photos/${photoGroupId}`, { method: "DELETE" })
+            await loadAgencyDetails(selectedAgency!.id)
+            toast({ title: "Photo supprimée", variant: "success" })
+            return
+          }
+          const response = await apiFetch(`/api/photos/${photoGroupId}`, {
+            method: "PUT",
+            body: JSON.stringify({
+              type: photoGroup.type,
+              title: photoGroup.title,
+              photos: updatedPhotos,
+            }),
+          })
+          if (response.ok) {
+            await loadAgencyDetails(selectedAgency!.id)
+            await loadAgencies()
+            toast({ title: "Photo supprimée", variant: "success" })
+          } else {
+            const error = await response.json()
+            showError(error.error || "Erreur lors de la suppression de la photo")
+          }
+        } catch (error) {
+          console.error("Error deleting photo:", error)
+          showError("Erreur lors de la suppression de la photo")
+        } finally {
+          setConfirmLoading(false)
+        }
+      },
+    })
   }
 
   const handleSavePhotoGroup = async () => {
     if (!selectedAgency || !photoGroupType) {
-      alert("Veuillez sélectionner un type de groupe")
+      showError("Veuillez sélectionner un type de groupe")
       return
     }
 
     // Vérifier la taille des fichiers avant l'upload
     const MAX_SIZE = maxImageSizeMB * 1024 * 1024 // Convertir Mo en octets
     const oversizedFiles = photoFiles.filter((file) => file.size > MAX_SIZE)
-    
+
     if (oversizedFiles.length > 0) {
-      alert(
+      showError(
         `Les fichiers suivants dépassent la taille maximale de ${maxImageSizeMB} MB :\n${oversizedFiles.map((f) => f.name).join("\n")}\n\nLa taille maximale autorisée est de ${maxImageSizeMB} MB par fichier.`
       )
       return
@@ -2092,9 +2135,9 @@ export default function AgencesPage() {
           // Gérer les erreurs d'upload (fichier trop volumineux, etc.)
           const errorMessage = uploadError?.message || "Erreur lors de l'upload"
           if (errorMessage.includes("MB") || errorMessage.includes("trop volumineux")) {
-            alert(`La taille maximale autorisée est de ${maxImageSizeMB} MB par fichier. Veuillez réduire la taille de vos photos.`)
+            showError(`La taille maximale autorisée est de ${maxImageSizeMB} MB par fichier. Veuillez réduire la taille de vos photos.`)
           } else {
-            alert(`Erreur lors de l'upload : ${errorMessage}`)
+            showError(`Erreur lors de l'upload : ${errorMessage}`)
           }
           return
         }
@@ -2114,7 +2157,7 @@ export default function AgencesPage() {
       if (photoGroupType === "Agence" && photos.length > 0) {
         const firstPhoto = photos[0]
         // Normaliser le format en préservant la date de création si elle existe
-        const normalizedPhoto = typeof firstPhoto === "string" 
+        const normalizedPhoto = typeof firstPhoto === "string"
           ? { path: firstPhoto, createdAt: new Date().toISOString() } // Seulement si c'est une ancienne photo sans date
           : firstPhoto // Conserver la date createdAt si elle existe déjà
         photos = [normalizedPhoto]
@@ -2124,7 +2167,7 @@ export default function AgencesPage() {
         const existingGroupsOfSameType = fullAgencyData?.photos?.filter(
           (pg) => pg.type === photoGroupType && pg.id !== selectedPhotoGroup?.id
         ) || []
-        
+
         let totalExistingPhotos = 0
         existingGroupsOfSameType.forEach((group) => {
           try {
@@ -2136,7 +2179,7 @@ export default function AgencesPage() {
             // Ignorer les erreurs de parsing
           }
         })
-        
+
         // Ajouter les photos du groupe en cours d'édition (si on est en mode édition)
         if (selectedPhotoGroup && selectedPhotoGroup.type === photoGroupType) {
           try {
@@ -2148,11 +2191,11 @@ export default function AgencesPage() {
             // Ignorer les erreurs de parsing
           }
         }
-        
+
         const totalPhotos = totalExistingPhotos + photos.length
-        
+
         if (totalPhotos > maxPhotosPerType) {
-          alert(
+          showError(
             `Le nombre maximum de photos autorisées pour le type "${photoGroupType}" est de ${maxPhotosPerType}.\n` +
             `Vous avez actuellement ${totalExistingPhotos} photo(s) existante(s) et vous essayez d'ajouter ${photos.length} photo(s).\n` +
             `Total: ${totalPhotos} photo(s), maximum autorisé: ${maxPhotosPerType}.`
@@ -2188,11 +2231,11 @@ export default function AgencesPage() {
         setPhotoFiles([])
       } else {
         const error = await response.json()
-        alert(error.error || "Erreur lors de la sauvegarde")
+        showError(error.error || "Erreur lors de la sauvegarde")
       }
     } catch (error) {
       console.error("Error saving photo group:", error)
-      alert("Erreur lors de la sauvegarde")
+      showError("Erreur lors de la sauvegarde")
     }
   }
 
@@ -2202,22 +2245,22 @@ export default function AgencesPage() {
 
     try {
       console.log("technicalData before sending:", technicalData)
-      
+
       // S'assurer que technicalNotes est toujours inclus, même s'il est vide
       // Si technicalNotes n'est pas dans technicalData, on le récupère de fullAgencyData
-      const technicalNotesValue = technicalData.technicalNotes !== undefined 
-        ? technicalData.technicalNotes 
+      const technicalNotesValue = technicalData.technicalNotes !== undefined
+        ? technicalData.technicalNotes
         : (fullAgencyData?.technical?.technicalNotes ?? "")
-      
+
       // Vérifier que seul le Super Admin peut supprimer les notes techniques
       const hasExistingNotes = fullAgencyData?.technical?.technicalNotes && fullAgencyData.technical.technicalNotes.trim() !== ""
       const isDeletingNotes = technicalNotesValue === "" || technicalNotesValue === null || technicalNotesValue === undefined
-      
+
       if (isDeletingNotes && hasExistingNotes && userRole !== "Super Admin") {
-        alert("Seul le Super Admin peut supprimer les notes techniques")
+        showError("Seul le Super Admin peut supprimer les notes techniques")
         return
       }
-      
+
       const dataToSend = {
         ...technicalData,
         technicalNotes: technicalNotesValue,
@@ -2227,21 +2270,21 @@ export default function AgencesPage() {
 
       const body = fullAgencyData?.technical
         ? {
-            technicalId: fullAgencyData.technical.id,
-            ...dataToSend,
-          }
+          technicalId: fullAgencyData.technical.id,
+          ...dataToSend,
+        }
         : {
-            agencyId: selectedAgency.id,
-            ...dataToSend,
-          }
+          agencyId: selectedAgency.id,
+          ...dataToSend,
+        }
 
       console.log("Saving technical data:", body)
-      
+
       const response = await apiFetch("/api/technical", {
         method: fullAgencyData?.technical ? "PUT" : "POST",
         body: JSON.stringify(body),
       })
-      
+
       console.log("Response status:", response.status)
 
       if (response.ok) {
@@ -2256,11 +2299,11 @@ export default function AgencesPage() {
       } else {
         const error = await response.json()
         console.error("Error saving technical:", error)
-        alert(error.error || "Erreur lors de la sauvegarde")
+        showError(error.error || "Erreur lors de la sauvegarde")
       }
     } catch (error) {
       console.error("Error saving technical:", error)
-      alert("Erreur lors de la sauvegarde")
+      showError("Erreur lors de la sauvegarde")
     }
   }
 
@@ -2290,7 +2333,7 @@ export default function AgencesPage() {
       order: pc.order !== undefined ? pc.order : index
     }))
     const pcs = [...pcsWithOrder].sort((a, b) => (a.order || 0) - (b.order || 0))
-    
+
     const draggedIndex = pcs.findIndex((p) => p.id === draggedId)
     const targetIndex = pcs.findIndex((p) => p.id === targetId)
 
@@ -2317,29 +2360,37 @@ export default function AgencesPage() {
       await loadAgencyDetails(selectedAgency.id)
     } catch (error) {
       console.error("[handleMovePC] Erreur:", error)
-      alert("Erreur lors du déplacement")
+      showError("Erreur lors du déplacement")
     }
   }
 
-  const handleDeletePC = async (pcId: string) => {
-    if (!confirm("Êtes-vous sûr de vouloir supprimer ce PC ?")) return
-
-    try {
-      const response = await apiFetch(`/api/pcs/${pcId}`, { method: "DELETE" })
-      if (response.ok) {
-        await loadAgencyDetails(selectedAgency!.id)
-      } else {
-        alert("Erreur lors de la suppression")
-      }
-    } catch (error) {
-      console.error("Error deleting PC:", error)
-      alert("Erreur lors de la suppression")
-    }
+  const handleDeletePC = (pcId: string) => {
+    openConfirm({
+      title: "Supprimer le PC",
+      description: "Êtes-vous sûr de vouloir supprimer ce PC ?",
+      onConfirm: async () => {
+        setConfirmLoading(true)
+        try {
+          const response = await apiFetch(`/api/pcs/${pcId}`, { method: "DELETE" })
+          if (response.ok) {
+            await loadAgencyDetails(selectedAgency!.id)
+            toast({ title: "PC supprimé", variant: "success" })
+          } else {
+            showError("Erreur lors de la suppression")
+          }
+        } catch (error) {
+          console.error("Error deleting PC:", error)
+          showError("Erreur lors de la suppression")
+        } finally {
+          setConfirmLoading(false)
+        }
+      },
+    })
   }
 
   const handleSavePC = async (pcData: any) => {
     if (!selectedAgency) {
-      alert("Aucune agence sélectionnée")
+      showError("Aucune agence sélectionnée")
       return
     }
 
@@ -2359,7 +2410,7 @@ export default function AgencesPage() {
 
         if (!technicalResponse.ok) {
           const error = await technicalResponse.json()
-          alert(error.error || "Erreur lors de la création des données techniques")
+          showError(error.error || "Erreur lors de la création des données techniques")
           return
         }
 
@@ -2369,7 +2420,7 @@ export default function AgencesPage() {
         await loadAgencyDetails(selectedAgency.id)
       } catch (error) {
         console.error("Error creating technical data:", error)
-        alert("Erreur lors de la création des données techniques")
+        showError("Erreur lors de la création des données techniques")
         return
       }
     }
@@ -2392,11 +2443,11 @@ export default function AgencesPage() {
         setSelectedPC(null)
       } else {
         const error = await response.json()
-        alert(error.error || "Erreur lors de la sauvegarde")
+        showError(error.error || "Erreur lors de la sauvegarde")
       }
     } catch (error) {
       console.error("Error saving PC:", error)
-      alert("Erreur lors de la sauvegarde")
+      showError("Erreur lors de la sauvegarde")
     }
   }
 
@@ -2410,20 +2461,28 @@ export default function AgencesPage() {
     setIsPrinterDialogOpen(true)
   }
 
-  const handleDeletePrinter = async (printerId: string) => {
-    if (!confirm("Êtes-vous sûr de vouloir supprimer cette imprimante ?")) return
-
-    try {
-      const response = await apiFetch(`/api/printers/${printerId}`, { method: "DELETE" })
-      if (response.ok) {
-        await loadAgencyDetails(selectedAgency!.id)
-      } else {
-        alert("Erreur lors de la suppression")
-      }
-    } catch (error) {
-      console.error("Error deleting printer:", error)
-      alert("Erreur lors de la suppression")
-    }
+  const handleDeletePrinter = (printerId: string) => {
+    openConfirm({
+      title: "Supprimer l'imprimante",
+      description: "Êtes-vous sûr de vouloir supprimer cette imprimante ?",
+      onConfirm: async () => {
+        setConfirmLoading(true)
+        try {
+          const response = await apiFetch(`/api/printers/${printerId}`, { method: "DELETE" })
+          if (response.ok) {
+            await loadAgencyDetails(selectedAgency!.id)
+            toast({ title: "Imprimante supprimée", variant: "success" })
+          } else {
+            showError("Erreur lors de la suppression")
+          }
+        } catch (error) {
+          console.error("Error deleting printer:", error)
+          showError("Erreur lors de la suppression")
+        } finally {
+          setConfirmLoading(false)
+        }
+      },
+    })
   }
 
   const handleSavePrinter = async (printerData: any) => {
@@ -2447,11 +2506,11 @@ export default function AgencesPage() {
         setSelectedPrinter(null)
       } else {
         const error = await response.json()
-        alert(error.error || "Erreur lors de la sauvegarde")
+        showError(error.error || "Erreur lors de la sauvegarde")
       }
     } catch (error) {
       console.error("Error saving printer:", error)
-      alert("Erreur lors de la sauvegarde")
+      showError("Erreur lors de la sauvegarde")
     }
   }
 
@@ -2464,9 +2523,49 @@ export default function AgencesPage() {
   const handleSetFilterALERTE = useCallback(() => setFilter("ALERTE"), [])
   const handleSetFilterFERMEE = useCallback(() => setFilter("FERMÉE"), [])
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value), [])
-  
+
+  // Calcul du "Dirty State" pour avertir l'utilisateur des modifications non enregistrées
+  const isDirty = useMemo(() => {
+    if (!editing && !editingTechnical && !isMobile) return false
+
+    // Comparaison des champs de base
+    if (editing && fullAgencyData) {
+      if (editedName !== fullAgencyData.name) return true
+      if (editedState !== fullAgencyData.state) return true
+      if (editedCodeAgence !== (fullAgencyData.codeAgence || "")) return true
+      if (editedCodeRayon !== (fullAgencyData.codeRayon || "")) return true
+      const oldOuverture = fullAgencyData.dateOuverture ? new Date(fullAgencyData.dateOuverture).toISOString().split('T')[0] : ""
+      if (editedDateOuverture !== oldOuverture) return true
+      const oldFermeture = fullAgencyData.dateFermeture ? new Date(fullAgencyData.dateFermeture).toISOString().split('T')[0] : ""
+      if (editedDateFermeture !== oldFermeture) return true
+    }
+
+    // Comparaison des champs techniques
+    if (editingTechnical) {
+      const hasTechData = fullAgencyData?.technical
+      const keys = ["networkIp", "machineBrand", "machineModel", "machineConnection", "machineIp", "machineMac", "wifiRouterBrand", "wifiRouterModel", "wifiRouterIp", "wifiRouterSerial", "mainRouterBrand", "mainRouterModel", "mainRouterIp", "mainRouterSerial", "mainRouterLinkType", "backupRouterBrand", "backupRouterModel", "backupRouterIp", "backupRouterSerial", "recorderBrand", "recorderModel", "recorderSerial", "recorderMac", "recorderIp", "recorderStorage"]
+
+      for (const key of keys) {
+        const tVal = technicalData[key] || ""
+        const fVal = hasTechData ? ((fullAgencyData?.technical as any)?.[key] || "") : ""
+        if (tVal !== fVal) return true
+      }
+
+      const notesToUse = hasTechData ? (latestTechnicalNotes !== null ? latestTechnicalNotes : (fullAgencyData.technical?.technicalNotes || "")) : ""
+      if ((technicalData.technicalNotes || "") !== notesToUse) return true
+    }
+
+    return false
+  }, [editing, editingTechnical, editedName, editedState, editedCodeAgence, editedCodeRayon, editedDateOuverture, editedDateFermeture, technicalData, fullAgencyData, latestTechnicalNotes, isMobile])
+
   // Handler mémorisé pour la sélection d'agence
   const handleSelectAgency = useCallback((agency: Agency) => {
+    if (isDirty) {
+      setPendingAgencyToSelect(agency)
+      setShowDirtyDialog(true)
+      return
+    }
+
     startTransition(() => {
       setSelectedAgency(agency)
       setEditing(false)
@@ -2482,303 +2581,445 @@ export default function AgencesPage() {
       setShowDetailsOnMobile(true)
       loadAgencyDetails(agency.id)
     }
-  }, [isMobile, loadAgencyDetails])
+  }, [isMobile, loadAgencyDetails, isDirty])
 
   return (
     <>
       <div ref={containerRef} className="flex h-full w-full max-w-full min-w-0 overflow-hidden">
         {/* Zone Master */}
         <div
-          className={`h-full flex flex-col overflow-hidden border-r ${
-            isMobile && showDetailsOnMobile ? "hidden" : ""
-          } ${isMobile ? "w-full min-w-0 max-w-full" : ""}`}
+          className={`h-full flex flex-col overflow-hidden border-r ${isMobile && showDetailsOnMobile ? "hidden" : ""
+            } ${isMobile ? "w-full min-w-0 max-w-full" : ""}`}
           style={isMobile ? { width: "100%", minWidth: "0", maxWidth: "100%" } : { width: `${masterWidth}%`, minWidth: "200px", maxWidth: "60%" }}
           suppressHydrationWarning
         >
-        {/* Partie fixe : Titre, recherche et filtres */}
-        <div className="flex-shrink-0 p-2 sm:p-4 space-y-2 sm:space-y-4 border-b">
-          <div className="flex items-center justify-between mb-2 gap-2">
-            <h2 className="text-base sm:text-lg font-semibold truncate">Agences</h2>
-            {(userRole === "Admin" || userRole === "Super Admin") && (
-              <Button
-                onClick={handleOpenCreateDialog}
-                size="sm"
-                className="gap-1 sm:gap-2 shrink-0"
-              >
-                <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
-                <span className="hidden sm:inline">Ajouter</span>
-              </Button>
-            )}
-          </div>
-          <div className="space-y-2">
-            <div className="relative">
-              <Input
-              type="text"
-              placeholder="Rechercher..."
-              value={search}
-              onChange={handleSearchChange}
-                className="w-full min-h-[44px] text-foreground pr-10"
-              />
-              {search && (
-                <button
-                  type="button"
-                  onClick={handleClearSearch}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-muted transition-colors min-h-[44px] flex items-center justify-center"
-                  aria-label="Réinitialiser la recherche"
+          {/* Partie fixe : Titre, recherche et filtres */}
+          <div className="flex-shrink-0 p-2 sm:p-4 space-y-2 sm:space-y-4 border-b">
+            <div className="flex items-center justify-between mb-2 gap-2">
+              <h2 className="text-base sm:text-lg font-semibold truncate">Agences</h2>
+              {(userRole === "Admin" || userRole === "Super Admin") && (
+                <Button
+                  onClick={handleOpenCreateDialog}
+                  size="sm"
+                  className="gap-1 sm:gap-2 shrink-0"
                 >
-                  <X className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-                </button>
+                  <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
+                  <span className="hidden sm:inline">Ajouter</span>
+                </Button>
               )}
             </div>
-            <div className="flex gap-1 sm:gap-2 overflow-x-auto pb-1 scrollbar-hide">
-              <button
-                onClick={handleSetFilterAll}
-                className={`px-3 sm:px-3 py-2 sm:py-1 text-sm sm:text-sm rounded whitespace-nowrap shrink-0 min-h-[44px] ${
-                  filter === "ALL" ? "bg-primary text-primary-foreground" : "bg-muted"
-                }`}
-              >
-                Tous
-              </button>
-              <button
-                onClick={handleSetFilterOK}
-                className={`px-3 sm:px-3 py-2 sm:py-1 text-sm sm:text-sm rounded whitespace-nowrap shrink-0 min-h-[44px] ${
-                  filter === "OK" ? "bg-primary text-primary-foreground" : "bg-muted"
-                }`}
-              >
-                OK
-              </button>
-              <button
-                onClick={handleSetFilterINFO}
-                className={`px-3 sm:px-3 py-2 sm:py-1 text-sm sm:text-sm rounded whitespace-nowrap shrink-0 min-h-[44px] ${
-                  filter === "INFO"
+            <div className="space-y-2">
+              <div className="relative">
+                <Input
+                  type="text"
+                  placeholder="Rechercher..."
+                  value={search}
+                  onChange={handleSearchChange}
+                  className="w-full min-h-[44px] text-foreground pr-10"
+                />
+                {search && (
+                  <button
+                    type="button"
+                    onClick={handleClearSearch}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-muted transition-colors min-h-[44px] flex items-center justify-center"
+                    aria-label="Réinitialiser la recherche"
+                  >
+                    <X className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                  </button>
+                )}
+              </div>
+              <div className="flex gap-1 sm:gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                <button
+                  onClick={handleSetFilterAll}
+                  className={`px-3 sm:px-3 py-2 sm:py-1 text-sm sm:text-sm rounded whitespace-nowrap shrink-0 min-h-[44px] ${filter === "ALL" ? "bg-primary text-primary-foreground" : "bg-muted"
+                    }`}
+                >
+                  Tous
+                </button>
+                <button
+                  onClick={handleSetFilterOK}
+                  className={`px-3 sm:px-3 py-2 sm:py-1 text-sm sm:text-sm rounded whitespace-nowrap shrink-0 min-h-[44px] ${filter === "OK" ? "bg-primary text-primary-foreground" : "bg-muted"
+                    }`}
+                >
+                  OK
+                </button>
+                <button
+                  onClick={handleSetFilterINFO}
+                  className={`px-3 sm:px-3 py-2 sm:py-1 text-sm sm:text-sm rounded whitespace-nowrap shrink-0 min-h-[44px] ${filter === "INFO"
                     ? "bg-primary text-primary-foreground"
                     : "bg-muted"
-                }`}
-              >
-                INFO
-              </button>
-              <button
-                onClick={handleSetFilterALERTE}
-                className={`px-3 sm:px-3 py-2 sm:py-1 text-sm sm:text-sm rounded whitespace-nowrap shrink-0 min-h-[44px] ${
-                  filter === "ALERTE"
+                    }`}
+                >
+                  INFO
+                </button>
+                <button
+                  onClick={handleSetFilterALERTE}
+                  className={`px-3 sm:px-3 py-2 sm:py-1 text-sm sm:text-sm rounded whitespace-nowrap shrink-0 min-h-[44px] ${filter === "ALERTE"
                     ? "bg-primary text-primary-foreground"
                     : "bg-muted"
-                }`}
-              >
-                ALERTE
-              </button>
-              <button
-                onClick={handleSetFilterFERMEE}
-                className={`px-3 sm:px-3 py-2 sm:py-1 text-sm sm:text-sm rounded whitespace-nowrap shrink-0 min-h-[44px] ${
-                  filter === "FERMÉE"
+                    }`}
+                >
+                  ALERTE
+                </button>
+                <button
+                  onClick={handleSetFilterFERMEE}
+                  className={`px-3 sm:px-3 py-2 sm:py-1 text-sm sm:text-sm rounded whitespace-nowrap shrink-0 min-h-[44px] ${filter === "FERMÉE"
                     ? "bg-primary text-primary-foreground"
                     : "bg-muted"
-                }`}
-              >
-                FERMÉE
-              </button>
+                    }`}
+                >
+                  FERMÉE
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Partie scrollable : Liste des agences */}
+          <div className="flex-1 overflow-y-auto min-h-0">
+            <div className="p-2 sm:p-4" style={{ paddingBottom: '120px' }}>
+              {loading ? (
+                <div className="space-y-2">
+                  {Array.from({ length: 15 }).map((_, i) => (
+                    <div key={i} className="flex items-center space-x-4 p-3 border rounded">
+                      <div className="space-y-2 flex-1">
+                        <Skeleton className="h-4 w-3/4" />
+                        <Skeleton className="h-3 w-1/4" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {agencies.map((agency) => {
+                    const isSelected = selectedAgency?.id === agency.id
+                    return (
+                      <div
+                        key={agency.id}
+                        className={`p-3 sm:p-3 border rounded transition-all duration-700 ease-in-out ${isSelected ? "bg-accent" : "bg-background"
+                          }`}
+                        style={{
+                          transitionProperty: 'background-color',
+                          transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)'
+                        }}
+                      >
+                        <div className="flex items-center justify-between gap-1 sm:gap-2">
+                          <div
+                            onClick={() => handleSelectAgency(agency)}
+                            className="cursor-pointer flex-1 min-w-0"
+                          >
+                            <div className="font-semibold text-base sm:text-base truncate">{agency.name}</div>
+                            <div
+                              className={`text-sm sm:text-sm ${agency.state === "OK"
+                                ? "text-green-600"
+                                : agency.state === "INFO"
+                                  ? "text-yellow-600"
+                                  : agency.state === "FERMÉE"
+                                    ? "text-gray-600"
+                                    : "text-red-600"
+                                }`}
+                            >
+                              {agency.state}
+                            </div>
+                          </div>
+                          {userRole !== "User" && (
+                            <div className="flex gap-1 sm:gap-2 shrink-0">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleEditAgencyFromMaster(agency)
+                                }}
+                                className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 h-8 w-8 sm:h-9 sm:w-9 p-0"
+                              >
+                                <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
+                              </Button>
+                              {userRole === "Super Admin" && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleDeleteAgency(agency.id, agency.name)
+                                  }}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50 h-8 w-8 sm:h-9 sm:w-9 p-0"
+                                >
+                                  <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>
-        
-        {/* Partie scrollable : Liste des agences */}
-        <div className="flex-1 overflow-y-auto min-h-0">
-          <div className="p-2 sm:p-4" style={{ paddingBottom: '120px' }}>
-          {loading ? (
-            <div>Chargement...</div>
-          ) : (
-            <div className="space-y-2">
-                {agencies.map((agency) => {
-                const isSelected = selectedAgency?.id === agency.id
-                return (
-                <div
-                  key={agency.id}
-                  className={`p-3 sm:p-3 border rounded transition-all duration-700 ease-in-out ${
-                    isSelected ? "bg-accent" : "bg-background"
-                  }`}
-                  style={{
-                    transitionProperty: 'background-color',
-                    transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)'
-                  }}
-                >
-                  <div className="flex items-center justify-between gap-1 sm:gap-2">
-                  <div
-                    onClick={() => handleSelectAgency(agency)}
-                    className="cursor-pointer flex-1 min-w-0"
-                  >
-                      <div className="font-semibold text-base sm:text-base truncate">{agency.name}</div>
-                      <div
-                        className={`text-sm sm:text-sm ${
-                          agency.state === "OK" 
-                            ? "text-green-600" 
-                            : agency.state === "INFO"
-                            ? "text-yellow-600"
-                            : agency.state === "FERMÉE"
-                            ? "text-gray-600"
-                            : "text-red-600"
-                        }`}
-                      >
-                        {agency.state}
+
+        {/* Barre de redimensionnement */}
+        {!isMobile && (
+          <div
+            onMouseDown={(e) => {
+              e.preventDefault()
+              setIsResizing(true)
+            }}
+            className="w-1 bg-transparent hover:bg-border cursor-col-resize transition-colors flex-shrink-0"
+            style={{ minWidth: "4px" }}
+          />
+        )}
+
+        {/* Zone Détails */}
+        <div
+          className={`h-full flex flex-col overflow-hidden transition-opacity duration-300 ${isMobile && !showDetailsOnMobile ? "hidden" : ""
+            }`}
+          style={{
+            width: isMobile ? "100%" : `${100 - masterWidth}%`,
+            minWidth: isMobile ? "auto" : "300px"
+          }}
+          suppressHydrationWarning
+        >
+          {loadingDetails && !fullAgencyData ? (
+            <div className="p-6 flex flex-col h-full space-y-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4 mb-2">
+                <Skeleton className="h-8 w-64" />
+                <Skeleton className="h-8 w-24" />
+              </div>
+              <div className="flex space-x-2 border-b pb-2">
+                <Skeleton className="h-10 w-24" />
+                <Skeleton className="h-10 w-24" />
+                <Skeleton className="h-10 w-24" />
+                <Skeleton className="h-10 w-24" />
+              </div>
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mt-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <Skeleton key={i} className="h-40 w-full rounded-xl" />
+                ))}
+              </div>
+            </div>
+          ) : fullAgencyData ? (
+            <div className={`flex-1 flex flex-col min-h-0 transition-opacity duration-300 ${loadingDetails ? 'opacity-60' : 'opacity-100'}`}>
+              <>
+                {/* En-tête avec nom et état - Fixe */}
+                <div ref={detailsHeaderRef} className="flex-shrink-0 bg-background pb-2 sm:pb-4 pt-3 sm:pt-6 px-3 sm:px-6 border-b flex flex-col sm:flex-row items-center sm:items-center justify-between gap-2 sm:gap-4 relative" style={{ backgroundColor: 'hsl(var(--background))' }}>
+                  {/* Bouton Retour sur mobile - positionné à gauche */}
+                  {isMobile && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setShowDetailsOnMobile(false)
+                        setSelectedAgency(null)
+                      }}
+                      className="absolute left-3 top-3 sm:relative sm:left-auto sm:top-auto shrink-0"
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {/* Contenu centré en mobile, normal en desktop */}
+                  <div className={`flex items-center gap-2 sm:gap-4 min-w-0 ${isMobile ? 'flex-col flex-1 w-full' : 'flex-1'}`}>
+                    {editing ? (
+                      <div className={`flex items-center gap-2 min-w-0 ${isMobile ? 'flex-col w-full' : 'flex-1'}`}>
+                        <Input
+                          value={editedName}
+                          onChange={(e) => setEditedName(e.target.value)}
+                          className={`text-base sm:text-2xl font-bold min-w-0 min-h-[44px] ${isMobile ? 'w-full text-center' : 'flex-1'}`}
+                        />
+                        {isDirty && (
+                          <div className="flex items-center gap-1.5 bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 px-3 py-1.5 rounded-full text-xs font-semibold shrink-0 animate-in fade-in-50">
+                            <AlertCircle className="h-3.5 w-3.5" />
+                            <span>Modifications non enregistrées</span>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                    {userRole !== "User" && (
-                      <div className="flex gap-1 sm:gap-2 shrink-0">
+                    ) : (
+                      <h2 className={`text-base sm:text-2xl font-bold ${isMobile ? 'text-center w-full mb-2' : 'truncate'}`}>{fullAgencyData.name}</h2>
+                    )}
+                    {/* En mode mobile : état + Historique + Modifier sur une ligne */}
+                    {isMobile && !editing && (
+                      <div className="flex gap-2 w-full">
                         <Button
-                          variant="ghost"
+                          onClick={toggleState}
+                          variant={
+                            editedState === "OK"
+                              ? "default"
+                              : editedState === "INFO"
+                                ? "secondary"
+                                : editedState === "FERMÉE"
+                                  ? "outline"
+                                  : "destructive"
+                          }
                           size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleEditAgencyFromMaster(agency)
-                          }}
-                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 h-8 w-8 sm:h-9 sm:w-9 p-0"
+                          className="pointer-events-none flex-1"
+                          style={
+                            editedState === "OK"
+                              ? { backgroundColor: "#22c55e", color: "#fff" }
+                              : editedState === "INFO"
+                                ? { backgroundColor: "#fbbf24", color: "#000" }
+                                : editedState === "FERMÉE"
+                                  ? { backgroundColor: "#9ca3af", color: "#fff" }
+                                  : undefined
+                          }
                         >
-                          <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
+                          {editedState === "OK"
+                            ? "✓ OK"
+                            : editedState === "INFO"
+                              ? "ℹ INFO"
+                              : editedState === "FERMÉE"
+                                ? "🔒 FERMÉE"
+                                : "⚠ ALERTE"}
                         </Button>
                         {userRole === "Super Admin" && (
                           <Button
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleDeleteAgency(agency.id, agency.name)
+                            onClick={async () => {
+                              if (!selectedAgency) return
+                              setLoadingAgencyHistory(true)
+                              setIsAgencyHistoryDialogOpen(true)
+                              try {
+                                const response = await fetch(
+                                  `/api/agencies/${selectedAgency.id}/history`
+                                )
+                                if (response.ok) {
+                                  const data = await response.json()
+                                  setAgencyHistory(data)
+                                }
+                              } catch (error) {
+                                console.error("Error loading agency history:", error)
+                              } finally {
+                                setLoadingAgencyHistory(false)
+                              }
                             }}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50 h-8 w-8 sm:h-9 sm:w-9 p-0"
+                            className="gap-2 flex-1"
                           >
-                            <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
+                            <Clock className="h-4 w-4" />
+                            <span className="hidden xs:inline">Historique</span>
+                          </Button>
+                        )}
+                        {userRole !== "User" && (
+                          <Button
+                            onClick={() => {
+                              setEditing(true)
+                              setEditedName(fullAgencyData.name)
+                              setEditedState(fullAgencyData.state as "OK" | "ALERTE" | "INFO" | "FERMÉE")
+                              setEditedCodeAgence(fullAgencyData.codeAgence || "")
+                              setEditedCodeRayon(fullAgencyData.codeRayon || "")
+                              setEditedDateOuverture(fullAgencyData.dateOuverture ? new Date(fullAgencyData.dateOuverture).toISOString().split('T')[0] : "")
+                              setEditedDateFermeture(fullAgencyData.dateFermeture ? new Date(fullAgencyData.dateFermeture).toISOString().split('T')[0] : "")
+                              setEditingTechnical(true)
+                              if (fullAgencyData?.technical) {
+                                const notesToUse = latestTechnicalNotes !== null ? latestTechnicalNotes : (fullAgencyData.technical.technicalNotes || "")
+                                setTechnicalData({
+                                  networkIp: fullAgencyData.technical.networkIp || "",
+                                  machineBrand: fullAgencyData.technical.machineBrand || "",
+                                  machineModel: fullAgencyData.technical.machineModel || "",
+                                  machineConnection: fullAgencyData.technical.machineConnection || "",
+                                  machineIp: fullAgencyData.technical.machineIp || "",
+                                  machineMac: fullAgencyData.technical.machineMac || "",
+                                  wifiRouterBrand: fullAgencyData.technical.wifiRouterBrand || "",
+                                  wifiRouterModel: fullAgencyData.technical.wifiRouterModel || "",
+                                  wifiRouterIp: fullAgencyData.technical.wifiRouterIp || "",
+                                  wifiRouterSerial: fullAgencyData.technical.wifiRouterSerial || "",
+                                  mainRouterBrand: fullAgencyData.technical.mainRouterBrand || "",
+                                  mainRouterModel: fullAgencyData.technical.mainRouterModel || "",
+                                  mainRouterIp: fullAgencyData.technical.mainRouterIp || "",
+                                  mainRouterSerial: fullAgencyData.technical.mainRouterSerial || "",
+                                  mainRouterLinkType: fullAgencyData.technical.mainRouterLinkType || "",
+                                  backupRouterBrand: fullAgencyData.technical.backupRouterBrand || "",
+                                  backupRouterModel: fullAgencyData.technical.backupRouterModel || "",
+                                  backupRouterIp: fullAgencyData.technical.backupRouterIp || "",
+                                  backupRouterSerial: fullAgencyData.technical.backupRouterSerial || "",
+                                  recorderBrand: fullAgencyData.technical.recorderBrand || "",
+                                  recorderModel: fullAgencyData.technical.recorderModel || "",
+                                  recorderSerial: fullAgencyData.technical.recorderSerial || "",
+                                  recorderMac: fullAgencyData.technical.recorderMac || "",
+                                  recorderIp: fullAgencyData.technical.recorderIp || "",
+                                  recorderStorage: fullAgencyData.technical.recorderStorage || "",
+                                  technicalNotes: notesToUse,
+                                })
+                              } else {
+                                setTechnicalData({})
+                              }
+                            }}
+                            className="gap-2 flex-1"
+                          >
+                            <Edit className="h-4 w-4" />
+                            <span className="hidden xs:inline">Modifier</span>
                           </Button>
                         )}
                       </div>
                     )}
-                  </div>
-                </div>
-                )
-              })}
-            </div>
-          )}
-          </div>
-        </div>
-      </div>
-
-      {/* Barre de redimensionnement */}
-      {!isMobile && (
-        <div
-          onMouseDown={(e) => {
-            e.preventDefault()
-            setIsResizing(true)
-          }}
-          className="w-1 bg-transparent hover:bg-border cursor-col-resize transition-colors flex-shrink-0"
-          style={{ minWidth: "4px" }}
-        />
-      )}
-
-      {/* Zone Détails */}
-      <div 
-        className={`h-full flex flex-col overflow-hidden transition-opacity duration-300 ${
-        isMobile && !showDetailsOnMobile ? "hidden" : ""
-        }`}
-        style={{ 
-          width: isMobile ? "100%" : `${100 - masterWidth}%`,
-          minWidth: isMobile ? "auto" : "300px"
-        }}
-        suppressHydrationWarning
-      >
-        {loadingDetails && !fullAgencyData ? (
-          <div className="p-6 flex items-center justify-center h-full">
-            <div className="text-muted-foreground animate-pulse">Chargement des détails...</div>
-          </div>
-        ) : fullAgencyData ? (
-          <div className={`flex-1 flex flex-col min-h-0 transition-opacity duration-300 ${loadingDetails ? 'opacity-60' : 'opacity-100'}`}>
-          <>
-            {/* En-tête avec nom et état - Fixe */}
-            <div ref={detailsHeaderRef} className="flex-shrink-0 bg-background pb-2 sm:pb-4 pt-3 sm:pt-6 px-3 sm:px-6 border-b flex flex-col sm:flex-row items-center sm:items-center justify-between gap-2 sm:gap-4 relative" style={{ backgroundColor: 'hsl(var(--background))' }}>
-              {/* Bouton Retour sur mobile - positionné à gauche */}
-              {isMobile && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setShowDetailsOnMobile(false)
-                    setSelectedAgency(null)
-                  }}
-                  className="absolute left-3 top-3 sm:relative sm:left-auto sm:top-auto shrink-0"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                </Button>
-              )}
-              {/* Contenu centré en mobile, normal en desktop */}
-              <div className={`flex items-center gap-2 sm:gap-4 min-w-0 ${isMobile ? 'flex-col flex-1 w-full' : 'flex-1'}`}>
-                {editing ? (
-                  <Input
-                    value={editedName}
-                    onChange={(e) => setEditedName(e.target.value)}
-                    className={`text-base sm:text-2xl font-bold min-w-0 min-h-[44px] ${isMobile ? 'w-full text-center' : 'flex-1'}`}
-                  />
-                ) : (
-                  <h2 className={`text-base sm:text-2xl font-bold ${isMobile ? 'text-center w-full mb-2' : 'truncate'}`}>{fullAgencyData.name}</h2>
-                )}
-                {/* En mode mobile : état + Historique + Modifier sur une ligne */}
-                {isMobile && !editing && (
-                  <div className="flex gap-2 w-full">
-                    <Button
-                      onClick={toggleState}
-                      variant={
-                        editedState === "OK" 
-                          ? "default" 
-                          : editedState === "INFO"
-                          ? "secondary"
-                          : editedState === "FERMÉE"
-                          ? "outline"
-                          : "destructive"
-                      }
-                      size="sm"
-                      className="pointer-events-none flex-1"
-                      style={
-                        editedState === "OK"
-                          ? { backgroundColor: "#22c55e", color: "#fff" }
-                          : editedState === "INFO" 
-                          ? { backgroundColor: "#fbbf24", color: "#000" }
-                          : editedState === "FERMÉE"
-                          ? { backgroundColor: "#9ca3af", color: "#fff" }
-                          : undefined
-                      }
-                    >
-                      {editedState === "OK" 
-                        ? "✓ OK" 
-                        : editedState === "INFO"
-                        ? "ℹ INFO"
-                        : editedState === "FERMÉE"
-                        ? "🔒 FERMÉE"
-                        : "⚠ ALERTE"}
-                    </Button>
-                    {userRole === "Super Admin" && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={async () => {
-                          if (!selectedAgency) return
-                          setLoadingAgencyHistory(true)
-                          setIsAgencyHistoryDialogOpen(true)
-                          try {
-                            const response = await fetch(
-                              `/api/agencies/${selectedAgency.id}/history`
-                            )
-                            if (response.ok) {
-                              const data = await response.json()
-                              setAgencyHistory(data)
-                            }
-                          } catch (error) {
-                            console.error("Error loading agency history:", error)
-                          } finally {
-                            setLoadingAgencyHistory(false)
+                    {/* En mode desktop : layout horizontal normal */}
+                    {!isMobile && (
+                      <>
+                        <Button
+                          onClick={toggleState}
+                          variant={
+                            editedState === "OK"
+                              ? "default"
+                              : editedState === "INFO"
+                                ? "secondary"
+                                : editedState === "FERMÉE"
+                                  ? "outline"
+                                  : "destructive"
                           }
-                        }}
-                        className="gap-2 flex-1"
-                      >
-                        <Clock className="h-4 w-4" />
-                        <span className="hidden xs:inline">Historique</span>
-                      </Button>
+                          size="sm"
+                          className={editing ? "" : "pointer-events-none"}
+                          style={
+                            editedState === "OK"
+                              ? { backgroundColor: "#22c55e", color: "#fff" }
+                              : editedState === "INFO"
+                                ? { backgroundColor: "#fbbf24", color: "#000" }
+                                : editedState === "FERMÉE"
+                                  ? { backgroundColor: "#9ca3af", color: "#fff" }
+                                  : undefined
+                          }
+                        >
+                          {editedState === "OK"
+                            ? "✓ OK"
+                            : editedState === "INFO"
+                              ? "ℹ INFO"
+                              : editedState === "FERMÉE"
+                                ? "🔒 FERMÉE"
+                                : "⚠ ALERTE"}
+                        </Button>
+                        {!editing && userRole === "Super Admin" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={async () => {
+                              if (!selectedAgency) return
+                              setLoadingAgencyHistory(true)
+                              setIsAgencyHistoryDialogOpen(true)
+                              try {
+                                const response = await fetch(
+                                  `/api/agencies/${selectedAgency.id}/history`
+                                )
+                                if (response.ok) {
+                                  const data = await response.json()
+                                  setAgencyHistory(data)
+                                }
+                              } catch (error) {
+                                console.error("Error loading agency history:", error)
+                              } finally {
+                                setLoadingAgencyHistory(false)
+                              }
+                            }}
+                            className="gap-2"
+                          >
+                            <Clock className="h-4 w-4" />
+                            Historique
+                          </Button>
+                        )}
+                      </>
                     )}
-                    {userRole !== "User" && (
+                  </div>
+                  {/* Bouton Modifier à droite en mode desktop non-édition */}
+                  {!editing && !isMobile && userRole !== "User" && (
+                    <div className="flex gap-2">
                       <Button
                         onClick={() => {
                           setEditing(true)
@@ -2823,2568 +3064,2508 @@ export default function AgencesPage() {
                             setTechnicalData({})
                           }
                         }}
-                        className="gap-2 flex-1"
-                      >
-                        <Edit className="h-4 w-4" />
-                        <span className="hidden xs:inline">Modifier</span>
-                      </Button>
-                    )}
-                  </div>
-                )}
-                {/* En mode desktop : layout horizontal normal */}
-                {!isMobile && (
-                  <>
-                    <Button
-                      onClick={toggleState}
-                      variant={
-                        editedState === "OK" 
-                          ? "default" 
-                          : editedState === "INFO"
-                          ? "secondary"
-                          : editedState === "FERMÉE"
-                          ? "outline"
-                          : "destructive"
-                      }
-                      size="sm"
-                      className={editing ? "" : "pointer-events-none"}
-                      style={
-                        editedState === "OK"
-                          ? { backgroundColor: "#22c55e", color: "#fff" }
-                          : editedState === "INFO" 
-                          ? { backgroundColor: "#fbbf24", color: "#000" }
-                          : editedState === "FERMÉE"
-                          ? { backgroundColor: "#9ca3af", color: "#fff" }
-                          : undefined
-                      }
-                    >
-                      {editedState === "OK" 
-                        ? "✓ OK" 
-                        : editedState === "INFO"
-                        ? "ℹ INFO"
-                        : editedState === "FERMÉE"
-                        ? "🔒 FERMÉE"
-                        : "⚠ ALERTE"}
-                    </Button>
-                    {!editing && userRole === "Super Admin" && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={async () => {
-                          if (!selectedAgency) return
-                          setLoadingAgencyHistory(true)
-                          setIsAgencyHistoryDialogOpen(true)
-                          try {
-                            const response = await fetch(
-                              `/api/agencies/${selectedAgency.id}/history`
-                            )
-                            if (response.ok) {
-                              const data = await response.json()
-                              setAgencyHistory(data)
-                            }
-                          } catch (error) {
-                            console.error("Error loading agency history:", error)
-                          } finally {
-                            setLoadingAgencyHistory(false)
-                          }
-                        }}
                         className="gap-2"
                       >
-                        <Clock className="h-4 w-4" />
-                        Historique
+                        <Edit className="h-4 w-4" />
+                        <span className="hidden sm:inline">Modifier</span>
                       </Button>
-                    )}
-                  </>
-                )}
-              </div>
-              {/* Bouton Modifier à droite en mode desktop non-édition */}
-              {!editing && !isMobile && userRole !== "User" && (
-                <div className="flex gap-2">
-                  <Button
-                    onClick={() => {
-                      setEditing(true)
-                      setEditedName(fullAgencyData.name)
-                      setEditedState(fullAgencyData.state as "OK" | "ALERTE" | "INFO" | "FERMÉE")
-                      setEditedCodeAgence(fullAgencyData.codeAgence || "")
-                      setEditedCodeRayon(fullAgencyData.codeRayon || "")
-                      setEditedDateOuverture(fullAgencyData.dateOuverture ? new Date(fullAgencyData.dateOuverture).toISOString().split('T')[0] : "")
-                      setEditedDateFermeture(fullAgencyData.dateFermeture ? new Date(fullAgencyData.dateFermeture).toISOString().split('T')[0] : "")
-                      setEditingTechnical(true)
-                      if (fullAgencyData?.technical) {
-                        const notesToUse = latestTechnicalNotes !== null ? latestTechnicalNotes : (fullAgencyData.technical.technicalNotes || "")
-                        setTechnicalData({
-                          networkIp: fullAgencyData.technical.networkIp || "",
-                          machineBrand: fullAgencyData.technical.machineBrand || "",
-                          machineModel: fullAgencyData.technical.machineModel || "",
-                          machineConnection: fullAgencyData.technical.machineConnection || "",
-                          machineIp: fullAgencyData.technical.machineIp || "",
-                          machineMac: fullAgencyData.technical.machineMac || "",
-                          wifiRouterBrand: fullAgencyData.technical.wifiRouterBrand || "",
-                          wifiRouterModel: fullAgencyData.technical.wifiRouterModel || "",
-                          wifiRouterIp: fullAgencyData.technical.wifiRouterIp || "",
-                          wifiRouterSerial: fullAgencyData.technical.wifiRouterSerial || "",
-                          mainRouterBrand: fullAgencyData.technical.mainRouterBrand || "",
-                          mainRouterModel: fullAgencyData.technical.mainRouterModel || "",
-                          mainRouterIp: fullAgencyData.technical.mainRouterIp || "",
-                          mainRouterSerial: fullAgencyData.technical.mainRouterSerial || "",
-                          mainRouterLinkType: fullAgencyData.technical.mainRouterLinkType || "",
-                          backupRouterBrand: fullAgencyData.technical.backupRouterBrand || "",
-                          backupRouterModel: fullAgencyData.technical.backupRouterModel || "",
-                          backupRouterIp: fullAgencyData.technical.backupRouterIp || "",
-                          backupRouterSerial: fullAgencyData.technical.backupRouterSerial || "",
-                          recorderBrand: fullAgencyData.technical.recorderBrand || "",
-                          recorderModel: fullAgencyData.technical.recorderModel || "",
-                          recorderSerial: fullAgencyData.technical.recorderSerial || "",
-                          recorderMac: fullAgencyData.technical.recorderMac || "",
-                          recorderIp: fullAgencyData.technical.recorderIp || "",
-                          recorderStorage: fullAgencyData.technical.recorderStorage || "",
-                          technicalNotes: notesToUse,
-                        })
-                      } else {
-                        setTechnicalData({})
-                      }
-                    }}
-                    className="gap-2"
-                  >
-                    <Edit className="h-4 w-4" />
-                    <span className="hidden sm:inline">Modifier</span>
-                  </Button>
+                    </div>
+                  )}
+                  {/* Boutons Annuler/Enregistrer à droite en mode édition */}
+                  {editing && (
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setEditing(false)
+                          setEditingTechnical(false)
+                          setEditedName(fullAgencyData.name)
+                          setEditedState(fullAgencyData.state as "OK" | "ALERTE" | "INFO" | "FERMÉE")
+                          setEditedCodeAgence(fullAgencyData?.codeAgence || "")
+                          setEditedCodeRayon(fullAgencyData?.codeRayon || "")
+                          setEditedDateOuverture(fullAgencyData?.dateOuverture ? new Date(fullAgencyData.dateOuverture).toISOString().split('T')[0] : "")
+                          setEditedDateFermeture(fullAgencyData?.dateFermeture ? new Date(fullAgencyData.dateFermeture).toISOString().split('T')[0] : "")
+                          setTechnicalData({})
+                        }}
+                      >
+                        Annuler
+                      </Button>
+                      <Button onClick={handleSaveAgency} className="gap-2" disabled={saving}>
+                        {saving ? (
+                          <>
+                            <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden />
+                            Enregistrement…
+                          </>
+                        ) : (
+                          <>
+                            <Save className="h-4 w-4" />
+                            Enregistrer
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
                 </div>
-              )}
-              {/* Boutons Annuler/Enregistrer à droite en mode édition */}
-              {editing && (
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setEditing(false)
-                      setEditingTechnical(false)
-                      setEditedName(fullAgencyData.name)
-                      setEditedState(fullAgencyData.state as "OK" | "ALERTE" | "INFO" | "FERMÉE")
-                      setEditedCodeAgence(fullAgencyData?.codeAgence || "")
-                      setEditedCodeRayon(fullAgencyData?.codeRayon || "")
-                      setEditedDateOuverture(fullAgencyData?.dateOuverture ? new Date(fullAgencyData.dateOuverture).toISOString().split('T')[0] : "")
-                      setEditedDateFermeture(fullAgencyData?.dateFermeture ? new Date(fullAgencyData.dateFermeture).toISOString().split('T')[0] : "")
-                      setTechnicalData({})
-                    }}
+
+                {/* Onglets + contenu */}
+                <Tabs
+                  value={activeTab}
+                  onValueChange={(value) => setActiveTab(value as "general" | "tasks" | "technical" | "photos")}
+                  className="w-full flex-1 flex flex-col overflow-hidden min-h-0"
+                >
+                  {/* Onglets - Fixe */}
+                  <div ref={detailsTabsRef} className="flex-shrink-0 bg-background pb-2 px-3 sm:px-6 border-b overflow-x-auto" style={{ backgroundColor: 'hsl(var(--background))' }}>
+                    <TabsList className="bg-background w-full sm:w-auto" style={{ backgroundColor: 'hsl(var(--background))' }}>
+                      <TabsTrigger value="general" className="text-sm sm:text-sm min-h-[44px]">
+                        <FileText className="h-4 w-4 sm:h-4 sm:w-4 mr-2 sm:mr-2" />
+                        Général
+                      </TabsTrigger>
+                      <TabsTrigger value="tasks" className="text-sm sm:text-sm min-h-[44px]">
+                        <ListTodo className="h-4 w-4 sm:h-4 sm:w-4 mr-2 sm:mr-2" />
+                        Tâches
+                      </TabsTrigger>
+                      <TabsTrigger value="technical" className="text-sm sm:text-sm min-h-[44px]">
+                        <Settings className="h-4 w-4 sm:h-4 sm:w-4 mr-2 sm:mr-2" />
+                        <span className="hidden sm:inline">Technique</span>
+                        <span className="sm:hidden">Tech</span>
+                      </TabsTrigger>
+                      <TabsTrigger value="photos" className="text-sm sm:text-sm min-h-[44px]">
+                        <Camera className="h-4 w-4 sm:h-4 sm:w-4 mr-2 sm:mr-2" />
+                        Photos
+                      </TabsTrigger>
+                    </TabsList>
+                  </div>
+
+                  {/* Contenu scrollable */}
+                  <div
+                    ref={detailsScrollRef}
+                    className="flex-1 overflow-y-auto min-h-0"
                   >
-                    Annuler
-                  </Button>
-                  <Button onClick={handleSaveAgency} className="gap-2">
-                    <Save className="h-4 w-4" />
-                    Enregistrer
-                  </Button>
-                </div>
-              )}
-            </div>
-
-            {/* Onglets + contenu */}
-            <Tabs
-              value={activeTab}
-              onValueChange={(value) => setActiveTab(value as "general" | "tasks" | "technical" | "photos")}
-              className="w-full flex-1 flex flex-col overflow-hidden min-h-0"
-            >
-              {/* Onglets - Fixe */}
-              <div ref={detailsTabsRef} className="flex-shrink-0 bg-background pb-2 px-3 sm:px-6 border-b overflow-x-auto" style={{ backgroundColor: 'hsl(var(--background))' }}>
-                <TabsList className="bg-background w-full sm:w-auto" style={{ backgroundColor: 'hsl(var(--background))' }}>
-                  <TabsTrigger value="general" className="text-sm sm:text-sm min-h-[44px]">
-                    <FileText className="h-4 w-4 sm:h-4 sm:w-4 mr-2 sm:mr-2" />
-                    Général
-                  </TabsTrigger>
-                  <TabsTrigger value="tasks" className="text-sm sm:text-sm min-h-[44px]">
-                    <ListTodo className="h-4 w-4 sm:h-4 sm:w-4 mr-2 sm:mr-2" />
-                    Tâches
-                  </TabsTrigger>
-                  <TabsTrigger value="technical" className="text-sm sm:text-sm min-h-[44px]">
-                    <Settings className="h-4 w-4 sm:h-4 sm:w-4 mr-2 sm:mr-2" />
-                    <span className="hidden sm:inline">Technique</span>
-                    <span className="sm:hidden">Tech</span>
-                  </TabsTrigger>
-                  <TabsTrigger value="photos" className="text-sm sm:text-sm min-h-[44px]">
-                    <Camera className="h-4 w-4 sm:h-4 sm:w-4 mr-2 sm:mr-2" />
-                    Photos
-                  </TabsTrigger>
-                </TabsList>
-              </div>
-
-              {/* Contenu scrollable */}
-              <div 
-                ref={detailsScrollRef} 
-                className="flex-1 overflow-y-auto min-h-0"
-              >
-                <div className="px-3 sm:px-6" style={{ paddingBottom: '120px' }}>
-                <TabsContent value="general" className="space-y-3 sm:space-y-4 pt-2 sm:pt-4 mt-0">
-                <Card>
-                  <CardHeader className="p-4 sm:p-6">
-                    <CardTitle className="text-base sm:text-lg">Informations générales</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3 sm:space-y-4 p-4 sm:p-6">
-                    {/* Photo principale centrée en haut */}
-                    {(fullAgencyData.photo || 
-                      (fullAgencyData.photos && fullAgencyData.photos.find(pg => pg.type === "Agence"))) && (
-                      <div className="flex justify-center mb-4 sm:mb-6">
-                        {fullAgencyData.photo ? (
-                          <div className="relative w-full max-w-full sm:max-w-md h-48 sm:h-64">
-                            <Image
-                              src={fullAgencyData.photo}
-                              alt={fullAgencyData.name}
-                              fill
-                              className="object-contain rounded-lg shadow-md"
-                              unoptimized
-                              priority
-                            />
-                          </div>
-                        ) : (
-                          (() => {
-                            const agencyPhotoGroup = fullAgencyData.photos?.find(pg => pg.type === "Agence")
-                            if (agencyPhotoGroup) {
-                              const photos = JSON.parse(agencyPhotoGroup.photos || "[]")
-                              if (photos.length > 0) {
-                                const photoPath = typeof photos[0] === "string" ? photos[0] : photos[0].path
-                                return (
-                                  <div className="relative w-full max-w-full sm:max-w-md h-48 sm:h-64">
-                                    <Image
-                                      src={photoPath}
-                                      alt={fullAgencyData.name}
-                                      fill
-                                      className="object-contain rounded-lg shadow-md"
-                                      unoptimized
-                                      priority
-                                    />
-                                  </div>
-                                )
-                              }
-                            }
-                            return null
-                          })()
-                        )}
-                      </div>
-                    )}
-                    <div>
-                      <Label>Nom de l&apos;agence</Label>
-                      {editing ? (
-                        <Input
-                          value={editedName}
-                          onChange={(e) => setEditedName(e.target.value)}
-                          className="mt-1"
-                        />
-                      ) : (
-                        <div className="mt-1">{fullAgencyData.name}</div>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
-                      <div>
-                        <Label>Code Agence</Label>
-                        {editing ? (
-                          <Input
-                            value={editedCodeAgence}
-                            onChange={(e) => setEditedCodeAgence(e.target.value)}
-                            className="mt-1"
-                          />
-                        ) : (
-                          <div className="mt-1">{fullAgencyData.codeAgence || "-"}</div>
-                        )}
-                      </div>
-                      <div>
-                        <Label>Code Rayon</Label>
-                        {editing ? (
-                          <Input
-                            value={editedCodeRayon}
-                            onChange={(e) => setEditedCodeRayon(e.target.value)}
-                            className="mt-1"
-                          />
-                        ) : (
-                          <div className="mt-1">{fullAgencyData.codeRayon || "-"}</div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
-                      <div>
-                        <Label>Date ouverture</Label>
-                        {editing ? (
-                          <Input
-                            type="date"
-                            value={editedDateOuverture}
-                            onChange={(e) => setEditedDateOuverture(e.target.value)}
-                            className="mt-1"
-                          />
-                        ) : (
-                          <div className="mt-1">
-                            {fullAgencyData.dateOuverture 
-                              ? new Date(fullAgencyData.dateOuverture).toLocaleDateString("fr-FR")
-                              : "-"}
-                          </div>
-                        )}
-                      </div>
-                      <div>
-                        <Label>Date fermeture</Label>
-                        {editing ? (
-                          <Input
-                            type="date"
-                            value={editedDateFermeture}
-                            onChange={(e) => setEditedDateFermeture(e.target.value)}
-                            className="mt-1"
-                          />
-                        ) : (
-                          <div className="mt-1">
-                            {fullAgencyData.dateFermeture 
-                              ? new Date(fullAgencyData.dateFermeture).toLocaleDateString("fr-FR")
-                              : "-"}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Section Adresses */}
-                <Card>
-                  <CardHeader className="p-4 sm:p-6">
-                    <div className="flex items-center justify-between gap-2">
-                      <CardTitle className="text-base sm:text-lg">Adresses</CardTitle>
-                      {editing && (
-                        <Button onClick={handleAddAddress} size="sm" className="gap-1 sm:gap-2 shrink-0">
-                          <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
-                          <span className="hidden sm:inline">Ajouter</span>
-                        </Button>
-                      )}
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-4 sm:p-6">
-                    {fullAgencyData.addresses && fullAgencyData.addresses.length > 0 ? (
-                      <div className="grid gap-3 sm:gap-4 auto-rows-fr" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))' }}>
-                        {fullAgencyData.addresses.map((address) => (
-                          <Card key={address.id} className="bg-slate-50 dark:bg-slate-800/50 w-full h-full flex flex-col">
-                            <CardHeader className="p-3 sm:p-4">
-                              <div className="flex items-start justify-between">
-                                <CardTitle className="text-base font-semibold flex-1">
-                                  {address.label}
-                                </CardTitle>
-                                {editing && (
-                                  <div className="flex gap-1 shrink-0">
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => handleEditAddress(address)}
-                                      className="h-8 w-8 p-0"
-                                    >
-                                      <Edit className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => handleDeleteAddress(address.id)}
-                                      className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </Button>
+                    <div className="px-3 sm:px-6" style={{ paddingBottom: '120px' }}>
+                      <TabsContent value="general" className="space-y-3 sm:space-y-4 pt-2 sm:pt-4 mt-0">
+                        <Card>
+                          <CardHeader className="p-4 sm:p-6">
+                            <CardTitle className="text-base sm:text-lg">Informations générales</CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-3 sm:space-y-4 p-4 sm:p-6">
+                            {/* Photo principale centrée en haut */}
+                            {(fullAgencyData.photo ||
+                              (fullAgencyData.photos && fullAgencyData.photos.find(pg => pg.type === "Agence"))) && (
+                                <div className="flex justify-center mb-4 sm:mb-6">
+                                  {fullAgencyData.photo ? (
+                                    <div className="relative w-full max-w-full sm:max-w-md h-48 sm:h-64">
+                                      <Image
+                                        src={fullAgencyData.photo}
+                                        alt={fullAgencyData.name}
+                                        fill
+                                        className="object-contain rounded-lg shadow-md"
+                                        unoptimized
+                                        priority
+                                      />
+                                    </div>
+                                  ) : (
+                                    (() => {
+                                      const agencyPhotoGroup = fullAgencyData.photos?.find(pg => pg.type === "Agence")
+                                      if (agencyPhotoGroup) {
+                                        const photos = JSON.parse(agencyPhotoGroup.photos || "[]")
+                                        if (photos.length > 0) {
+                                          const photoPath = typeof photos[0] === "string" ? photos[0] : photos[0].path
+                                          return (
+                                            <div className="relative w-full max-w-full sm:max-w-md h-48 sm:h-64">
+                                              <Image
+                                                src={photoPath}
+                                                alt={fullAgencyData.name}
+                                                fill
+                                                className="object-contain rounded-lg shadow-md"
+                                                unoptimized
+                                                priority
+                                              />
+                                            </div>
+                                          )
+                                        }
+                                      }
+                                      return null
+                                    })()
+                                  )}
+                                </div>
+                              )}
+                            <div>
+                              <Label>Nom de l&apos;agence</Label>
+                              {editing ? (
+                                <Input
+                                  value={editedName}
+                                  onChange={(e) => setEditedName(e.target.value)}
+                                  className="mt-1"
+                                />
+                              ) : (
+                                <div className="mt-1">{fullAgencyData.name}</div>
+                              )}
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
+                              <div>
+                                <Label>Code Agence</Label>
+                                {editing ? (
+                                  <Input
+                                    value={editedCodeAgence}
+                                    onChange={(e) => setEditedCodeAgence(e.target.value)}
+                                    className="mt-1"
+                                  />
+                                ) : (
+                                  <div className="mt-1">{fullAgencyData.codeAgence || "-"}</div>
+                                )}
+                              </div>
+                              <div>
+                                <Label>Code Rayon</Label>
+                                {editing ? (
+                                  <Input
+                                    value={editedCodeRayon}
+                                    onChange={(e) => setEditedCodeRayon(e.target.value)}
+                                    className="mt-1"
+                                  />
+                                ) : (
+                                  <div className="mt-1">{fullAgencyData.codeRayon || "-"}</div>
+                                )}
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
+                              <div>
+                                <Label>Date ouverture</Label>
+                                {editing ? (
+                                  <Input
+                                    type="date"
+                                    value={editedDateOuverture}
+                                    onChange={(e) => setEditedDateOuverture(e.target.value)}
+                                    className="mt-1"
+                                  />
+                                ) : (
+                                  <div className="mt-1">
+                                    {fullAgencyData.dateOuverture
+                                      ? new Date(fullAgencyData.dateOuverture).toLocaleDateString("fr-FR")
+                                      : "-"}
                                   </div>
                                 )}
                               </div>
-                            </CardHeader>
-                            <CardContent className="p-3 sm:p-4 pt-0 flex-1 flex flex-col">
-                              <div className="space-y-2 text-sm flex-1">
-                                <div className="flex items-center gap-2">
-                                  <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
-                                  <span className="text-muted-foreground">{address.street}</span>
-                                </div>
-                                <div className="text-muted-foreground">
-                                  {address.postalCode} {address.city}
-                                </div>
-                                {address.latitude && address.longitude && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="mt-2"
-                                    onClick={() => {
-                                      window.open(
-                                        `https://www.google.com/maps?q=${address.latitude},${address.longitude}`,
-                                        "_blank"
-                                      )
-                                    }}
-                                  >
-                                    <MapPin className="h-4 w-4 mr-2" />
-                                    Voir sur Google Maps
-                                  </Button>
+                              <div>
+                                <Label>Date fermeture</Label>
+                                {editing ? (
+                                  <Input
+                                    type="date"
+                                    value={editedDateFermeture}
+                                    onChange={(e) => setEditedDateFermeture(e.target.value)}
+                                    className="mt-1"
+                                  />
+                                ) : (
+                                  <div className="mt-1">
+                                    {fullAgencyData.dateFermeture
+                                      ? new Date(fullAgencyData.dateFermeture).toLocaleDateString("fr-FR")
+                                      : "-"}
+                                  </div>
                                 )}
                               </div>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-muted-foreground">
-                        Aucune adresse enregistrée
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                            </div>
+                          </CardContent>
+                        </Card>
 
-                {/* Section Contacts */}
-                <Card>
-                  <CardHeader className="p-4 sm:p-6">
-                    <div className="flex items-center justify-between gap-2">
-                      <CardTitle className="text-base sm:text-lg">Contacts</CardTitle>
-                      {editing && (
-                        <Button onClick={handleAddContact} size="sm" className="gap-1 sm:gap-2 shrink-0">
-                          <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
-                          <span className="hidden sm:inline">Ajouter</span>
-                        </Button>
-                      )}
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-4 sm:p-6">
-                    {fullAgencyData.contacts && fullAgencyData.contacts.length > 0 ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                        {(() => {
-                          const sortedContacts = [...fullAgencyData.contacts].sort((a, b) => (a.order || 0) - (b.order || 0))
-                          return sortedContacts.map((contact, index) => {
-                            const emails = JSON.parse(contact.emails || "[]")
-                            return (
-                              <Card
-                                key={contact.id}
-                                onDragOver={(e) => {
-                                  e.preventDefault()
-                                  e.dataTransfer.dropEffect = "move"
-                                  setDragOverContactIndex(index)
-                                }}
-                                onDragLeave={() => {
-                                  setDragOverContactIndex(null)
-                                }}
-                                onDrop={(e) => {
-                                  e.preventDefault()
-                                  setDragOverContactIndex(null)
-                                  if (draggedContactId && draggedContactId !== contact.id) {
-                                    handleMoveContact(draggedContactId, contact.id)
-                                  }
-                                  setDraggedContactId(null)
-                                }}
-                                className={`bg-slate-50 dark:bg-slate-800/50 ${
-                                  draggedContactId === contact.id ? "opacity-50" : ""
-                                } ${
-                                  dragOverContactIndex === index ? "border-primary border-2" : ""
-                                }`}
-                              >
-                                <CardHeader className="p-3 sm:p-4">
-                                  <div className="flex items-start justify-between gap-2">
-                                    {editing && (
-                                      <div 
-                                        className="text-muted-foreground cursor-move shrink-0"
-                                        draggable={true}
-                                        onDragStart={(e) => {
-                                          setDraggedContactId(contact.id)
-                                          e.dataTransfer.effectAllowed = "move"
+                        {/* Section Adresses */}
+                        <Card>
+                          <CardHeader className="p-4 sm:p-6">
+                            <div className="flex items-center justify-between gap-2">
+                              <CardTitle className="text-base sm:text-lg">Adresses</CardTitle>
+                              {editing && (
+                                <Button onClick={handleAddAddress} size="sm" className="gap-1 sm:gap-2 shrink-0">
+                                  <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
+                                  <span className="hidden sm:inline">Ajouter</span>
+                                </Button>
+                              )}
+                            </div>
+                          </CardHeader>
+                          <CardContent className="p-4 sm:p-6">
+                            {fullAgencyData.addresses && fullAgencyData.addresses.length > 0 ? (
+                              <div className="grid gap-3 sm:gap-4 auto-rows-fr" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))' }}>
+                                {fullAgencyData.addresses.map((address) => (
+                                  <Card key={address.id} className="bg-slate-50 dark:bg-slate-800/50 w-full h-full flex flex-col">
+                                    <CardHeader className="p-3 sm:p-4">
+                                      <div className="flex items-start justify-between">
+                                        <CardTitle className="text-base font-semibold flex-1">
+                                          {address.label}
+                                        </CardTitle>
+                                        {editing && (
+                                          <div className="flex gap-1 shrink-0">
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => handleEditAddress(address)}
+                                              className="h-8 w-8 p-0"
+                                            >
+                                              <Edit className="h-4 w-4" />
+                                            </Button>
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => handleDeleteAddress(address.id)}
+                                              className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                            >
+                                              <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </CardHeader>
+                                    <CardContent className="p-3 sm:p-4 pt-0 flex-1 flex flex-col">
+                                      <div className="space-y-2 text-sm flex-1">
+                                        <div className="flex items-center gap-2">
+                                          <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
+                                          <span className="text-muted-foreground">{address.street}</span>
+                                        </div>
+                                        <div className="text-muted-foreground">
+                                          {address.postalCode} {address.city}
+                                        </div>
+                                        {address.latitude && address.longitude && (
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="mt-2"
+                                            onClick={() => {
+                                              window.open(
+                                                `https://www.google.com/maps?q=${address.latitude},${address.longitude}`,
+                                                "_blank"
+                                              )
+                                            }}
+                                          >
+                                            <MapPin className="h-4 w-4 mr-2" />
+                                            Voir sur Google Maps
+                                          </Button>
+                                        )}
+                                      </div>
+                                    </CardContent>
+                                  </Card>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="text-muted-foreground">
+                                Aucune adresse enregistrée
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+
+                        {/* Section Contacts */}
+                        <Card>
+                          <CardHeader className="p-4 sm:p-6">
+                            <div className="flex items-center justify-between gap-2">
+                              <CardTitle className="text-base sm:text-lg">Contacts</CardTitle>
+                              {editing && (
+                                <Button onClick={handleAddContact} size="sm" className="gap-1 sm:gap-2 shrink-0">
+                                  <Plus className="h-3 w-3 sm:h-4 sm:w-4" />
+                                  <span className="hidden sm:inline">Ajouter</span>
+                                </Button>
+                              )}
+                            </div>
+                          </CardHeader>
+                          <CardContent className="p-4 sm:p-6">
+                            {fullAgencyData.contacts && fullAgencyData.contacts.length > 0 ? (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                                {(() => {
+                                  const sortedContacts = [...fullAgencyData.contacts].sort((a, b) => (a.order || 0) - (b.order || 0))
+                                  return sortedContacts.map((contact, index) => {
+                                    const emails = JSON.parse(contact.emails || "[]")
+                                    return (
+                                      <Card
+                                        key={contact.id}
+                                        onDragOver={(e) => {
+                                          e.preventDefault()
+                                          e.dataTransfer.dropEffect = "move"
+                                          setDragOverContactIndex(index)
                                         }}
-                                        onDragEnd={() => {
-                                          setDraggedContactId(null)
+                                        onDragLeave={() => {
                                           setDragOverContactIndex(null)
                                         }}
+                                        onDrop={(e) => {
+                                          e.preventDefault()
+                                          setDragOverContactIndex(null)
+                                          if (draggedContactId && draggedContactId !== contact.id) {
+                                            handleMoveContact(draggedContactId, contact.id)
+                                          }
+                                          setDraggedContactId(null)
+                                        }}
+                                        className={`bg-slate-50 dark:bg-slate-800/50 ${draggedContactId === contact.id ? "opacity-50" : ""
+                                          } ${dragOverContactIndex === index ? "border-primary border-2" : ""
+                                          }`}
                                       >
-                                        <GripVertical className="h-4 w-4" />
-                                      </div>
-                                    )}
-                                    <CardTitle className="text-base font-semibold flex-1">
-                                      {contact.managerName}
-                                    </CardTitle>
-                                    {editing && (
-                                      <div className="flex gap-1 shrink-0">
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => handleEditContact(contact)}
-                                          onMouseDown={(e) => e.stopPropagation()}
-                                          className="h-8 w-8 p-0"
-                                        >
-                                          <Edit className="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => handleDeleteContact(contact.id)}
-                                          onMouseDown={(e) => e.stopPropagation()}
-                                          className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                                        >
-                                          <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                      </div>
-                                    )}
-                                  </div>
-                                </CardHeader>
-                                <CardContent className="p-3 sm:p-4 pt-0">
-                                  <div className="space-y-2 text-sm">
-                                    {contact.postNumber && (
-                                      <div className="flex items-center gap-2">
-                                        <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
-                                        <span><strong>Poste:</strong> {contact.postNumber}</span>
-                                      </div>
-                                    )}
-                                    {contact.agentNumber && (
-                                      <div className="flex items-center gap-2">
-                                        <User className="h-4 w-4 text-muted-foreground shrink-0" />
-                                        <span><strong>Agent:</strong> {contact.agentNumber}</span>
-                                      </div>
-                                    )}
-                                    {contact.directLine && (
-                                      <div className="flex items-center gap-2">
-                                        <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
-                                        <span><strong>Ligne directe:</strong> {contact.directLine}</span>
-                                      </div>
-                                    )}
-                                    {emails.length > 0 && (
-                                      <div className="flex items-start gap-2">
-                                        <Mail className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                                        <div className="flex-1">
-                                          <strong>Emails:</strong>
-                                          <div className="mt-1 space-y-1">
-                                            {emails.map((email: string, emailIndex: number) => (
-                                              <div key={emailIndex} className="text-muted-foreground break-all">
-                                                {email}
-                                              </div>
-                                            ))}
-                                          </div>
-                                        </div>
-                                      </div>
-                                    )}
-                                    {contact.note && (
-                                      <div className="mt-3 pt-3 border-t">
-                                        <div className="flex items-start gap-2">
-                                          <FileText className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                                          <div className="flex-1">
-                                            <strong>Note:</strong>
-                                            <div className="mt-1">
-                                              <div 
-                                                className={`text-muted-foreground transition-all ${
-                                                  !expandedContactNotes[contact.id] 
-                                                    ? "overflow-hidden" 
-                                                    : ""
-                                                }`}
-                                                style={!expandedContactNotes[contact.id] ? {
-                                                  lineHeight: '1.5rem',
-                                                  whiteSpace: 'normal',
-                                                  wordBreak: 'break-word',
-                                                  display: '-webkit-box',
-                                                  WebkitLineClamp: 5,
-                                                  WebkitBoxOrient: 'vertical',
-                                                  maxHeight: '7.5rem'
-                                                } : {
-                                                  lineHeight: '1.5rem',
-                                                  whiteSpace: 'pre-wrap',
-                                                  wordBreak: 'break-word'
+                                        <CardHeader className="p-3 sm:p-4">
+                                          <div className="flex items-start justify-between gap-2">
+                                            {editing && (
+                                              <div
+                                                className="text-muted-foreground cursor-move shrink-0"
+                                                draggable={true}
+                                                onDragStart={(e) => {
+                                                  setDraggedContactId(contact.id)
+                                                  e.dataTransfer.effectAllowed = "move"
+                                                }}
+                                                onDragEnd={() => {
+                                                  setDraggedContactId(null)
+                                                  setDragOverContactIndex(null)
                                                 }}
                                               >
-                                                {contact.note}
+                                                <GripVertical className="h-4 w-4" />
                                               </div>
-                                              {(contact.note.split('\n').length > 5 || contact.note.length > 300) && (
-                                                <button
-                                                  onClick={() => setExpandedContactNotes(prev => ({
-                                                    ...prev,
-                                                    [contact.id]: !prev[contact.id]
-                                                  }))}
-                                                  className="text-sm text-primary hover:underline mt-1"
+                                            )}
+                                            <CardTitle className="text-base font-semibold flex-1">
+                                              {contact.managerName}
+                                            </CardTitle>
+                                            {editing && (
+                                              <div className="flex gap-1 shrink-0">
+                                                <Button
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  onClick={() => handleEditContact(contact)}
+                                                  onMouseDown={(e) => e.stopPropagation()}
+                                                  className="h-8 w-8 p-0"
                                                 >
-                                                  {expandedContactNotes[contact.id] ? (
-                                                    "Réduire"
+                                                  <Edit className="h-4 w-4" />
+                                                </Button>
+                                                <Button
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  onClick={() => handleDeleteContact(contact.id)}
+                                                  onMouseDown={(e) => e.stopPropagation()}
+                                                  className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                                >
+                                                  <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </CardHeader>
+                                        <CardContent className="p-3 sm:p-4 pt-0">
+                                          <div className="space-y-2 text-sm">
+                                            {contact.postNumber && (
+                                              <div className="flex items-center gap-2">
+                                                <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
+                                                <span><strong>Poste:</strong> {contact.postNumber}</span>
+                                              </div>
+                                            )}
+                                            {contact.agentNumber && (
+                                              <div className="flex items-center gap-2">
+                                                <User className="h-4 w-4 text-muted-foreground shrink-0" />
+                                                <span><strong>Agent:</strong> {contact.agentNumber}</span>
+                                              </div>
+                                            )}
+                                            {contact.directLine && (
+                                              <div className="flex items-center gap-2">
+                                                <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
+                                                <span><strong>Ligne directe:</strong> {contact.directLine}</span>
+                                              </div>
+                                            )}
+                                            {emails.length > 0 && (
+                                              <div className="flex items-start gap-2">
+                                                <Mail className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                                                <div className="flex-1">
+                                                  <strong>Emails:</strong>
+                                                  <div className="mt-1 space-y-1">
+                                                    {emails.map((email: string, emailIndex: number) => (
+                                                      <div key={emailIndex} className="text-muted-foreground break-all">
+                                                        {email}
+                                                      </div>
+                                                    ))}
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            )}
+                                            {contact.note && (
+                                              <div className="mt-3 pt-3 border-t">
+                                                <div className="flex items-start gap-2">
+                                                  <FileText className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                                                  <div className="flex-1">
+                                                    <strong>Note:</strong>
+                                                    <div className="mt-1">
+                                                      <div
+                                                        className={`text-muted-foreground transition-all ${!expandedContactNotes[contact.id]
+                                                          ? "overflow-hidden"
+                                                          : ""
+                                                          }`}
+                                                        style={!expandedContactNotes[contact.id] ? {
+                                                          lineHeight: '1.5rem',
+                                                          whiteSpace: 'normal',
+                                                          wordBreak: 'break-word',
+                                                          display: '-webkit-box',
+                                                          WebkitLineClamp: 5,
+                                                          WebkitBoxOrient: 'vertical',
+                                                          maxHeight: '7.5rem'
+                                                        } : {
+                                                          lineHeight: '1.5rem',
+                                                          whiteSpace: 'pre-wrap',
+                                                          wordBreak: 'break-word'
+                                                        }}
+                                                      >
+                                                        {contact.note}
+                                                      </div>
+                                                      {(contact.note.split('\n').length > 5 || contact.note.length > 300) && (
+                                                        <button
+                                                          onClick={() => setExpandedContactNotes(prev => ({
+                                                            ...prev,
+                                                            [contact.id]: !prev[contact.id]
+                                                          }))}
+                                                          className="text-sm text-primary hover:underline mt-1"
+                                                        >
+                                                          {expandedContactNotes[contact.id] ? (
+                                                            "Réduire"
+                                                          ) : (
+                                                            "Voir plus"
+                                                          )}
+                                                        </button>
+                                                      )}
+                                                    </div>
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </CardContent>
+                                      </Card>
+                                    )
+                                  })
+                                })()}
+                              </div>
+                            ) : (
+                              <EmptyState
+                                icon={Users}
+                                title="Aucun contact"
+                                description="Cette agence n'a pas encore de contact enregistré."
+                                action={
+                                  editing ? (
+                                    <Button onClick={handleAddContact} size="sm">
+                                      <Plus className="mr-2 h-4 w-4" />
+                                      Ajouter un contact
+                                    </Button>
+                                  ) : null
+                                }
+                              />
+                            )}
+                          </CardContent>
+                        </Card>
+                      </TabsContent>
+
+                      <TabsContent value="tasks" className="space-y-2 sm:space-y-4 pt-2 sm:pt-4 mt-0">
+                        {/* Bouton Ajouter - Pleine largeur sur mobile */}
+                        {editing && (
+                          <Button
+                            onClick={handleAddTask}
+                            className="w-full sm:w-auto gap-2 mb-4 bg-green-600 hover:bg-green-700 text-white"
+                          >
+                            <Plus className="h-4 w-4" />
+                            Ajouter une tâche
+                          </Button>
+                        )}
+
+                        {/* Filtres - Visibles uniquement sur mobile */}
+                        <div className="sm:hidden mb-4">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-sm font-medium">Filtres :</span>
+                          </div>
+                          <div className="flex gap-2 flex-wrap">
+                            <button
+                              onClick={() => setTaskFilter("URGENT")}
+                              className={`px-3 py-1 rounded-full text-xs font-semibold border ${taskFilter === "URGENT"
+                                ? "bg-red-100 text-red-800 border-red-500 dark:bg-red-900/30 dark:text-red-400"
+                                : "bg-white text-red-600 border-red-300 dark:bg-gray-800 dark:text-red-400"
+                                }`}
+                            >
+                              URGENT
+                            </button>
+                            <button
+                              onClick={() => setTaskFilter("CRITIQUE")}
+                              className={`px-3 py-1 rounded-full text-xs font-semibold border ${taskFilter === "CRITIQUE"
+                                ? "bg-orange-100 text-orange-800 border-orange-500 dark:bg-orange-900/30 dark:text-orange-400"
+                                : "bg-white text-orange-600 border-orange-300 dark:bg-gray-800 dark:text-orange-400"
+                                }`}
+                            >
+                              CRITIQUE
+                            </button>
+                            <button
+                              onClick={() => setTaskFilter("INFO")}
+                              className={`px-3 py-1 rounded-full text-xs font-semibold border ${taskFilter === "INFO"
+                                ? "bg-gray-100 text-gray-800 border-gray-500 dark:bg-gray-700 dark:text-gray-300"
+                                : "bg-white text-gray-600 border-gray-300 dark:bg-gray-800 dark:text-gray-400"
+                                }`}
+                            >
+                              INFO
+                            </button>
+                            <button
+                              onClick={() => setTaskFilter("ALL")}
+                              className={`px-3 py-1 rounded-full text-xs font-semibold border ${taskFilter === "ALL"
+                                ? "bg-blue-100 text-blue-800 border-blue-500 dark:bg-blue-900/30 dark:text-blue-400"
+                                : "bg-white text-blue-600 border-blue-300 dark:bg-gray-800 dark:text-blue-400"
+                                }`}
+                            >
+                              TOUS
+                            </button>
+                            <button
+                              onClick={() => setShowClosedTasks(!showClosedTasks)}
+                              className={`px-3 py-1 rounded-full text-xs font-semibold border ${showClosedTasks
+                                ? "bg-white text-green-600 border-green-300 dark:bg-gray-800 dark:text-green-400"
+                                : "bg-green-100 text-green-800 border-green-500 dark:bg-green-900/30 dark:text-green-400"
+                                }`}
+                            >
+                              {showClosedTasks ? "Clôturées" : "Non clôturées"}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Filtres Desktop */}
+                        <div className="hidden sm:block mb-4">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-sm font-medium">Filtres :</span>
+                          </div>
+                          <div className="flex gap-2 flex-wrap">
+                            <button
+                              onClick={() => setTaskFilter("URGENT")}
+                              className={`px-3 py-1 rounded-full text-xs font-semibold border ${taskFilter === "URGENT"
+                                ? "bg-red-100 text-red-800 border-red-500 dark:bg-red-900/30 dark:text-red-400"
+                                : "bg-white text-red-600 border-red-300 dark:bg-gray-800 dark:text-red-400"
+                                }`}
+                            >
+                              URGENT
+                            </button>
+                            <button
+                              onClick={() => setTaskFilter("CRITIQUE")}
+                              className={`px-3 py-1 rounded-full text-xs font-semibold border ${taskFilter === "CRITIQUE"
+                                ? "bg-orange-100 text-orange-800 border-orange-500 dark:bg-orange-900/30 dark:text-orange-400"
+                                : "bg-white text-orange-600 border-orange-300 dark:bg-gray-800 dark:text-orange-400"
+                                }`}
+                            >
+                              CRITIQUE
+                            </button>
+                            <button
+                              onClick={() => setTaskFilter("INFO")}
+                              className={`px-3 py-1 rounded-full text-xs font-semibold border ${taskFilter === "INFO"
+                                ? "bg-gray-100 text-gray-800 border-gray-500 dark:bg-gray-700 dark:text-gray-300"
+                                : "bg-white text-gray-600 border-gray-300 dark:bg-gray-800 dark:text-gray-400"
+                                }`}
+                            >
+                              INFO
+                            </button>
+                            <button
+                              onClick={() => setTaskFilter("ALL")}
+                              className={`px-3 py-1 rounded-full text-xs font-semibold border ${taskFilter === "ALL"
+                                ? "bg-blue-100 text-blue-800 border-blue-500 dark:bg-blue-900/30 dark:text-blue-400"
+                                : "bg-white text-blue-600 border-blue-300 dark:bg-gray-800 dark:text-blue-400"
+                                }`}
+                            >
+                              TOUS
+                            </button>
+                            <button
+                              onClick={() => setShowClosedTasks(!showClosedTasks)}
+                              className={`px-3 py-1 rounded-full text-xs font-semibold border ${showClosedTasks
+                                ? "bg-white text-green-600 border-green-300 dark:bg-gray-800 dark:text-green-400"
+                                : "bg-green-100 text-green-800 border-green-500 dark:bg-green-900/30 dark:text-green-400"
+                                }`}
+                            >
+                              {showClosedTasks ? "Clôturées" : "Non clôturées"}
+                            </button>
+                          </div>
+                        </div>
+
+                        {loadingTasks ? (
+                          <div className="text-center py-8 text-muted-foreground">Chargement...</div>
+                        ) : tasks.filter(t => {
+                          const matchesImportance = taskFilter === "ALL" || t.importance === taskFilter
+                          const matchesClosed = showClosedTasks || !t.closedAt
+                          return matchesImportance && matchesClosed
+                        }).length === 0 ? (
+                          <EmptyState
+                            icon={CheckSquare}
+                            title="Aucune tâche"
+                            description="Il n'y a aucune tâche correspondant aux critères."
+                            action={
+                              editing ? (
+                                <Button onClick={handleAddTask} size="sm">
+                                  <Plus className="mr-2 h-4 w-4" />
+                                  Ajouter une tâche
+                                </Button>
+                              ) : null
+                            }
+                          />
+                        ) : (
+                          <>
+                            {/* Vue mobile - Cartes */}
+                            <div className="sm:hidden space-y-4">
+                              {tasks
+                                .filter(t => {
+                                  const matchesImportance = taskFilter === "ALL" || t.importance === taskFilter
+                                  const matchesClosed = showClosedTasks || !t.closedAt
+                                  return matchesImportance && matchesClosed
+                                })
+                                .map((task) => {
+                                  const isClosed = !!task.closedAt
+                                  const createdAt = new Date(task.createdAt)
+                                  const closedAt = task.closedAt ? new Date(task.closedAt) : null
+
+                                  const getInitials = (name: string) => {
+                                    return name
+                                      .split(" ")
+                                      .map((n) => n[0])
+                                      .join("")
+                                      .toUpperCase()
+                                      .slice(0, 2)
+                                  }
+
+                                  const getAvatarColor = (name: string) => {
+                                    const colors = [
+                                      "bg-blue-500",
+                                      "bg-green-500",
+                                      "bg-yellow-500",
+                                      "bg-purple-500",
+                                      "bg-pink-500",
+                                      "bg-indigo-500",
+                                      "bg-red-500",
+                                      "bg-orange-500",
+                                    ]
+                                    const index = name.charCodeAt(0) % colors.length
+                                    return colors[index]
+                                  }
+
+                                  const importanceColor = task.importance === "URGENT"
+                                    ? "bg-red-500"
+                                    : task.importance === "CRITIQUE"
+                                      ? "bg-orange-500"
+                                      : "bg-gray-500"
+
+                                  return (
+                                    <div
+                                      key={task.id}
+                                      className="bg-card dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
+                                    >
+                                      {/* Barre colorée à gauche */}
+                                      <div className="flex">
+                                        <div className={`w-1 ${importanceColor}`} />
+                                        <div className="flex-1 p-4">
+                                          {/* En-tête avec badges */}
+                                          <div className="flex items-start justify-between mb-3">
+                                            <h3 className="font-bold text-base flex-1 pr-2">{task.title}</h3>
+                                            <div className="flex gap-2 flex-shrink-0">
+                                              <span
+                                                className={`px-2 py-1 rounded-full text-xs font-semibold text-white ${task.importance === "URGENT"
+                                                  ? "bg-red-500"
+                                                  : task.importance === "CRITIQUE"
+                                                    ? "bg-orange-500"
+                                                    : "bg-gray-500"
+                                                  }`}
+                                              >
+                                                {task.importance}
+                                              </span>
+                                              {isClosed && (
+                                                <span className="px-2 py-1 rounded-full text-xs font-semibold bg-green-500 text-white">
+                                                  Clôturée
+                                                </span>
+                                              )}
+                                            </div>
+                                          </div>
+
+                                          {/* Description */}
+                                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{task.notes}</p>
+
+                                          {/* Photos */}
+                                          {task.photos && (() => {
+                                            try {
+                                              const photos = JSON.parse(task.photos)
+                                              if (Array.isArray(photos) && photos.length > 0) {
+                                                return (
+                                                  <div className="flex flex-wrap gap-2 mb-4">
+                                                    {photos.map((photoPath: string, photoIndex: number) => (
+                                                      <img
+                                                        key={photoIndex}
+                                                        src={photoPath}
+                                                        alt={`Photo ${photoIndex + 1}`}
+                                                        className="w-16 h-16 object-cover rounded border cursor-pointer hover:opacity-80 transition-opacity"
+                                                        onClick={() => {
+                                                          try {
+                                                            const photos = JSON.parse(task.photos || "[]")
+                                                            if (Array.isArray(photos)) {
+                                                              openImageViewer(photoPath, photos, photoIndex, task.id)
+                                                            }
+                                                          } catch {
+                                                            openImageViewer(photoPath, [photoPath], 0, task.id)
+                                                          }
+                                                        }}
+                                                      />
+                                                    ))}
+                                                  </div>
+                                                )
+                                              }
+                                            } catch {
+                                              return null
+                                            }
+                                            return null
+                                          })()}
+
+                                          {/* Informations de création */}
+                                          {!isClosed ? (
+                                            <div className="flex items-center gap-2 mb-2">
+                                              <div className={`w-8 h-8 rounded-full ${getAvatarColor(task.creator.login)} text-white text-xs flex items-center justify-center font-semibold`}>
+                                                {getInitials(task.creator.login)}
+                                              </div>
+                                              <div className="flex-1">
+                                                <div className="text-sm font-medium">{task.creator.login}</div>
+                                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                                  {createdAt.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" })} {createdAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                                                </div>
+                                              </div>
+                                              <span className="text-xs text-gray-400 dark:text-gray-500">Non clôturée</span>
+                                            </div>
+                                          ) : (
+                                            <div className="flex items-start gap-4 flex-wrap">
+                                              <div className="flex-1 min-w-[200px]">
+                                                <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Créée par :</div>
+                                                <div className="flex items-center gap-2">
+                                                  <div className={`w-6 h-6 rounded-full ${getAvatarColor(task.creator.login)} text-white text-xs flex items-center justify-center font-semibold`}>
+                                                    {getInitials(task.creator.login)}
+                                                  </div>
+                                                  <span className="text-sm">{task.creator.login}</span>
+                                                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                                                    {createdAt.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" })} {createdAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                                                  </span>
+                                                </div>
+                                              </div>
+                                              {task.closer && closedAt && (
+                                                <div className="flex-1 min-w-[200px]">
+                                                  <div className="text-xs text-green-600 dark:text-green-400 mb-1">Clôturée par :</div>
+                                                  <div className="flex items-center gap-2">
+                                                    <div className={`w-6 h-6 rounded-full ${getAvatarColor(task.closer.login)} text-white text-xs flex items-center justify-center font-semibold`}>
+                                                      {getInitials(task.closer.login)}
+                                                    </div>
+                                                    <span className="text-sm">{task.closer.login}</span>
+                                                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                                                      {closedAt.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" })} {closedAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                                                    </span>
+                                                  </div>
+                                                </div>
+                                              )}
+                                            </div>
+                                          )}
+
+                                          {/* Boutons d'action */}
+                                          {editing && (
+                                            <div className="flex gap-2 mt-4">
+                                              {userRole !== "User" && (
+                                                <>
+                                                  <Button
+                                                    variant="default"
+                                                    size="sm"
+                                                    onClick={() => handleEditTask(task)}
+                                                    disabled={isClosed}
+                                                    className="flex-1"
+                                                  >
+                                                    <Edit className="h-4 w-4 mr-1" />
+                                                    Modifier
+                                                  </Button>
+                                                  <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => handleCloseTask(task)}
+                                                    disabled={isClosed}
+                                                    className="flex-1 bg-green-50 hover:bg-green-100 text-green-700 border-green-300"
+                                                  >
+                                                    <CheckCircle className="h-4 w-4 mr-1" />
+                                                    Clôturer
+                                                  </Button>
+                                                </>
+                                              )}
+                                              {userRole === "Super Admin" && (
+                                                <Button
+                                                  variant="outline"
+                                                  size="sm"
+                                                  onClick={() => handleDeleteTask(task)}
+                                                  className="flex-1 bg-red-50 hover:bg-red-100 text-red-700 border-red-300"
+                                                >
+                                                  <Trash2 className="h-4 w-4 mr-1" />
+                                                  Supprimer
+                                                </Button>
+                                              )}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )
+                                })}
+                              <div className="text-center text-sm text-gray-500 dark:text-gray-400 py-4">
+                                Faites défiler pour voir plus de tâches
+                                <ChevronDown className="h-4 w-4 mx-auto mt-1" />
+                              </div>
+                            </div>
+
+                            {/* Vue desktop - Cartes */}
+                            <div className="hidden sm:block">
+                              <div className="space-y-4">
+                                {tasks
+                                  .filter(t => {
+                                    const matchesImportance = taskFilter === "ALL" || t.importance === taskFilter
+                                    const matchesClosed = showClosedTasks || !t.closedAt
+                                    return matchesImportance && matchesClosed
+                                  })
+                                  .map((task) => {
+                                    const isClosed = !!task.closedAt
+                                    const createdAt = new Date(task.createdAt)
+                                    const closedAt = task.closedAt ? new Date(task.closedAt) : null
+
+                                    const getInitials = (name: string) => {
+                                      return name
+                                        .split(" ")
+                                        .map((n) => n[0])
+                                        .join("")
+                                        .toUpperCase()
+                                        .slice(0, 2)
+                                    }
+
+                                    const getAvatarColor = (name: string) => {
+                                      const colors = [
+                                        "bg-blue-500",
+                                        "bg-green-500",
+                                        "bg-yellow-500",
+                                        "bg-purple-500",
+                                        "bg-pink-500",
+                                        "bg-indigo-500",
+                                        "bg-red-500",
+                                        "bg-orange-500",
+                                      ]
+                                      const index = name.charCodeAt(0) % colors.length
+                                      return colors[index]
+                                    }
+
+                                    const importanceColor = task.importance === "URGENT"
+                                      ? "bg-red-500"
+                                      : task.importance === "CRITIQUE"
+                                        ? "bg-orange-500"
+                                        : "bg-gray-500"
+
+                                    return (
+                                      <div
+                                        key={task.id}
+                                        className="bg-card dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
+                                      >
+                                        {/* Barre colorée à gauche */}
+                                        <div className="flex">
+                                          <div className={`w-1 ${importanceColor}`} />
+                                          <div className="flex-1 p-4">
+                                            {/* En-tête avec badges */}
+                                            <div className="flex items-start justify-between mb-3">
+                                              <h3 className="font-bold text-base flex-1 pr-2">{task.title}</h3>
+                                              <div className="flex gap-2 flex-shrink-0">
+                                                <span
+                                                  className={`px-2 py-1 rounded-full text-xs font-semibold text-white ${task.importance === "URGENT"
+                                                    ? "bg-red-500"
+                                                    : task.importance === "CRITIQUE"
+                                                      ? "bg-orange-500"
+                                                      : "bg-gray-500"
+                                                    }`}
+                                                >
+                                                  {task.importance}
+                                                </span>
+                                                {isClosed && (
+                                                  <span className="px-2 py-1 rounded-full text-xs font-semibold bg-green-500 text-white">
+                                                    Clôturée
+                                                  </span>
+                                                )}
+                                              </div>
+                                            </div>
+
+                                            {/* Description */}
+                                            <div className="mb-4">
+                                              <p
+                                                className={`text-sm text-gray-600 dark:text-gray-400 pr-2 transition-all ${expandedTaskNotes[task.id]
+                                                  ? 'max-h-none'
+                                                  : 'max-h-[5rem] overflow-y-auto'
+                                                  }`}
+                                                style={{ lineHeight: '1.25rem' }}
+                                              >
+                                                {task.notes}
+                                              </p>
+                                              {task.notes.length > 100 && (
+                                                <button
+                                                  onClick={() => setExpandedTaskNotes(prev => ({
+                                                    ...prev,
+                                                    [task.id]: !prev[task.id]
+                                                  }))}
+                                                  className="mt-2 text-xs text-primary hover:underline flex items-center gap-1"
+                                                >
+                                                  {expandedTaskNotes[task.id] ? (
+                                                    <>
+                                                      <ChevronUp className="h-3 w-3" />
+                                                      Réduire
+                                                    </>
                                                   ) : (
-                                                    "Voir plus"
+                                                    <>
+                                                      <ChevronDown className="h-3 w-3" />
+                                                      Voir plus
+                                                    </>
                                                   )}
                                                 </button>
                                               )}
                                             </div>
+
+                                            {/* Photos */}
+                                            {task.photos && (() => {
+                                              try {
+                                                const photos = JSON.parse(task.photos)
+                                                if (Array.isArray(photos) && photos.length > 0) {
+                                                  return (
+                                                    <div className="flex flex-wrap gap-2 mb-4">
+                                                      {photos.map((photoPath: string, photoIndex: number) => (
+                                                        <img
+                                                          key={photoIndex}
+                                                          src={photoPath}
+                                                          alt={`Photo ${photoIndex + 1}`}
+                                                          className="w-16 h-16 object-cover rounded border cursor-pointer hover:opacity-80 transition-opacity"
+                                                          onClick={() => {
+                                                            try {
+                                                              const photos = JSON.parse(task.photos || "[]")
+                                                              if (Array.isArray(photos)) {
+                                                                openImageViewer(photoPath, photos, photoIndex, task.id)
+                                                              }
+                                                            } catch {
+                                                              openImageViewer(photoPath, [photoPath], 0, task.id)
+                                                            }
+                                                          }}
+                                                        />
+                                                      ))}
+                                                    </div>
+                                                  )
+                                                }
+                                              } catch {
+                                                return null
+                                              }
+                                              return null
+                                            })()}
+
+                                            {/* Informations de création */}
+                                            {!isClosed ? (
+                                              <div className="flex items-center gap-2 mb-2">
+                                                <div className={`w-8 h-8 rounded-full ${getAvatarColor(task.creator.login)} text-white text-xs flex items-center justify-center font-semibold`}>
+                                                  {getInitials(task.creator.login)}
+                                                </div>
+                                                <div className="flex-1">
+                                                  <div className="text-sm font-medium">{task.creator.login}</div>
+                                                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                                                    {createdAt.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" })} {createdAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                                                  </div>
+                                                </div>
+                                                <span className="text-xs text-gray-400 dark:text-gray-500">Non clôturée</span>
+                                              </div>
+                                            ) : (
+                                              <div className="flex items-start gap-4 flex-wrap">
+                                                <div className="flex-1 min-w-[200px]">
+                                                  <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Créée par :</div>
+                                                  <div className="flex items-center gap-2">
+                                                    <div className={`w-6 h-6 rounded-full ${getAvatarColor(task.creator.login)} text-white text-xs flex items-center justify-center font-semibold`}>
+                                                      {getInitials(task.creator.login)}
+                                                    </div>
+                                                    <span className="text-sm">{task.creator.login}</span>
+                                                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                                                      {createdAt.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" })} {createdAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                                                    </span>
+                                                  </div>
+                                                </div>
+                                                {task.closer && closedAt && (
+                                                  <div className="flex-1 min-w-[200px]">
+                                                    <div className="text-xs text-green-600 dark:text-green-400 mb-1">Clôturée par :</div>
+                                                    <div className="flex items-center gap-2">
+                                                      <div className={`w-6 h-6 rounded-full ${getAvatarColor(task.closer.login)} text-white text-xs flex items-center justify-center font-semibold`}>
+                                                        {getInitials(task.closer.login)}
+                                                      </div>
+                                                      <span className="text-sm">{task.closer.login}</span>
+                                                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                                                        {closedAt.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" })} {closedAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                                                      </span>
+                                                    </div>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            )}
+
+                                            {/* Boutons d'action */}
+                                            {editing && (
+                                              <div className="flex gap-2 mt-4">
+                                                {userRole !== "User" && (
+                                                  <>
+                                                    <Button
+                                                      variant="default"
+                                                      size="sm"
+                                                      onClick={() => handleEditTask(task)}
+                                                      disabled={isClosed}
+                                                      className="flex-1"
+                                                    >
+                                                      <Edit className="h-4 w-4 mr-1" />
+                                                      Modifier
+                                                    </Button>
+                                                    <Button
+                                                      variant="outline"
+                                                      size="sm"
+                                                      onClick={() => handleCloseTask(task)}
+                                                      disabled={isClosed}
+                                                      className="flex-1 bg-green-50 hover:bg-green-100 text-green-700 border-green-300"
+                                                    >
+                                                      <CheckCircle className="h-4 w-4 mr-1" />
+                                                      Clôturer
+                                                    </Button>
+                                                  </>
+                                                )}
+                                                {userRole === "Super Admin" && (
+                                                  <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={() => handleDeleteTask(task)}
+                                                    className="flex-1 bg-red-50 hover:bg-red-100 text-red-700 border-red-300"
+                                                  >
+                                                    <Trash2 className="h-4 w-4 mr-1" />
+                                                    Supprimer
+                                                  </Button>
+                                                )}
+                                              </div>
+                                            )}
                                           </div>
                                         </div>
                                       </div>
+                                    )
+                                  })}
+                              </div>
+                            </div>
+                          </>
+                        )}
+
+                      </TabsContent>
+
+                      <TabsContent value="technical" className="space-y-2 sm:space-y-4 pt-2 sm:pt-4 mt-0">
+                        {!fullAgencyData?.technical && !editing && !editingTechnical ? (
+                          <Card>
+                            <CardContent className="p-6">
+                              <div className="text-center text-muted-foreground">
+                                Aucune information technique enregistrée
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ) : (
+                          <>
+                            {/* Réseau */}
+                            <Card>
+                              <CardHeader>
+                                <CardTitle>Réseau</CardTitle>
+                              </CardHeader>
+                              <CardContent>
+                                <div className="space-y-2">
+                                  <Label>Adresse IP LAN (CIDR)</Label>
+                                  {editingTechnical ? (
+                                    <Input
+                                      value={technicalData.networkIp || ""}
+                                      onChange={(e) =>
+                                        setTechnicalData({ ...technicalData, networkIp: e.target.value })
+                                      }
+                                      placeholder="192.168.1.0/24"
+                                    />
+                                  ) : (
+                                    <div>{fullAgencyData.technical?.networkIp || "Non renseigné"}</div>
+                                  )}
+                                </div>
+                              </CardContent>
+                            </Card>
+
+                            {/* PC */}
+                            <Card>
+                              <CardHeader>
+                                <div className="flex items-center justify-between">
+                                  <CardTitle className="flex items-center gap-2">
+                                    <Image
+                                      src="/computer.png"
+                                      alt="PC"
+                                      width={100}
+                                      height={100}
+                                      className="max-w-[60px] max-h-[60px] sm:max-w-[100px] sm:max-h-[100px] object-contain"
+                                      style={{ width: "auto", height: "auto" }}
+                                      unoptimized
+                                    />
+                                  </CardTitle>
+                                  {editing && (
+                                    <Button onClick={handleAddPC} size="sm" className="gap-2">
+                                      <Plus className="h-4 w-4" />
+                                      Ajouter
+                                    </Button>
+                                  )}
+                                </div>
+                              </CardHeader>
+                              <CardContent>
+                                {fullAgencyData.technical?.pcs && fullAgencyData.technical.pcs.length > 0 ? (
+                                  <div className="space-y-2 sm:space-y-4">
+                                    {(() => {
+                                      // S'assurer que les PC ont un champ order (rétrocompatibilité)
+                                      const pcsWithOrder = fullAgencyData.technical.pcs.map((pc, index) => ({
+                                        ...pc,
+                                        order: pc.order !== undefined ? pc.order : index
+                                      }))
+                                      const sortedPCs = [...pcsWithOrder].sort((a, b) => (a.order || 0) - (b.order || 0))
+                                      return sortedPCs.map((pc, index) => (
+                                        <div
+                                          key={pc.id}
+                                          onDragOver={(e) => {
+                                            e.preventDefault()
+                                            e.dataTransfer.dropEffect = "move"
+                                            setDragOverIndex(index)
+                                          }}
+                                          onDragLeave={() => {
+                                            setDragOverIndex(null)
+                                          }}
+                                          onDrop={(e) => {
+                                            e.preventDefault()
+                                            setDragOverIndex(null)
+                                            if (draggedPCId && draggedPCId !== pc.id) {
+                                              handleMovePC(draggedPCId, pc.id)
+                                            }
+                                            setDraggedPCId(null)
+                                          }}
+                                          className={`border p-3 sm:p-4 rounded-lg space-y-2 sm:space-y-3 ${draggedPCId === pc.id ? "opacity-50" : ""
+                                            } ${dragOverIndex === index ? "border-primary border-2" : ""
+                                            }`}
+                                        >
+                                          <div className="flex items-start justify-between">
+                                            {editing && (
+                                              <div
+                                                className="mr-2 text-muted-foreground cursor-move"
+                                                draggable={true}
+                                                onDragStart={(e) => {
+                                                  setDraggedPCId(pc.id)
+                                                  e.dataTransfer.effectAllowed = "move"
+                                                }}
+                                                onDragEnd={() => {
+                                                  setDraggedPCId(null)
+                                                  setDragOverIndex(null)
+                                                }}
+                                              >
+                                                <GripVertical className="h-5 w-5" />
+                                              </div>
+                                            )}
+                                            <div className="flex-1">
+                                              <div className="font-semibold text-base sm:text-lg mb-2">{pc.name}</div>
+                                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 text-sm sm:text-sm">
+                                                {pc.brand && (
+                                                  <div>
+                                                    <span className="font-medium">Marque:</span> {pc.brand}
+                                                  </div>
+                                                )}
+                                                {pc.model && (
+                                                  <div>
+                                                    <span className="font-medium">Modèle:</span> {pc.model}
+                                                  </div>
+                                                )}
+                                                {pc.ip && (
+                                                  <div>
+                                                    <span className="font-medium">IP:</span> {pc.ip}
+                                                  </div>
+                                                )}
+                                                {pc.mac && (
+                                                  <div>
+                                                    <span className="font-medium">MAC:</span> {pc.mac}
+                                                  </div>
+                                                )}
+                                                {pc.serialNumber && (
+                                                  <div>
+                                                    <span className="font-medium">N° série:</span> {pc.serialNumber}
+                                                  </div>
+                                                )}
+                                                {pc.purchaseDate && (
+                                                  <div>
+                                                    <span className="font-medium">Date achat:</span>{" "}
+                                                    {new Date(pc.purchaseDate).toLocaleDateString("fr-FR")}
+                                                  </div>
+                                                )}
+                                                {pc.warrantyDate && (
+                                                  <div>
+                                                    <span className="font-medium">Date garantie:</span>{" "}
+                                                    {new Date(pc.warrantyDate).toLocaleDateString("fr-FR")}
+                                                  </div>
+                                                )}
+                                              </div>
+                                              {pc.files && (
+                                                <div className="mt-2 text-sm">
+                                                  <span className="font-medium">Fichiers:</span>{" "}
+                                                  {(() => {
+                                                    try {
+                                                      const files = JSON.parse(pc.files)
+                                                      return Array.isArray(files) ? files.join(", ") : pc.files
+                                                    } catch {
+                                                      return pc.files
+                                                    }
+                                                  })()}
+                                                </div>
+                                              )}
+                                              {pc.photos && (
+                                                <div className="mt-2">
+                                                  <span className="font-medium text-sm">Photos:</span>
+                                                  <div className="flex gap-2 mt-1">
+                                                    {(() => {
+                                                      try {
+                                                        const photos = JSON.parse(pc.photos || "[]")
+                                                        return Array.isArray(photos) && photos.length > 0
+                                                          ? photos.map((photo: string, idx: number) => (
+                                                            <div key={idx} className="relative w-20 h-20">
+                                                              <Image
+                                                                src={photo}
+                                                                alt={`Photo ${idx + 1}`}
+                                                                fill
+                                                                className="object-cover rounded border"
+                                                                unoptimized
+                                                              />
+                                                            </div>
+                                                          ))
+                                                          : null
+                                                      } catch {
+                                                        return null
+                                                      }
+                                                    })()}
+                                                  </div>
+                                                </div>
+                                              )}
+                                            </div>
+                                            {editing && (
+                                              <div className="flex gap-2 ml-4">
+                                                <Button
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  onClick={() => handleEditPC(pc)}
+                                                  onMouseDown={(e) => e.stopPropagation()}
+                                                >
+                                                  <Edit className="h-4 w-4" />
+                                                </Button>
+                                                <Button
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  onClick={() => handleDeletePC(pc.id)}
+                                                  onMouseDown={(e) => e.stopPropagation()}
+                                                >
+                                                  <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      ))
+                                    })()}
+                                  </div>
+                                ) : (
+                                  <EmptyState
+                                    icon={Monitor}
+                                    title="Aucun PC"
+                                    description="Aucun ordinateur n'a été ajouté à cette agence."
+                                    action={
+                                      editing ? (
+                                        <Button onClick={handleAddPC} size="sm">
+                                          <Plus className="mr-2 h-4 w-4" />
+                                          Ajouter un PC
+                                        </Button>
+                                      ) : null
+                                    }
+                                  />
+                                )}
+                              </CardContent>
+                            </Card>
+
+                            {/* Imprimantes */}
+                            <Card>
+                              <CardHeader>
+                                <div className="flex items-center justify-between">
+                                  <CardTitle className="flex items-center gap-2">
+                                    <Image
+                                      src="/printer.png"
+                                      alt="Imprimantes"
+                                      width={100}
+                                      height={100}
+                                      className="max-w-[60px] max-h-[60px] sm:max-w-[100px] sm:max-h-[100px] object-contain"
+                                      style={{ width: "auto", height: "auto" }}
+                                      unoptimized
+                                    />
+                                  </CardTitle>
+                                  {editing && (
+                                    <Button onClick={handleAddPrinter} size="sm" className="gap-2">
+                                      <Plus className="h-4 w-4" />
+                                      Ajouter
+                                    </Button>
+                                  )}
+                                </div>
+                              </CardHeader>
+                              <CardContent>
+                                {fullAgencyData.technical?.printers &&
+                                  fullAgencyData.technical.printers.length > 0 ? (
+                                  <div className="space-y-2 sm:space-y-4">
+                                    {fullAgencyData.technical.printers.map((printer) => (
+                                      <div
+                                        key={printer.id}
+                                        className="border p-3 sm:p-4 rounded-lg space-y-2 sm:space-y-3"
+                                      >
+                                        <div className="flex items-start justify-between">
+                                          <div className="flex-1">
+                                            <div className="font-semibold text-base sm:text-lg mb-2">{printer.name}</div>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 text-sm sm:text-sm">
+                                              {printer.brand && (
+                                                <div>
+                                                  <span className="font-medium">Marque:</span> {printer.brand}
+                                                </div>
+                                              )}
+                                              {printer.model && (
+                                                <div>
+                                                  <span className="font-medium">Modèle:</span> {printer.model}
+                                                </div>
+                                              )}
+                                              {printer.ip && (
+                                                <div>
+                                                  <span className="font-medium">IP:</span> {printer.ip}
+                                                </div>
+                                              )}
+                                              {printer.mac && (
+                                                <div>
+                                                  <span className="font-medium">MAC:</span> {printer.mac}
+                                                </div>
+                                              )}
+                                              {printer.serialNumber && (
+                                                <div>
+                                                  <span className="font-medium">N° série:</span> {printer.serialNumber}
+                                                </div>
+                                              )}
+                                              {printer.purchaseDate && (
+                                                <div>
+                                                  <span className="font-medium">Date achat:</span>{" "}
+                                                  {new Date(printer.purchaseDate).toLocaleDateString("fr-FR")}
+                                                </div>
+                                              )}
+                                              {printer.warrantyDate && (
+                                                <div>
+                                                  <span className="font-medium">Date garantie:</span>{" "}
+                                                  {new Date(printer.warrantyDate).toLocaleDateString("fr-FR")}
+                                                </div>
+                                              )}
+                                            </div>
+                                            {printer.files && (
+                                              <div className="mt-2 text-sm">
+                                                <span className="font-medium">Fichiers:</span>{" "}
+                                                {(() => {
+                                                  try {
+                                                    const files = JSON.parse(printer.files)
+                                                    return Array.isArray(files) ? files.join(", ") : printer.files
+                                                  } catch {
+                                                    return printer.files
+                                                  }
+                                                })()}
+                                              </div>
+                                            )}
+                                            {printer.photos && (
+                                              <div className="mt-2">
+                                                <span className="font-medium text-sm">Photos:</span>
+                                                <div className="flex gap-2 mt-1">
+                                                  {(() => {
+                                                    try {
+                                                      const photos = JSON.parse(printer.photos || "[]")
+                                                      return Array.isArray(photos) && photos.length > 0
+                                                        ? photos.map((photo: string, idx: number) => (
+                                                          <div key={idx} className="relative w-20 h-20">
+                                                            <Image
+                                                              src={photo}
+                                                              alt={`Photo ${idx + 1}`}
+                                                              fill
+                                                              className="object-cover rounded"
+                                                              unoptimized
+                                                            />
+                                                          </div>
+                                                        ))
+                                                        : null
+                                                    } catch {
+                                                      return null
+                                                    }
+                                                  })()}
+                                                </div>
+                                              </div>
+                                            )}
+                                          </div>
+                                          {editing && (
+                                            <div className="flex gap-2 ml-4">
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => handleEditPrinter(printer)}
+                                              >
+                                                <Edit className="h-4 w-4" />
+                                              </Button>
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => handleDeletePrinter(printer.id)}
+                                              >
+                                                <Trash2 className="h-4 w-4" />
+                                              </Button>
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <EmptyState
+                                    icon={Printer}
+                                    title="Aucune imprimante"
+                                    description="Aucune imprimante n'a été ajoutée à cette agence."
+                                    action={
+                                      editing ? (
+                                        <Button onClick={handleAddPrinter} size="sm">
+                                          <Plus className="mr-2 h-4 w-4" />
+                                          Ajouter une imprimante
+                                        </Button>
+                                      ) : null
+                                    }
+                                  />
+                                )}
+                              </CardContent>
+                            </Card>
+
+                            {/* Machine à affranchir */}
+                            <Card>
+                              <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                  <img
+                                    src="/machineAffranchir.png"
+                                    alt="Machine à affranchir"
+                                    className="max-w-[100px] max-h-[100px] object-contain w-auto h-auto"
+                                  />
+                                </CardTitle>
+                              </CardHeader>
+                              <CardContent className="space-y-3 sm:space-y-4 p-4 sm:p-6">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
+                                  <div className="space-y-2">
+                                    <Label>Marque</Label>
+                                    {editingTechnical ? (
+                                      <Input
+                                        value={technicalData.machineBrand || ""}
+                                        onChange={(e) =>
+                                          setTechnicalData({ ...technicalData, machineBrand: e.target.value })
+                                        }
+                                      />
+                                    ) : (
+                                      <div>{fullAgencyData.technical?.machineBrand || "Non renseigné"}</div>
                                     )}
                                   </div>
-                                </CardContent>
-                              </Card>
-                            )
-                          })
-                        })()}
-                      </div>
-                    ) : (
-                      <div className="text-muted-foreground">
-                        Aucun contact enregistré
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="tasks" className="space-y-2 sm:space-y-4 pt-2 sm:pt-4 mt-0">
-                {/* Bouton Ajouter - Pleine largeur sur mobile */}
-                {editing && (
-                  <Button 
-                    onClick={handleAddTask} 
-                    className="w-full sm:w-auto gap-2 mb-4 bg-green-600 hover:bg-green-700 text-white"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Ajouter une tâche
-                  </Button>
-                )}
-
-                {/* Filtres - Visibles uniquement sur mobile */}
-                <div className="sm:hidden mb-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-sm font-medium">Filtres :</span>
-                  </div>
-                  <div className="flex gap-2 flex-wrap">
-                    <button
-                      onClick={() => setTaskFilter("URGENT")}
-                      className={`px-3 py-1 rounded-full text-xs font-semibold border ${
-                        taskFilter === "URGENT"
-                          ? "bg-red-100 text-red-800 border-red-500 dark:bg-red-900/30 dark:text-red-400"
-                          : "bg-white text-red-600 border-red-300 dark:bg-gray-800 dark:text-red-400"
-                      }`}
-                    >
-                      URGENT
-                    </button>
-                    <button
-                      onClick={() => setTaskFilter("CRITIQUE")}
-                      className={`px-3 py-1 rounded-full text-xs font-semibold border ${
-                        taskFilter === "CRITIQUE"
-                          ? "bg-orange-100 text-orange-800 border-orange-500 dark:bg-orange-900/30 dark:text-orange-400"
-                          : "bg-white text-orange-600 border-orange-300 dark:bg-gray-800 dark:text-orange-400"
-                      }`}
-                    >
-                      CRITIQUE
-                    </button>
-                    <button
-                      onClick={() => setTaskFilter("INFO")}
-                      className={`px-3 py-1 rounded-full text-xs font-semibold border ${
-                        taskFilter === "INFO"
-                          ? "bg-gray-100 text-gray-800 border-gray-500 dark:bg-gray-700 dark:text-gray-300"
-                          : "bg-white text-gray-600 border-gray-300 dark:bg-gray-800 dark:text-gray-400"
-                      }`}
-                    >
-                      INFO
-                    </button>
-                    <button
-                      onClick={() => setTaskFilter("ALL")}
-                      className={`px-3 py-1 rounded-full text-xs font-semibold border ${
-                        taskFilter === "ALL"
-                          ? "bg-blue-100 text-blue-800 border-blue-500 dark:bg-blue-900/30 dark:text-blue-400"
-                          : "bg-white text-blue-600 border-blue-300 dark:bg-gray-800 dark:text-blue-400"
-                      }`}
-                    >
-                      TOUS
-                    </button>
-                    <button
-                      onClick={() => setShowClosedTasks(!showClosedTasks)}
-                      className={`px-3 py-1 rounded-full text-xs font-semibold border ${
-                        showClosedTasks
-                          ? "bg-white text-green-600 border-green-300 dark:bg-gray-800 dark:text-green-400"
-                          : "bg-green-100 text-green-800 border-green-500 dark:bg-green-900/30 dark:text-green-400"
-                      }`}
-                    >
-                      {showClosedTasks ? "Clôturées" : "Non clôturées"}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Filtres Desktop */}
-                <div className="hidden sm:block mb-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-sm font-medium">Filtres :</span>
-                  </div>
-                  <div className="flex gap-2 flex-wrap">
-                    <button
-                      onClick={() => setTaskFilter("URGENT")}
-                      className={`px-3 py-1 rounded-full text-xs font-semibold border ${
-                        taskFilter === "URGENT"
-                          ? "bg-red-100 text-red-800 border-red-500 dark:bg-red-900/30 dark:text-red-400"
-                          : "bg-white text-red-600 border-red-300 dark:bg-gray-800 dark:text-red-400"
-                      }`}
-                    >
-                      URGENT
-                    </button>
-                    <button
-                      onClick={() => setTaskFilter("CRITIQUE")}
-                      className={`px-3 py-1 rounded-full text-xs font-semibold border ${
-                        taskFilter === "CRITIQUE"
-                          ? "bg-orange-100 text-orange-800 border-orange-500 dark:bg-orange-900/30 dark:text-orange-400"
-                          : "bg-white text-orange-600 border-orange-300 dark:bg-gray-800 dark:text-orange-400"
-                      }`}
-                    >
-                      CRITIQUE
-                    </button>
-                    <button
-                      onClick={() => setTaskFilter("INFO")}
-                      className={`px-3 py-1 rounded-full text-xs font-semibold border ${
-                        taskFilter === "INFO"
-                          ? "bg-gray-100 text-gray-800 border-gray-500 dark:bg-gray-700 dark:text-gray-300"
-                          : "bg-white text-gray-600 border-gray-300 dark:bg-gray-800 dark:text-gray-400"
-                      }`}
-                    >
-                      INFO
-                    </button>
-                    <button
-                      onClick={() => setTaskFilter("ALL")}
-                      className={`px-3 py-1 rounded-full text-xs font-semibold border ${
-                        taskFilter === "ALL"
-                          ? "bg-blue-100 text-blue-800 border-blue-500 dark:bg-blue-900/30 dark:text-blue-400"
-                          : "bg-white text-blue-600 border-blue-300 dark:bg-gray-800 dark:text-blue-400"
-                      }`}
-                    >
-                      TOUS
-                    </button>
-                    <button
-                      onClick={() => setShowClosedTasks(!showClosedTasks)}
-                      className={`px-3 py-1 rounded-full text-xs font-semibold border ${
-                        showClosedTasks
-                          ? "bg-white text-green-600 border-green-300 dark:bg-gray-800 dark:text-green-400"
-                          : "bg-green-100 text-green-800 border-green-500 dark:bg-green-900/30 dark:text-green-400"
-                      }`}
-                    >
-                      {showClosedTasks ? "Clôturées" : "Non clôturées"}
-                    </button>
-                  </div>
-                </div>
-
-                {loadingTasks ? (
-                  <div className="text-center py-8 text-muted-foreground">Chargement...</div>
-                ) : tasks.filter(t => {
-                  const matchesImportance = taskFilter === "ALL" || t.importance === taskFilter
-                  const matchesClosed = showClosedTasks || !t.closedAt
-                  return matchesImportance && matchesClosed
-                }).length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">Aucune tâche</div>
-                ) : (
-                  <>
-                    {/* Vue mobile - Cartes */}
-                    <div className="sm:hidden space-y-4">
-                      {tasks
-                        .filter(t => {
-                          const matchesImportance = taskFilter === "ALL" || t.importance === taskFilter
-                          const matchesClosed = showClosedTasks || !t.closedAt
-                          return matchesImportance && matchesClosed
-                        })
-                        .map((task) => {
-                          const isClosed = !!task.closedAt
-                          const createdAt = new Date(task.createdAt)
-                          const closedAt = task.closedAt ? new Date(task.closedAt) : null
-                          
-                          const getInitials = (name: string) => {
-                            return name
-                              .split(" ")
-                              .map((n) => n[0])
-                              .join("")
-                              .toUpperCase()
-                              .slice(0, 2)
-                          }
-
-                          const getAvatarColor = (name: string) => {
-                            const colors = [
-                              "bg-blue-500",
-                              "bg-green-500",
-                              "bg-yellow-500",
-                              "bg-purple-500",
-                              "bg-pink-500",
-                              "bg-indigo-500",
-                              "bg-red-500",
-                              "bg-orange-500",
-                            ]
-                            const index = name.charCodeAt(0) % colors.length
-                            return colors[index]
-                          }
-
-                          const importanceColor = task.importance === "URGENT" 
-                            ? "bg-red-500" 
-                            : task.importance === "CRITIQUE" 
-                            ? "bg-orange-500" 
-                            : "bg-gray-500"
-
-                          return (
-                            <div
-                              key={task.id}
-                              className="bg-card dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
-                            >
-                              {/* Barre colorée à gauche */}
-                              <div className="flex">
-                                <div className={`w-1 ${importanceColor}`} />
-                                <div className="flex-1 p-4">
-                                  {/* En-tête avec badges */}
-                                  <div className="flex items-start justify-between mb-3">
-                                    <h3 className="font-bold text-base flex-1 pr-2">{task.title}</h3>
-                                    <div className="flex gap-2 flex-shrink-0">
-                                      <span
-                                        className={`px-2 py-1 rounded-full text-xs font-semibold text-white ${
-                                          task.importance === "URGENT"
-                                            ? "bg-red-500"
-                                            : task.importance === "CRITIQUE"
-                                            ? "bg-orange-500"
-                                            : "bg-gray-500"
-                                        }`}
+                                  <div className="space-y-2">
+                                    <Label>Modèle</Label>
+                                    {editingTechnical ? (
+                                      <Input
+                                        value={technicalData.machineModel || ""}
+                                        onChange={(e) =>
+                                          setTechnicalData({ ...technicalData, machineModel: e.target.value })
+                                        }
+                                      />
+                                    ) : (
+                                      <div>{fullAgencyData.technical?.machineModel || "Non renseigné"}</div>
+                                    )}
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>Connexion</Label>
+                                    {editingTechnical ? (
+                                      <Select
+                                        value={technicalData.machineConnection || ""}
+                                        onValueChange={(value) =>
+                                          setTechnicalData({ ...technicalData, machineConnection: value })
+                                        }
                                       >
-                                        {task.importance}
-                                      </span>
-                                      {isClosed && (
-                                        <span className="px-2 py-1 rounded-full text-xs font-semibold bg-green-500 text-white">
-                                          Clôturée
-                                        </span>
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Sélectionner" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="Wifi">Wifi</SelectItem>
+                                          <SelectItem value="Filaire">Filaire</SelectItem>
+                                        </SelectContent>
+                                      </Select>
+                                    ) : (
+                                      <div>{fullAgencyData.technical?.machineConnection || "Non renseigné"}</div>
+                                    )}
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>IP</Label>
+                                    {editingTechnical ? (
+                                      <Input
+                                        value={technicalData.machineIp || ""}
+                                        onChange={(e) =>
+                                          setTechnicalData({ ...technicalData, machineIp: e.target.value })
+                                        }
+                                      />
+                                    ) : (
+                                      <div>{fullAgencyData.technical?.machineIp || "Non renseigné"}</div>
+                                    )}
+                                  </div>
+                                  <div className="space-y-2">
+                                    <Label>MAC</Label>
+                                    {editingTechnical ? (
+                                      <Input
+                                        value={technicalData.machineMac || ""}
+                                        onChange={(e) =>
+                                          setTechnicalData({ ...technicalData, machineMac: e.target.value })
+                                        }
+                                      />
+                                    ) : (
+                                      <div>{fullAgencyData.technical?.machineMac || "Non renseigné"}</div>
+                                    )}
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+
+                            {/* Wifi */}
+                            <Card>
+                              <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                  <Image
+                                    src="/wifi.png"
+                                    alt="Wifi"
+                                    width={100}
+                                    height={100}
+                                    className="max-w-[100px] max-h-[100px] object-contain"
+                                    style={{ width: "auto", height: "auto" }}
+                                    unoptimized
+                                  />
+                                </CardTitle>
+                              </CardHeader>
+                              <CardContent className="space-y-3 sm:space-y-4 p-4 sm:p-6">
+                                <div>
+                                  <Label className="mb-2 block">Routeur Wifi</Label>
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
+                                    <div className="space-y-2">
+                                      <Label>Marque</Label>
+                                      {editingTechnical ? (
+                                        <Input
+                                          value={technicalData.wifiRouterBrand || ""}
+                                          onChange={(e) =>
+                                            setTechnicalData({ ...technicalData, wifiRouterBrand: e.target.value })
+                                          }
+                                        />
+                                      ) : (
+                                        <div>{fullAgencyData.technical?.wifiRouterBrand || "Non renseigné"}</div>
+                                      )}
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label>Modèle</Label>
+                                      {editingTechnical ? (
+                                        <Input
+                                          value={technicalData.wifiRouterModel || ""}
+                                          onChange={(e) =>
+                                            setTechnicalData({ ...technicalData, wifiRouterModel: e.target.value })
+                                          }
+                                        />
+                                      ) : (
+                                        <div>{fullAgencyData.technical?.wifiRouterModel || "Non renseigné"}</div>
+                                      )}
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label>IP</Label>
+                                      {editingTechnical ? (
+                                        <Input
+                                          value={technicalData.wifiRouterIp || ""}
+                                          onChange={(e) =>
+                                            setTechnicalData({ ...technicalData, wifiRouterIp: e.target.value })
+                                          }
+                                        />
+                                      ) : (
+                                        <div>{fullAgencyData.technical?.wifiRouterIp || "Non renseigné"}</div>
+                                      )}
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label>N° série</Label>
+                                      {editingTechnical ? (
+                                        <Input
+                                          value={technicalData.wifiRouterSerial || ""}
+                                          onChange={(e) =>
+                                            setTechnicalData({
+                                              ...technicalData,
+                                              wifiRouterSerial: e.target.value,
+                                            })
+                                          }
+                                        />
+                                      ) : (
+                                        <div>{fullAgencyData.technical?.wifiRouterSerial || "Non renseigné"}</div>
                                       )}
                                     </div>
                                   </div>
-
-                                  {/* Description */}
-                                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{task.notes}</p>
-
-                                  {/* Photos */}
-                                  {task.photos && (() => {
-                                    try {
-                                      const photos = JSON.parse(task.photos)
-                                      if (Array.isArray(photos) && photos.length > 0) {
-                                        return (
-                                          <div className="flex flex-wrap gap-2 mb-4">
-                                            {photos.map((photoPath: string, photoIndex: number) => (
-                                              <img
-                                                key={photoIndex}
-                                                src={photoPath}
-                                                alt={`Photo ${photoIndex + 1}`}
-                                                className="w-16 h-16 object-cover rounded border cursor-pointer hover:opacity-80 transition-opacity"
-                                                onClick={() => {
-                                                  try {
-                                                    const photos = JSON.parse(task.photos || "[]")
-                                                    if (Array.isArray(photos)) {
-                                                      openImageViewer(photoPath, photos, photoIndex, task.id)
-                                                    }
-                                                  } catch {
-                                                    openImageViewer(photoPath, [photoPath], 0, task.id)
-                                                  }
-                                                }}
-                                              />
-                                            ))}
+                                </div>
+                                <div>
+                                  <div className="flex items-center justify-between mb-2">
+                                    <Label>Points d&apos;accès Wifi</Label>
+                                    {editing && (
+                                      <Button onClick={() => setIsWifiAPDialogOpen(true)} size="sm" className="gap-2">
+                                        <Plus className="h-4 w-4" />
+                                        Ajouter
+                                      </Button>
+                                    )}
+                                  </div>
+                                  {fullAgencyData.technical?.wifiAccessPoints &&
+                                    fullAgencyData.technical.wifiAccessPoints.length > 0 ? (
+                                    <div className="space-y-2 sm:space-y-4">
+                                      {fullAgencyData.technical.wifiAccessPoints.map((ap) => (
+                                        <div
+                                          key={ap.id}
+                                          className="border p-3 sm:p-4 rounded-lg space-y-2 sm:space-y-3"
+                                        >
+                                          <div className="flex items-start justify-between">
+                                            <div className="flex-1">
+                                              <div className="font-semibold text-base sm:text-lg mb-2">
+                                                {ap.ssid || "Point d'accès sans nom"}
+                                              </div>
+                                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 text-sm sm:text-sm">
+                                                {ap.brand && (
+                                                  <div>
+                                                    <span className="font-medium">Marque:</span> {ap.brand}
+                                                  </div>
+                                                )}
+                                                {ap.model && (
+                                                  <div>
+                                                    <span className="font-medium">Modèle:</span> {ap.model}
+                                                  </div>
+                                                )}
+                                                {ap.ip && (
+                                                  <div>
+                                                    <span className="font-medium">IP:</span> {ap.ip}
+                                                  </div>
+                                                )}
+                                                {ap.serialNumber && (
+                                                  <div>
+                                                    <span className="font-medium">N° série:</span> {ap.serialNumber}
+                                                  </div>
+                                                )}
+                                                {ap.passwordEncrypted && (
+                                                  <div className="col-span-2">
+                                                    <span className="font-medium">Mot de passe:</span>{" "}
+                                                    <span className="inline-flex items-center gap-1">
+                                                      {visiblePasswords[ap.id] ? (
+                                                        <span>{decryptedPasswords[ap.id] || "••••••••"}</span>
+                                                      ) : (
+                                                        <span>••••••••</span>
+                                                      )}
+                                                      <button
+                                                        type="button"
+                                                        onClick={async () => {
+                                                          if (!visiblePasswords[ap.id] && !decryptedPasswords[ap.id]) {
+                                                            // Récupérer le mot de passe décrypté
+                                                            try {
+                                                              const response = await fetch(`/api/wifi-access-points/${ap.id}/password`)
+                                                              if (response.ok) {
+                                                                const data = await response.json()
+                                                                setDecryptedPasswords((prev) => ({
+                                                                  ...prev,
+                                                                  [ap.id]: data.password || "",
+                                                                }))
+                                                              }
+                                                            } catch (error) {
+                                                              console.error("Error fetching password:", error)
+                                                            }
+                                                          }
+                                                          setVisiblePasswords((prev) => ({
+                                                            ...prev,
+                                                            [ap.id]: !prev[ap.id],
+                                                          }))
+                                                        }}
+                                                        className="ml-1 p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
+                                                        title={visiblePasswords[ap.id] ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+                                                      >
+                                                        {visiblePasswords[ap.id] ? (
+                                                          <EyeOff className="h-4 w-4" />
+                                                        ) : (
+                                                          <Eye className="h-4 w-4" />
+                                                        )}
+                                                      </button>
+                                                    </span>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            </div>
+                                            {editing && (
+                                              <div className="flex gap-2">
+                                                <Button
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  onClick={() => {
+                                                    setSelectedWifiAP(ap)
+                                                    setIsWifiAPDialogOpen(true)
+                                                  }}
+                                                >
+                                                  <Edit className="h-4 w-4" />
+                                                </Button>
+                                                <Button
+                                                  variant="ghost"
+                                                  size="sm"
+                                                  onClick={() => openConfirm({
+                                                    title: "Supprimer le point d'accès",
+                                                    description: "Supprimer ce point d'accès ?",
+                                                    onConfirm: async () => {
+                                                      setConfirmLoading(true)
+                                                      try {
+                                                        const response = await apiFetch(`/api/wifi-access-points/${ap.id}`, { method: "DELETE" })
+                                                        if (response.ok) {
+                                                          await loadAgencyDetails(selectedAgency!.id)
+                                                          toast({ title: "Point d'accès supprimé", variant: "success" })
+                                                        } else showError("Erreur lors de la suppression")
+                                                      } catch (error) {
+                                                        console.error("Error deleting wifi AP:", error)
+                                                        showError("Erreur lors de la suppression")
+                                                      } finally {
+                                                        setConfirmLoading(false)
+                                                      }
+                                                    },
+                                                  })}
+                                                >
+                                                  <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                              </div>
+                                            )}
                                           </div>
-                                        )
-                                      }
-                                    } catch {
-                                      return null
-                                    }
-                                    return null
-                                  })()}
-
-                                  {/* Informations de création */}
-                                  {!isClosed ? (
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <div className={`w-8 h-8 rounded-full ${getAvatarColor(task.creator.login)} text-white text-xs flex items-center justify-center font-semibold`}>
-                                        {getInitials(task.creator.login)}
-                                      </div>
-                                      <div className="flex-1">
-                                        <div className="text-sm font-medium">{task.creator.login}</div>
-                                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                                          {createdAt.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" })} {createdAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
                                         </div>
-                                      </div>
-                                      <span className="text-xs text-gray-400 dark:text-gray-500">Non clôturée</span>
+                                      ))}
                                     </div>
                                   ) : (
-                                    <div className="flex items-start gap-4 flex-wrap">
-                                      <div className="flex-1 min-w-[200px]">
-                                        <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Créée par :</div>
-                                        <div className="flex items-center gap-2">
-                                          <div className={`w-6 h-6 rounded-full ${getAvatarColor(task.creator.login)} text-white text-xs flex items-center justify-center font-semibold`}>
-                                            {getInitials(task.creator.login)}
-                                          </div>
-                                          <span className="text-sm">{task.creator.login}</span>
-                                          <span className="text-xs text-gray-500 dark:text-gray-400">
-                                            {createdAt.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" })} {createdAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
-                                          </span>
-                                        </div>
-                                      </div>
-                                      {task.closer && closedAt && (
-                                        <div className="flex-1 min-w-[200px]">
-                                          <div className="text-xs text-green-600 dark:text-green-400 mb-1">Clôturée par :</div>
-                                          <div className="flex items-center gap-2">
-                                            <div className={`w-6 h-6 rounded-full ${getAvatarColor(task.closer.login)} text-white text-xs flex items-center justify-center font-semibold`}>
-                                              {getInitials(task.closer.login)}
-                                            </div>
-                                            <span className="text-sm">{task.closer.login}</span>
-                                            <span className="text-xs text-gray-500 dark:text-gray-400">
-                                              {closedAt.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" })} {closedAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
-                                            </span>
-                                          </div>
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
-
-                                  {/* Boutons d'action */}
-                                  {editing && (
-                                    <div className="flex gap-2 mt-4">
-                                      {userRole !== "User" && (
-                                        <>
-                                          <Button
-                                            variant="default"
-                                            size="sm"
-                                            onClick={() => handleEditTask(task)}
-                                            disabled={isClosed}
-                                            className="flex-1"
-                                          >
-                                            <Edit className="h-4 w-4 mr-1" />
-                                            Modifier
-                                          </Button>
-                                          <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => handleCloseTask(task)}
-                                            disabled={isClosed}
-                                            className="flex-1 bg-green-50 hover:bg-green-100 text-green-700 border-green-300"
-                                          >
-                                            <CheckCircle className="h-4 w-4 mr-1" />
-                                            Clôturer
-                                          </Button>
-                                        </>
-                                      )}
-                                      {userRole === "Super Admin" && (
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          onClick={() => handleDeleteTask(task)}
-                                          className="flex-1 bg-red-50 hover:bg-red-100 text-red-700 border-red-300"
-                                        >
-                                          <Trash2 className="h-4 w-4 mr-1" />
-                                          Supprimer
-                                        </Button>
-                                      )}
-                                    </div>
+                                    <div className="text-muted-foreground">Aucun point d&apos;accès enregistré</div>
                                   )}
                                 </div>
-                              </div>
-                            </div>
-                          )
-                        })}
-                      <div className="text-center text-sm text-gray-500 dark:text-gray-400 py-4">
-                        Faites défiler pour voir plus de tâches
-                        <ChevronDown className="h-4 w-4 mx-auto mt-1" />
-                      </div>
-                    </div>
+                              </CardContent>
+                            </Card>
 
-                    {/* Vue desktop - Cartes */}
-                    <div className="hidden sm:block">
-                      <div className="space-y-4">
-                        {tasks
-                          .filter(t => {
-                            const matchesImportance = taskFilter === "ALL" || t.importance === taskFilter
-                            const matchesClosed = showClosedTasks || !t.closedAt
-                            return matchesImportance && matchesClosed
-                          })
-                          .map((task) => {
-                            const isClosed = !!task.closedAt
-                            const createdAt = new Date(task.createdAt)
-                            const closedAt = task.closedAt ? new Date(task.closedAt) : null
-                            
-                            const getInitials = (name: string) => {
-                              return name
-                                .split(" ")
-                                .map((n) => n[0])
-                                .join("")
-                                .toUpperCase()
-                                .slice(0, 2)
-                            }
-
-                            const getAvatarColor = (name: string) => {
-                              const colors = [
-                                "bg-blue-500",
-                                "bg-green-500",
-                                "bg-yellow-500",
-                                "bg-purple-500",
-                                "bg-pink-500",
-                                "bg-indigo-500",
-                                "bg-red-500",
-                                "bg-orange-500",
-                              ]
-                              const index = name.charCodeAt(0) % colors.length
-                              return colors[index]
-                            }
-
-                            const importanceColor = task.importance === "URGENT" 
-                              ? "bg-red-500" 
-                              : task.importance === "CRITIQUE" 
-                              ? "bg-orange-500" 
-                              : "bg-gray-500"
-
-                            return (
-                              <div
-                                key={task.id}
-                                className="bg-card dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
-                              >
-                                {/* Barre colorée à gauche */}
-                                <div className="flex">
-                                  <div className={`w-1 ${importanceColor}`} />
-                                  <div className="flex-1 p-4">
-                                    {/* En-tête avec badges */}
-                                    <div className="flex items-start justify-between mb-3">
-                                      <h3 className="font-bold text-base flex-1 pr-2">{task.title}</h3>
-                                      <div className="flex gap-2 flex-shrink-0">
-                                        <span
-                                          className={`px-2 py-1 rounded-full text-xs font-semibold text-white ${
-                                            task.importance === "URGENT"
-                                              ? "bg-red-500"
-                                              : task.importance === "CRITIQUE"
-                                              ? "bg-orange-500"
-                                              : "bg-gray-500"
-                                          }`}
-                                        >
-                                          {task.importance}
-                                        </span>
-                                        {isClosed && (
-                                          <span className="px-2 py-1 rounded-full text-xs font-semibold bg-green-500 text-white">
-                                            Clôturée
-                                          </span>
-                                        )}
-                                      </div>
-                                    </div>
-
-                                    {/* Description */}
-                                    <div className="mb-4">
-                                      <p 
-                                        className={`text-sm text-gray-600 dark:text-gray-400 pr-2 transition-all ${
-                                          expandedTaskNotes[task.id] 
-                                            ? 'max-h-none' 
-                                            : 'max-h-[5rem] overflow-y-auto'
-                                        }`}
-                                        style={{ lineHeight: '1.25rem' }}
-                                      >
-                                        {task.notes}
-                                      </p>
-                                      {task.notes.length > 100 && (
-                                        <button
-                                          onClick={() => setExpandedTaskNotes(prev => ({
-                                            ...prev,
-                                            [task.id]: !prev[task.id]
-                                          }))}
-                                          className="mt-2 text-xs text-primary hover:underline flex items-center gap-1"
-                                        >
-                                          {expandedTaskNotes[task.id] ? (
-                                            <>
-                                              <ChevronUp className="h-3 w-3" />
-                                              Réduire
-                                            </>
-                                          ) : (
-                                            <>
-                                              <ChevronDown className="h-3 w-3" />
-                                              Voir plus
-                                            </>
-                                          )}
-                                        </button>
+                            {/* Routeurs */}
+                            <Card>
+                              <CardHeader>
+                                <CardTitle>Routeurs</CardTitle>
+                              </CardHeader>
+                              <CardContent className="space-y-3 sm:space-y-6">
+                                <div>
+                                  <Label className="mb-2 block">Routeur Principal</Label>
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
+                                    <div className="space-y-2">
+                                      <Label>Marque</Label>
+                                      {editingTechnical ? (
+                                        <Input
+                                          value={technicalData.mainRouterBrand || ""}
+                                          onChange={(e) =>
+                                            setTechnicalData({ ...technicalData, mainRouterBrand: e.target.value })
+                                          }
+                                        />
+                                      ) : (
+                                        <div>{fullAgencyData.technical?.mainRouterBrand || "Non renseigné"}</div>
                                       )}
                                     </div>
-
-                                    {/* Photos */}
-                                    {task.photos && (() => {
-                                      try {
-                                        const photos = JSON.parse(task.photos)
-                                        if (Array.isArray(photos) && photos.length > 0) {
-                                          return (
-                                            <div className="flex flex-wrap gap-2 mb-4">
-                                              {photos.map((photoPath: string, photoIndex: number) => (
-                                                <img
-                                                  key={photoIndex}
-                                                  src={photoPath}
-                                                  alt={`Photo ${photoIndex + 1}`}
-                                                  className="w-16 h-16 object-cover rounded border cursor-pointer hover:opacity-80 transition-opacity"
-                                                  onClick={() => {
-                                                  try {
-                                                    const photos = JSON.parse(task.photos || "[]")
-                                                    if (Array.isArray(photos)) {
-                                                      openImageViewer(photoPath, photos, photoIndex, task.id)
-                                                    }
-                                                  } catch {
-                                                    openImageViewer(photoPath, [photoPath], 0, task.id)
-                                                  }
-                                                }}
-                                                />
-                                              ))}
-                                            </div>
-                                          )
-                                        }
-                                      } catch {
-                                        return null
-                                      }
-                                      return null
-                                    })()}
-
-                                    {/* Informations de création */}
-                                    {!isClosed ? (
-                                      <div className="flex items-center gap-2 mb-2">
-                                        <div className={`w-8 h-8 rounded-full ${getAvatarColor(task.creator.login)} text-white text-xs flex items-center justify-center font-semibold`}>
-                                          {getInitials(task.creator.login)}
-                                        </div>
-                                        <div className="flex-1">
-                                          <div className="text-sm font-medium">{task.creator.login}</div>
-                                          <div className="text-xs text-gray-500 dark:text-gray-400">
-                                            {createdAt.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" })} {createdAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
-                                          </div>
-                                        </div>
-                                        <span className="text-xs text-gray-400 dark:text-gray-500">Non clôturée</span>
-                                      </div>
-                                    ) : (
-                                      <div className="flex items-start gap-4 flex-wrap">
-                                        <div className="flex-1 min-w-[200px]">
-                                          <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">Créée par :</div>
-                                          <div className="flex items-center gap-2">
-                                            <div className={`w-6 h-6 rounded-full ${getAvatarColor(task.creator.login)} text-white text-xs flex items-center justify-center font-semibold`}>
-                                              {getInitials(task.creator.login)}
-                                            </div>
-                                            <span className="text-sm">{task.creator.login}</span>
-                                            <span className="text-xs text-gray-500 dark:text-gray-400">
-                                              {createdAt.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" })} {createdAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
-                                            </span>
-                                          </div>
-                                        </div>
-                                        {task.closer && closedAt && (
-                                          <div className="flex-1 min-w-[200px]">
-                                            <div className="text-xs text-green-600 dark:text-green-400 mb-1">Clôturée par :</div>
-                                            <div className="flex items-center gap-2">
-                                              <div className={`w-6 h-6 rounded-full ${getAvatarColor(task.closer.login)} text-white text-xs flex items-center justify-center font-semibold`}>
-                                                {getInitials(task.closer.login)}
-                                              </div>
-                                              <span className="text-sm">{task.closer.login}</span>
-                                              <span className="text-xs text-gray-500 dark:text-gray-400">
-                                                {closedAt.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" })} {closedAt.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
-                                              </span>
-                                            </div>
-                                          </div>
-                                        )}
-                                      </div>
-                                    )}
-
-                                    {/* Boutons d'action */}
-                                    {editing && (
-                                      <div className="flex gap-2 mt-4">
-                                        {userRole !== "User" && (
-                                          <>
-                                            <Button
-                                              variant="default"
-                                              size="sm"
-                                              onClick={() => handleEditTask(task)}
-                                              disabled={isClosed}
-                                              className="flex-1"
-                                            >
-                                              <Edit className="h-4 w-4 mr-1" />
-                                              Modifier
-                                            </Button>
-                                            <Button
-                                              variant="outline"
-                                              size="sm"
-                                              onClick={() => handleCloseTask(task)}
-                                              disabled={isClosed}
-                                              className="flex-1 bg-green-50 hover:bg-green-100 text-green-700 border-green-300"
-                                            >
-                                              <CheckCircle className="h-4 w-4 mr-1" />
-                                              Clôturer
-                                            </Button>
-                                          </>
-                                        )}
-                                        {userRole === "Super Admin" && (
-                                          <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => handleDeleteTask(task)}
-                                            className="flex-1 bg-red-50 hover:bg-red-100 text-red-700 border-red-300"
-                                          >
-                                            <Trash2 className="h-4 w-4 mr-1" />
-                                            Supprimer
-                                          </Button>
-                                        )}
-                                      </div>
-                                    )}
+                                    <div className="space-y-2">
+                                      <Label>Modèle</Label>
+                                      {editingTechnical ? (
+                                        <Input
+                                          value={technicalData.mainRouterModel || ""}
+                                          onChange={(e) =>
+                                            setTechnicalData({ ...technicalData, mainRouterModel: e.target.value })
+                                          }
+                                        />
+                                      ) : (
+                                        <div>{fullAgencyData.technical?.mainRouterModel || "Non renseigné"}</div>
+                                      )}
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label>IP</Label>
+                                      {editingTechnical ? (
+                                        <Input
+                                          value={technicalData.mainRouterIp || ""}
+                                          onChange={(e) =>
+                                            setTechnicalData({ ...technicalData, mainRouterIp: e.target.value })
+                                          }
+                                        />
+                                      ) : (
+                                        <div>{fullAgencyData.technical?.mainRouterIp || "Non renseigné"}</div>
+                                      )}
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label>N° série</Label>
+                                      {editingTechnical ? (
+                                        <Input
+                                          value={technicalData.mainRouterSerial || ""}
+                                          onChange={(e) =>
+                                            setTechnicalData({ ...technicalData, mainRouterSerial: e.target.value })
+                                          }
+                                        />
+                                      ) : (
+                                        <div>{fullAgencyData.technical?.mainRouterSerial || "Non renseigné"}</div>
+                                      )}
+                                    </div>
+                                    <div className="space-y-2 col-span-2">
+                                      <Label>Type lien</Label>
+                                      {editingTechnical ? (
+                                        <Input
+                                          value={technicalData.mainRouterLinkType || ""}
+                                          onChange={(e) =>
+                                            setTechnicalData({
+                                              ...technicalData,
+                                              mainRouterLinkType: e.target.value,
+                                            })
+                                          }
+                                        />
+                                      ) : (
+                                        <div>{fullAgencyData.technical?.mainRouterLinkType || "Non renseigné"}</div>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                            )
-                          })}
-                      </div>
-                    </div>
-                  </>
-                )}
+                                <div>
+                                  <Label className="mb-2 block">Routeur Secours</Label>
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
+                                    <div className="space-y-2">
+                                      <Label>Marque</Label>
+                                      {editingTechnical ? (
+                                        <Input
+                                          value={technicalData.backupRouterBrand || ""}
+                                          onChange={(e) =>
+                                            setTechnicalData({ ...technicalData, backupRouterBrand: e.target.value })
+                                          }
+                                        />
+                                      ) : (
+                                        <div>{fullAgencyData.technical?.backupRouterBrand || "Non renseigné"}</div>
+                                      )}
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label>Modèle</Label>
+                                      {editingTechnical ? (
+                                        <Input
+                                          value={technicalData.backupRouterModel || ""}
+                                          onChange={(e) =>
+                                            setTechnicalData({ ...technicalData, backupRouterModel: e.target.value })
+                                          }
+                                        />
+                                      ) : (
+                                        <div>{fullAgencyData.technical?.backupRouterModel || "Non renseigné"}</div>
+                                      )}
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label>IP</Label>
+                                      {editingTechnical ? (
+                                        <Input
+                                          value={technicalData.backupRouterIp || ""}
+                                          onChange={(e) =>
+                                            setTechnicalData({ ...technicalData, backupRouterIp: e.target.value })
+                                          }
+                                        />
+                                      ) : (
+                                        <div>{fullAgencyData.technical?.backupRouterIp || "Non renseigné"}</div>
+                                      )}
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label>N° série</Label>
+                                      {editingTechnical ? (
+                                        <Input
+                                          value={technicalData.backupRouterSerial || ""}
+                                          onChange={(e) =>
+                                            setTechnicalData({
+                                              ...technicalData,
+                                              backupRouterSerial: e.target.value,
+                                            })
+                                          }
+                                        />
+                                      ) : (
+                                        <div>{fullAgencyData.technical?.backupRouterSerial || "Non renseigné"}</div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
 
-              </TabsContent>
+                            {/* Vidéo protection */}
+                            <Card>
+                              <CardHeader>
+                                <CardTitle>Vidéo protection</CardTitle>
+                              </CardHeader>
+                              <CardContent className="space-y-3 sm:space-y-4 p-4 sm:p-6">
+                                <div>
+                                  <Label className="mb-2 block">Enregistreur</Label>
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
+                                    <div className="space-y-2">
+                                      <Label>Marque</Label>
+                                      {editingTechnical ? (
+                                        <Input
+                                          value={technicalData.recorderBrand || ""}
+                                          onChange={(e) =>
+                                            setTechnicalData({ ...technicalData, recorderBrand: e.target.value })
+                                          }
+                                        />
+                                      ) : (
+                                        <div>{fullAgencyData.technical?.recorderBrand || "Non renseigné"}</div>
+                                      )}
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label>Modèle</Label>
+                                      {editingTechnical ? (
+                                        <Input
+                                          value={technicalData.recorderModel || ""}
+                                          onChange={(e) =>
+                                            setTechnicalData({ ...technicalData, recorderModel: e.target.value })
+                                          }
+                                        />
+                                      ) : (
+                                        <div>{fullAgencyData.technical?.recorderModel || "Non renseigné"}</div>
+                                      )}
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label>N° série</Label>
+                                      {editingTechnical ? (
+                                        <Input
+                                          value={technicalData.recorderSerial || ""}
+                                          onChange={(e) =>
+                                            setTechnicalData({ ...technicalData, recorderSerial: e.target.value })
+                                          }
+                                        />
+                                      ) : (
+                                        <div>{fullAgencyData.technical?.recorderSerial || "Non renseigné"}</div>
+                                      )}
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label>MAC</Label>
+                                      {editingTechnical ? (
+                                        <Input
+                                          value={technicalData.recorderMac || ""}
+                                          onChange={(e) =>
+                                            setTechnicalData({ ...technicalData, recorderMac: e.target.value })
+                                          }
+                                        />
+                                      ) : (
+                                        <div>{fullAgencyData.technical?.recorderMac || "Non renseigné"}</div>
+                                      )}
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label>IP</Label>
+                                      {editingTechnical ? (
+                                        <Input
+                                          value={technicalData.recorderIp || ""}
+                                          onChange={(e) =>
+                                            setTechnicalData({ ...technicalData, recorderIp: e.target.value })
+                                          }
+                                        />
+                                      ) : (
+                                        <div>{fullAgencyData.technical?.recorderIp || "Non renseigné"}</div>
+                                      )}
+                                    </div>
+                                    <div className="space-y-2">
+                                      <Label>Stockage</Label>
+                                      {editingTechnical ? (
+                                        <Input
+                                          value={technicalData.recorderStorage || ""}
+                                          onChange={(e) =>
+                                            setTechnicalData({ ...technicalData, recorderStorage: e.target.value })
+                                          }
+                                        />
+                                      ) : (
+                                        <div>{fullAgencyData.technical?.recorderStorage || "Non renseigné"}</div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div>
+                                  <div className="flex items-center justify-between mb-2">
+                                    <Label>Caméras</Label>
+                                    {editing && (
+                                      <Button onClick={() => setIsCameraDialogOpen(true)} size="sm" className="gap-2">
+                                        <Plus className="h-4 w-4" />
+                                        Ajouter
+                                      </Button>
+                                    )}
+                                  </div>
+                                  {fullAgencyData.technical?.cameras &&
+                                    fullAgencyData.technical.cameras.length > 0 ? (
+                                    <div className="space-y-2">
+                                      {fullAgencyData.technical.cameras.map((camera) => (
+                                        <div
+                                          key={camera.id}
+                                          className="border p-3 rounded flex items-center justify-between"
+                                        >
+                                          <div>
+                                            <div className="font-semibold">
+                                              {camera.brand} {camera.model}
+                                            </div>
+                                            <div className="text-sm text-muted-foreground">
+                                              {camera.type} {camera.ip && `- ${camera.ip}`}
+                                            </div>
+                                          </div>
+                                          {editing && (
+                                            <div className="flex gap-2">
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => {
+                                                  setSelectedCamera(camera)
+                                                  setIsCameraDialogOpen(true)
+                                                }}
+                                              >
+                                                <Edit className="h-4 w-4" />
+                                              </Button>
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => openConfirm({
+                                                  title: "Supprimer la caméra",
+                                                  description: "Supprimer cette caméra ?",
+                                                  onConfirm: async () => {
+                                                    setConfirmLoading(true)
+                                                    try {
+                                                      const response = await apiFetch(`/api/cameras/${camera.id}`, { method: "DELETE" })
+                                                      if (response.ok) {
+                                                        await loadAgencyDetails(selectedAgency!.id)
+                                                        toast({ title: "Caméra supprimée", variant: "success" })
+                                                      } else showError("Erreur lors de la suppression")
+                                                    } catch (error) {
+                                                      console.error("Error deleting camera:", error)
+                                                      showError("Erreur lors de la suppression")
+                                                    } finally {
+                                                      setConfirmLoading(false)
+                                                    }
+                                                  },
+                                                })}
+                                              >
+                                                <Trash2 className="h-4 w-4" />
+                                              </Button>
+                                            </div>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <div className="text-muted-foreground">Aucune caméra enregistrée</div>
+                                  )}
+                                </div>
+                              </CardContent>
+                            </Card>
 
-              <TabsContent value="technical" className="space-y-2 sm:space-y-4 pt-2 sm:pt-4 mt-0">
-                {!fullAgencyData?.technical && !editing && !editingTechnical ? (
-                  <Card>
-                    <CardContent className="p-6">
-                      <div className="text-center text-muted-foreground">
-                        Aucune information technique enregistrée
-                      </div>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <>
-                    {/* Réseau */}
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Réseau</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-2">
-                          <Label>Adresse IP LAN (CIDR)</Label>
-                          {editingTechnical ? (
-                            <Input
-                              value={technicalData.networkIp || ""}
-                              onChange={(e) =>
-                                setTechnicalData({ ...technicalData, networkIp: e.target.value })
-                              }
-                              placeholder="192.168.1.0/24"
-                            />
-                          ) : (
-                            <div>{fullAgencyData.technical?.networkIp || "Non renseigné"}</div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* PC */}
-                    <Card>
-                      <CardHeader>
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="flex items-center gap-2">
-                            <Image 
-                              src="/computer.png" 
-                              alt="PC" 
-                              width={100}
-                              height={100}
-                              className="max-w-[60px] max-h-[60px] sm:max-w-[100px] sm:max-h-[100px] object-contain"
-                              style={{ width: "auto", height: "auto" }}
-                              unoptimized
-                            />
-                          </CardTitle>
-                          {editing && (
-                            <Button onClick={handleAddPC} size="sm" className="gap-2">
-                              <Plus className="h-4 w-4" />
-                              Ajouter
-                            </Button>
-                          )}
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        {fullAgencyData.technical?.pcs && fullAgencyData.technical.pcs.length > 0 ? (
-                          <div className="space-y-2 sm:space-y-4">
-                            {(() => {
-                              // S'assurer que les PC ont un champ order (rétrocompatibilité)
-                              const pcsWithOrder = fullAgencyData.technical.pcs.map((pc, index) => ({
-                                ...pc,
-                                order: pc.order !== undefined ? pc.order : index
-                              }))
-                              const sortedPCs = [...pcsWithOrder].sort((a, b) => (a.order || 0) - (b.order || 0))
-                              return sortedPCs.map((pc, index) => (
-                              <div
-                                key={pc.id}
-                                onDragOver={(e) => {
-                                  e.preventDefault()
-                                  e.dataTransfer.dropEffect = "move"
-                                  setDragOverIndex(index)
-                                }}
-                                onDragLeave={() => {
-                                  setDragOverIndex(null)
-                                }}
-                                onDrop={(e) => {
-                                  e.preventDefault()
-                                  setDragOverIndex(null)
-                                  if (draggedPCId && draggedPCId !== pc.id) {
-                                    handleMovePC(draggedPCId, pc.id)
-                                  }
-                                  setDraggedPCId(null)
-                                }}
-                                className={`border p-3 sm:p-4 rounded-lg space-y-2 sm:space-y-3 ${
-                                  draggedPCId === pc.id ? "opacity-50" : ""
-                                } ${
-                                  dragOverIndex === index ? "border-primary border-2" : ""
-                                }`}
-                              >
-                                <div className="flex items-start justify-between">
-                                  {editing && (
-                                    <div 
-                                      className="mr-2 text-muted-foreground cursor-move"
-                                      draggable={true}
-                                      onDragStart={(e) => {
-                                        setDraggedPCId(pc.id)
-                                        e.dataTransfer.effectAllowed = "move"
-                                      }}
-                                      onDragEnd={() => {
-                                        setDraggedPCId(null)
-                                        setDragOverIndex(null)
+                            {/* Notes techniques */}
+                            <Card>
+                              <CardHeader>
+                                <div className="flex items-center justify-between">
+                                  <CardTitle>Notes techniques</CardTitle>
+                                  {fullAgencyData.technical?.id && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={async () => {
+                                        if (!fullAgencyData.technical?.id) return
+                                        setLoadingHistory(true)
+                                        setIsNotesHistoryDialogOpen(true)
+                                        try {
+                                          const response = await fetch(
+                                            `/api/technical/${fullAgencyData.technical.id}/history`
+                                          )
+                                          if (response.ok) {
+                                            const data = await response.json()
+                                            setNotesHistory(data)
+                                          }
+                                        } catch (error) {
+                                          console.error("Error loading history:", error)
+                                        } finally {
+                                          setLoadingHistory(false)
+                                        }
                                       }}
                                     >
-                                      <GripVertical className="h-5 w-5" />
-                                    </div>
+                                      Historique
+                                    </Button>
                                   )}
-                                  <div className="flex-1">
-                                    <div className="font-semibold text-base sm:text-lg mb-2">{pc.name}</div>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 text-sm sm:text-sm">
-                                      {pc.brand && (
-                                        <div>
-                                          <span className="font-medium">Marque:</span> {pc.brand}
-                                        </div>
-                                      )}
-                                      {pc.model && (
-                                        <div>
-                                          <span className="font-medium">Modèle:</span> {pc.model}
-                                        </div>
-                                      )}
-                                      {pc.ip && (
-                                        <div>
-                                          <span className="font-medium">IP:</span> {pc.ip}
-                                        </div>
-                                      )}
-                                      {pc.mac && (
-                                        <div>
-                                          <span className="font-medium">MAC:</span> {pc.mac}
-                                        </div>
-                                      )}
-                                      {pc.serialNumber && (
-                                        <div>
-                                          <span className="font-medium">N° série:</span> {pc.serialNumber}
-                                        </div>
-                                      )}
-                                      {pc.purchaseDate && (
-                                        <div>
-                                          <span className="font-medium">Date achat:</span>{" "}
-                                          {new Date(pc.purchaseDate).toLocaleDateString("fr-FR")}
-                                        </div>
-                                      )}
-                                      {pc.warrantyDate && (
-                                        <div>
-                                          <span className="font-medium">Date garantie:</span>{" "}
-                                          {new Date(pc.warrantyDate).toLocaleDateString("fr-FR")}
-                                        </div>
-                                      )}
-                                    </div>
-                                    {pc.files && (
-                                      <div className="mt-2 text-sm">
-                                        <span className="font-medium">Fichiers:</span>{" "}
-                                        {(() => {
-                                          try {
-                                            const files = JSON.parse(pc.files)
-                                            return Array.isArray(files) ? files.join(", ") : pc.files
-                                          } catch {
-                                            return pc.files
-                                          }
-                                        })()}
-                                      </div>
-                                    )}
-                                    {pc.photos && (
-                                      <div className="mt-2">
-                                        <span className="font-medium text-sm">Photos:</span>
-                                        <div className="flex gap-2 mt-1">
-                                          {(() => {
-                                            try {
-                                              const photos = JSON.parse(pc.photos || "[]")
-                                              return Array.isArray(photos) && photos.length > 0
-                                                ? photos.map((photo: string, idx: number) => (
-                                                    <div key={idx} className="relative w-full h-32">
-                                                      <Image
-                                                        src={photo}
-                                                        alt={`Photo ${idx + 1}`}
-                                                        fill
-                                                        className="object-cover rounded border"
-                                                        unoptimized
-                                                      />
-                                                    </div>
-                                                  ))
-                                                : null
-                                            } catch {
-                                              return null
-                                            }
-                                          })()}
-                                        </div>
-                                      </div>
-                                    )}
+                                </div>
+                              </CardHeader>
+                              <CardContent>
+                                {editing || editingTechnical ? (
+                                  <Textarea
+                                    value={technicalData.technicalNotes || ""}
+                                    onChange={(e) => {
+                                      const newValue = e.target.value
+                                      // Empêcher les non-Super Admin de vider les notes si elles existent déjà
+                                      const hasExistingNotes = fullAgencyData?.technical?.technicalNotes && fullAgencyData.technical.technicalNotes.trim() !== ""
+                                      if (newValue === "" && hasExistingNotes && userRole !== "Super Admin") {
+                                        showError("Seul le Super Admin peut supprimer les notes techniques")
+                                        return
+                                      }
+                                      setTechnicalData({ ...technicalData, technicalNotes: newValue })
+                                    }}
+                                    placeholder="Notes techniques..."
+                                    rows={6}
+                                  />
+                                ) : (
+                                  <div className="whitespace-pre-wrap min-h-[100px] p-4 bg-muted/50 rounded-md">
+                                    {latestTechnicalNotes !== null && latestTechnicalNotes !== ""
+                                      ? latestTechnicalNotes
+                                      : (fullAgencyData.technical?.technicalNotes && fullAgencyData.technical.technicalNotes !== ""
+                                        ? fullAgencyData.technical.technicalNotes
+                                        : "Aucune note")}
                                   </div>
+                                )}
+                              </CardContent>
+                            </Card>
+
+                            {/* Champs dynamiques */}
+                            <Card>
+                              <CardHeader>
+                                <div className="flex items-center justify-between">
+                                  <CardTitle>Champs dynamiques</CardTitle>
                                   {editing && (
-                                    <div className="flex gap-2 ml-4">
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => handleEditPC(pc)}
-                                        onMouseDown={(e) => e.stopPropagation()}
-                                      >
-                                        <Edit className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => handleDeletePC(pc.id)}
-                                        onMouseDown={(e) => e.stopPropagation()}
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </div>
+                                    <Button
+                                      onClick={() => setIsDynamicFieldDialogOpen(true)}
+                                      size="sm"
+                                      className="gap-2"
+                                    >
+                                      <Plus className="h-4 w-4" />
+                                      Ajouter
+                                    </Button>
                                   )}
                                 </div>
-                              </div>
-                            ))
-                            })()}
-                          </div>
-                        ) : (
-                          <div className="text-muted-foreground">Aucun PC enregistré</div>
-                        )}
-                      </CardContent>
-                    </Card>
-
-                    {/* Imprimantes */}
-                    <Card>
-                      <CardHeader>
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="flex items-center gap-2">
-                            <Image 
-                              src="/printer.png" 
-                              alt="Imprimantes" 
-                              width={100}
-                              height={100}
-                              className="max-w-[60px] max-h-[60px] sm:max-w-[100px] sm:max-h-[100px] object-contain"
-                              style={{ width: "auto", height: "auto" }}
-                              unoptimized
-                            />
-                          </CardTitle>
-                          {editing && (
-                            <Button onClick={handleAddPrinter} size="sm" className="gap-2">
-                              <Plus className="h-4 w-4" />
-                              Ajouter
-                            </Button>
-                          )}
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        {fullAgencyData.technical?.printers &&
-                        fullAgencyData.technical.printers.length > 0 ? (
-                          <div className="space-y-2 sm:space-y-4">
-                            {fullAgencyData.technical.printers.map((printer) => (
-                              <div
-                                key={printer.id}
-                                className="border p-3 sm:p-4 rounded-lg space-y-2 sm:space-y-3"
-                              >
-                                <div className="flex items-start justify-between">
-                                  <div className="flex-1">
-                                    <div className="font-semibold text-base sm:text-lg mb-2">{printer.name}</div>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 text-sm sm:text-sm">
-                                      {printer.brand && (
-                                        <div>
-                                          <span className="font-medium">Marque:</span> {printer.brand}
-                                        </div>
-                                      )}
-                                      {printer.model && (
-                                        <div>
-                                          <span className="font-medium">Modèle:</span> {printer.model}
-                                        </div>
-                                      )}
-                                      {printer.ip && (
-                                        <div>
-                                          <span className="font-medium">IP:</span> {printer.ip}
-                                        </div>
-                                      )}
-                                      {printer.mac && (
-                                        <div>
-                                          <span className="font-medium">MAC:</span> {printer.mac}
-                                        </div>
-                                      )}
-                                      {printer.serialNumber && (
-                                        <div>
-                                          <span className="font-medium">N° série:</span> {printer.serialNumber}
-                                        </div>
-                                      )}
-                                      {printer.purchaseDate && (
-                                        <div>
-                                          <span className="font-medium">Date achat:</span>{" "}
-                                          {new Date(printer.purchaseDate).toLocaleDateString("fr-FR")}
-                                        </div>
-                                      )}
-                                      {printer.warrantyDate && (
-                                        <div>
-                                          <span className="font-medium">Date garantie:</span>{" "}
-                                          {new Date(printer.warrantyDate).toLocaleDateString("fr-FR")}
-                                        </div>
-                                      )}
-                                    </div>
-                                    {printer.files && (
-                                      <div className="mt-2 text-sm">
-                                        <span className="font-medium">Fichiers:</span>{" "}
-                                        {(() => {
-                                          try {
-                                            const files = JSON.parse(printer.files)
-                                            return Array.isArray(files) ? files.join(", ") : printer.files
-                                          } catch {
-                                            return printer.files
-                                          }
-                                        })()}
-                                      </div>
-                                    )}
-                                    {printer.photos && (
-                                      <div className="mt-2">
-                                        <span className="font-medium text-sm">Photos:</span>
-                                        <div className="flex gap-2 mt-1">
-                                          {(() => {
-                                            try {
-                                              const photos = JSON.parse(printer.photos || "[]")
-                                              return Array.isArray(photos) && photos.length > 0
-                                                ? photos.map((photo: string, idx: number) => (
-                                                    <div key={idx} className="relative w-20 h-20">
-                                                      <Image
-                                                        src={photo}
-                                                        alt={`Photo ${idx + 1}`}
-                                                        fill
-                                                        className="object-cover rounded"
-                                                        unoptimized
-                                                      />
-                                                    </div>
-                                                  ))
-                                                : null
-                                            } catch {
-                                              return null
-                                            }
-                                          })()}
-                                        </div>
-                                      </div>
-                                    )}
-                                  </div>
-                                  {editing && (
-                                    <div className="flex gap-2 ml-4">
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => handleEditPrinter(printer)}
-                                      >
-                                        <Edit className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => handleDeletePrinter(printer.id)}
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-muted-foreground">Aucune imprimante enregistrée</div>
-                        )}
-                      </CardContent>
-                    </Card>
-
-                    {/* Machine à affranchir */}
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <img 
-                            src="/machineAffranchir.png" 
-                            alt="Machine à affranchir" 
-                            className="max-w-[100px] max-h-[100px] object-contain w-auto h-auto"
-                          />
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-3 sm:space-y-4 p-4 sm:p-6">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
-                          <div className="space-y-2">
-                            <Label>Marque</Label>
-                            {editingTechnical ? (
-                              <Input
-                                value={technicalData.machineBrand || ""}
-                                onChange={(e) =>
-                                  setTechnicalData({ ...technicalData, machineBrand: e.target.value })
-                                }
-                              />
-                            ) : (
-                              <div>{fullAgencyData.technical?.machineBrand || "Non renseigné"}</div>
-                            )}
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Modèle</Label>
-                            {editingTechnical ? (
-                              <Input
-                                value={technicalData.machineModel || ""}
-                                onChange={(e) =>
-                                  setTechnicalData({ ...technicalData, machineModel: e.target.value })
-                                }
-                              />
-                            ) : (
-                              <div>{fullAgencyData.technical?.machineModel || "Non renseigné"}</div>
-                            )}
-                          </div>
-                          <div className="space-y-2">
-                            <Label>Connexion</Label>
-                            {editingTechnical ? (
-                              <Select
-                                value={technicalData.machineConnection || ""}
-                                onValueChange={(value) =>
-                                  setTechnicalData({ ...technicalData, machineConnection: value })
-                                }
-                              >
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Sélectionner" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="Wifi">Wifi</SelectItem>
-                                  <SelectItem value="Filaire">Filaire</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            ) : (
-                              <div>{fullAgencyData.technical?.machineConnection || "Non renseigné"}</div>
-                            )}
-                          </div>
-                          <div className="space-y-2">
-                            <Label>IP</Label>
-                            {editingTechnical ? (
-                              <Input
-                                value={technicalData.machineIp || ""}
-                                onChange={(e) =>
-                                  setTechnicalData({ ...technicalData, machineIp: e.target.value })
-                                }
-                              />
-                            ) : (
-                              <div>{fullAgencyData.technical?.machineIp || "Non renseigné"}</div>
-                            )}
-                          </div>
-                          <div className="space-y-2">
-                            <Label>MAC</Label>
-                            {editingTechnical ? (
-                              <Input
-                                value={technicalData.machineMac || ""}
-                                onChange={(e) =>
-                                  setTechnicalData({ ...technicalData, machineMac: e.target.value })
-                                }
-                              />
-                            ) : (
-                              <div>{fullAgencyData.technical?.machineMac || "Non renseigné"}</div>
-                            )}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* Wifi */}
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <Image 
-                            src="/wifi.png" 
-                            alt="Wifi" 
-                            width={100}
-                            height={100}
-                            className="max-w-[100px] max-h-[100px] object-contain"
-                            style={{ width: "auto", height: "auto" }}
-                            unoptimized
-                          />
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-3 sm:space-y-4 p-4 sm:p-6">
-                        <div>
-                          <Label className="mb-2 block">Routeur Wifi</Label>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
-                            <div className="space-y-2">
-                              <Label>Marque</Label>
-                              {editingTechnical ? (
-                                <Input
-                                  value={technicalData.wifiRouterBrand || ""}
-                                  onChange={(e) =>
-                                    setTechnicalData({ ...technicalData, wifiRouterBrand: e.target.value })
-                                  }
-                                />
-                              ) : (
-                                <div>{fullAgencyData.technical?.wifiRouterBrand || "Non renseigné"}</div>
-                              )}
-                            </div>
-                            <div className="space-y-2">
-                              <Label>Modèle</Label>
-                              {editingTechnical ? (
-                                <Input
-                                  value={technicalData.wifiRouterModel || ""}
-                                  onChange={(e) =>
-                                    setTechnicalData({ ...technicalData, wifiRouterModel: e.target.value })
-                                  }
-                                />
-                              ) : (
-                                <div>{fullAgencyData.technical?.wifiRouterModel || "Non renseigné"}</div>
-                              )}
-                            </div>
-                            <div className="space-y-2">
-                              <Label>IP</Label>
-                              {editingTechnical ? (
-                                <Input
-                                  value={technicalData.wifiRouterIp || ""}
-                                  onChange={(e) =>
-                                    setTechnicalData({ ...technicalData, wifiRouterIp: e.target.value })
-                                  }
-                                />
-                              ) : (
-                                <div>{fullAgencyData.technical?.wifiRouterIp || "Non renseigné"}</div>
-                              )}
-                            </div>
-                            <div className="space-y-2">
-                              <Label>N° série</Label>
-                              {editingTechnical ? (
-                                <Input
-                                  value={technicalData.wifiRouterSerial || ""}
-                                  onChange={(e) =>
-                                    setTechnicalData({
-                                      ...technicalData,
-                                      wifiRouterSerial: e.target.value,
-                                    })
-                                  }
-                                />
-                              ) : (
-                                <div>{fullAgencyData.technical?.wifiRouterSerial || "Non renseigné"}</div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        <div>
-                          <div className="flex items-center justify-between mb-2">
-                            <Label>Points d&apos;accès Wifi</Label>
-                            {editing && (
-                              <Button onClick={() => setIsWifiAPDialogOpen(true)} size="sm" className="gap-2">
-                                <Plus className="h-4 w-4" />
-                                Ajouter
-                              </Button>
-                            )}
-                          </div>
-                          {fullAgencyData.technical?.wifiAccessPoints &&
-                          fullAgencyData.technical.wifiAccessPoints.length > 0 ? (
-                            <div className="space-y-2 sm:space-y-4">
-                              {fullAgencyData.technical.wifiAccessPoints.map((ap) => (
-                                <div
-                                  key={ap.id}
-                                  className="border p-3 sm:p-4 rounded-lg space-y-2 sm:space-y-3"
-                                >
-                                  <div className="flex items-start justify-between">
-                                    <div className="flex-1">
-                                      <div className="font-semibold text-base sm:text-lg mb-2">
-                                        {ap.ssid || "Point d'accès sans nom"}
-                                      </div>
-                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 text-sm sm:text-sm">
-                                        {ap.brand && (
-                                          <div>
-                                            <span className="font-medium">Marque:</span> {ap.brand}
-                                          </div>
-                                        )}
-                                        {ap.model && (
-                                          <div>
-                                            <span className="font-medium">Modèle:</span> {ap.model}
-                                          </div>
-                                        )}
-                                        {ap.ip && (
-                                          <div>
-                                            <span className="font-medium">IP:</span> {ap.ip}
-                                          </div>
-                                        )}
-                                        {ap.serialNumber && (
-                                          <div>
-                                            <span className="font-medium">N° série:</span> {ap.serialNumber}
-                                          </div>
-                                        )}
-                                        {ap.passwordEncrypted && (
-                                          <div className="col-span-2">
-                                            <span className="font-medium">Mot de passe:</span>{" "}
-                                            <span className="inline-flex items-center gap-1">
-                                              {visiblePasswords[ap.id] ? (
-                                                <span>{decryptedPasswords[ap.id] || "••••••••"}</span>
-                                              ) : (
-                                                <span>••••••••</span>
-                                              )}
-                                              <button
-                                                type="button"
-                                                onClick={async () => {
-                                                  if (!visiblePasswords[ap.id] && !decryptedPasswords[ap.id]) {
-                                                    // Récupérer le mot de passe décrypté
-                                                    try {
-                                                      const response = await fetch(`/api/wifi-access-points/${ap.id}/password`)
-                                                      if (response.ok) {
-                                                        const data = await response.json()
-                                                        setDecryptedPasswords((prev) => ({
-                                                          ...prev,
-                                                          [ap.id]: data.password || "",
-                                                        }))
-                                                      }
-                                                    } catch (error) {
-                                                      console.error("Error fetching password:", error)
-                                                    }
-                                                  }
-                                                  setVisiblePasswords((prev) => ({
-                                                    ...prev,
-                                                    [ap.id]: !prev[ap.id],
-                                                  }))
-                                                }}
-                                                className="ml-1 p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
-                                                title={visiblePasswords[ap.id] ? "Masquer le mot de passe" : "Afficher le mot de passe"}
-                                              >
-                                                {visiblePasswords[ap.id] ? (
-                                                  <EyeOff className="h-4 w-4" />
-                                                ) : (
-                                                  <Eye className="h-4 w-4" />
-                                                )}
-                                              </button>
-                                            </span>
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-                                    {editing && (
-                                      <div className="flex gap-2">
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => {
-                                            setSelectedWifiAP(ap)
-                                            setIsWifiAPDialogOpen(true)
-                                          }}
-                                        >
-                                          <Edit className="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={async () => {
-                                            if (!confirm("Supprimer ce point d'accès ?")) return
-                                            try {
-                                              const response = await fetch(`/api/wifi-access-points/${ap.id}`, {
-                                                method: "DELETE",
-                                              })
-                                              if (response.ok) {
-                                                await loadAgencyDetails(selectedAgency!.id)
-                                              }
-                                            } catch (error) {
-                                              console.error("Error deleting wifi AP:", error)
-                                            }
-                                          }}
-                                        >
-                                          <Trash2 className="h-4 w-4" />
-                                        </Button>
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="text-muted-foreground">Aucun point d&apos;accès enregistré</div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* Routeurs */}
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Routeurs</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-3 sm:space-y-6">
-                        <div>
-                          <Label className="mb-2 block">Routeur Principal</Label>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
-                            <div className="space-y-2">
-                              <Label>Marque</Label>
-                              {editingTechnical ? (
-                                <Input
-                                  value={technicalData.mainRouterBrand || ""}
-                                  onChange={(e) =>
-                                    setTechnicalData({ ...technicalData, mainRouterBrand: e.target.value })
-                                  }
-                                />
-                              ) : (
-                                <div>{fullAgencyData.technical?.mainRouterBrand || "Non renseigné"}</div>
-                              )}
-                            </div>
-                            <div className="space-y-2">
-                              <Label>Modèle</Label>
-                              {editingTechnical ? (
-                                <Input
-                                  value={technicalData.mainRouterModel || ""}
-                                  onChange={(e) =>
-                                    setTechnicalData({ ...technicalData, mainRouterModel: e.target.value })
-                                  }
-                                />
-                              ) : (
-                                <div>{fullAgencyData.technical?.mainRouterModel || "Non renseigné"}</div>
-                              )}
-                            </div>
-                            <div className="space-y-2">
-                              <Label>IP</Label>
-                              {editingTechnical ? (
-                                <Input
-                                  value={technicalData.mainRouterIp || ""}
-                                  onChange={(e) =>
-                                    setTechnicalData({ ...technicalData, mainRouterIp: e.target.value })
-                                  }
-                                />
-                              ) : (
-                                <div>{fullAgencyData.technical?.mainRouterIp || "Non renseigné"}</div>
-                              )}
-                            </div>
-                            <div className="space-y-2">
-                              <Label>N° série</Label>
-                              {editingTechnical ? (
-                                <Input
-                                  value={technicalData.mainRouterSerial || ""}
-                                  onChange={(e) =>
-                                    setTechnicalData({ ...technicalData, mainRouterSerial: e.target.value })
-                                  }
-                                />
-                              ) : (
-                                <div>{fullAgencyData.technical?.mainRouterSerial || "Non renseigné"}</div>
-                              )}
-                            </div>
-                            <div className="space-y-2 col-span-2">
-                              <Label>Type lien</Label>
-                              {editingTechnical ? (
-                                <Input
-                                  value={technicalData.mainRouterLinkType || ""}
-                                  onChange={(e) =>
-                                    setTechnicalData({
-                                      ...technicalData,
-                                      mainRouterLinkType: e.target.value,
-                                    })
-                                  }
-                                />
-                              ) : (
-                                <div>{fullAgencyData.technical?.mainRouterLinkType || "Non renseigné"}</div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        <div>
-                          <Label className="mb-2 block">Routeur Secours</Label>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
-                            <div className="space-y-2">
-                              <Label>Marque</Label>
-                              {editingTechnical ? (
-                                <Input
-                                  value={technicalData.backupRouterBrand || ""}
-                                  onChange={(e) =>
-                                    setTechnicalData({ ...technicalData, backupRouterBrand: e.target.value })
-                                  }
-                                />
-                              ) : (
-                                <div>{fullAgencyData.technical?.backupRouterBrand || "Non renseigné"}</div>
-                              )}
-                            </div>
-                            <div className="space-y-2">
-                              <Label>Modèle</Label>
-                              {editingTechnical ? (
-                                <Input
-                                  value={technicalData.backupRouterModel || ""}
-                                  onChange={(e) =>
-                                    setTechnicalData({ ...technicalData, backupRouterModel: e.target.value })
-                                  }
-                                />
-                              ) : (
-                                <div>{fullAgencyData.technical?.backupRouterModel || "Non renseigné"}</div>
-                              )}
-                            </div>
-                            <div className="space-y-2">
-                              <Label>IP</Label>
-                              {editingTechnical ? (
-                                <Input
-                                  value={technicalData.backupRouterIp || ""}
-                                  onChange={(e) =>
-                                    setTechnicalData({ ...technicalData, backupRouterIp: e.target.value })
-                                  }
-                                />
-                              ) : (
-                                <div>{fullAgencyData.technical?.backupRouterIp || "Non renseigné"}</div>
-                              )}
-                            </div>
-                            <div className="space-y-2">
-                              <Label>N° série</Label>
-                              {editingTechnical ? (
-                                <Input
-                                  value={technicalData.backupRouterSerial || ""}
-                                  onChange={(e) =>
-                                    setTechnicalData({
-                                      ...technicalData,
-                                      backupRouterSerial: e.target.value,
-                                    })
-                                  }
-                                />
-                              ) : (
-                                <div>{fullAgencyData.technical?.backupRouterSerial || "Non renseigné"}</div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* Vidéo protection */}
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Vidéo protection</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-3 sm:space-y-4 p-4 sm:p-6">
-                        <div>
-                          <Label className="mb-2 block">Enregistreur</Label>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
-                            <div className="space-y-2">
-                              <Label>Marque</Label>
-                              {editingTechnical ? (
-                                <Input
-                                  value={technicalData.recorderBrand || ""}
-                                  onChange={(e) =>
-                                    setTechnicalData({ ...technicalData, recorderBrand: e.target.value })
-                                  }
-                                />
-                              ) : (
-                                <div>{fullAgencyData.technical?.recorderBrand || "Non renseigné"}</div>
-                              )}
-                            </div>
-                            <div className="space-y-2">
-                              <Label>Modèle</Label>
-                              {editingTechnical ? (
-                                <Input
-                                  value={technicalData.recorderModel || ""}
-                                  onChange={(e) =>
-                                    setTechnicalData({ ...technicalData, recorderModel: e.target.value })
-                                  }
-                                />
-                              ) : (
-                                <div>{fullAgencyData.technical?.recorderModel || "Non renseigné"}</div>
-                              )}
-                            </div>
-                            <div className="space-y-2">
-                              <Label>N° série</Label>
-                              {editingTechnical ? (
-                                <Input
-                                  value={technicalData.recorderSerial || ""}
-                                  onChange={(e) =>
-                                    setTechnicalData({ ...technicalData, recorderSerial: e.target.value })
-                                  }
-                                />
-                              ) : (
-                                <div>{fullAgencyData.technical?.recorderSerial || "Non renseigné"}</div>
-                              )}
-                            </div>
-                            <div className="space-y-2">
-                              <Label>MAC</Label>
-                              {editingTechnical ? (
-                                <Input
-                                  value={technicalData.recorderMac || ""}
-                                  onChange={(e) =>
-                                    setTechnicalData({ ...technicalData, recorderMac: e.target.value })
-                                  }
-                                />
-                              ) : (
-                                <div>{fullAgencyData.technical?.recorderMac || "Non renseigné"}</div>
-                              )}
-                            </div>
-                            <div className="space-y-2">
-                              <Label>IP</Label>
-                              {editingTechnical ? (
-                                <Input
-                                  value={technicalData.recorderIp || ""}
-                                  onChange={(e) =>
-                                    setTechnicalData({ ...technicalData, recorderIp: e.target.value })
-                                  }
-                                />
-                              ) : (
-                                <div>{fullAgencyData.technical?.recorderIp || "Non renseigné"}</div>
-                              )}
-                            </div>
-                            <div className="space-y-2">
-                              <Label>Stockage</Label>
-                              {editingTechnical ? (
-                                <Input
-                                  value={technicalData.recorderStorage || ""}
-                                  onChange={(e) =>
-                                    setTechnicalData({ ...technicalData, recorderStorage: e.target.value })
-                                  }
-                                />
-                              ) : (
-                                <div>{fullAgencyData.technical?.recorderStorage || "Non renseigné"}</div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        <div>
-                          <div className="flex items-center justify-between mb-2">
-                            <Label>Caméras</Label>
-                            {editing && (
-                              <Button onClick={() => setIsCameraDialogOpen(true)} size="sm" className="gap-2">
-                                <Plus className="h-4 w-4" />
-                                Ajouter
-                              </Button>
-                            )}
-                          </div>
-                          {fullAgencyData.technical?.cameras &&
-                          fullAgencyData.technical.cameras.length > 0 ? (
-                            <div className="space-y-2">
-                              {fullAgencyData.technical.cameras.map((camera) => (
-                                <div
-                                  key={camera.id}
-                                  className="border p-3 rounded flex items-center justify-between"
-                                >
-                                  <div>
-                                    <div className="font-semibold">
-                                      {camera.brand} {camera.model}
-                                    </div>
-                                    <div className="text-sm text-muted-foreground">
-                                      {camera.type} {camera.ip && `- ${camera.ip}`}
-                                    </div>
-                                  </div>
-                                  {editing && (
-                                    <div className="flex gap-2">
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => {
-                                          setSelectedCamera(camera)
-                                          setIsCameraDialogOpen(true)
-                                        }}
-                                      >
-                                        <Edit className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={async () => {
-                                          if (!confirm("Supprimer cette caméra ?")) return
-                                          try {
-                                            const response = await fetch(`/api/cameras/${camera.id}`, {
-                                              method: "DELETE",
-                                            })
-                                            if (response.ok) {
-                                              await loadAgencyDetails(selectedAgency!.id)
-                                            }
-                                          } catch (error) {
-                                            console.error("Error deleting camera:", error)
-                                          }
-                                        }}
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="text-muted-foreground">Aucune caméra enregistrée</div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* Notes techniques */}
-                    <Card>
-                      <CardHeader>
-                        <div className="flex items-center justify-between">
-                          <CardTitle>Notes techniques</CardTitle>
-                          {fullAgencyData.technical?.id && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={async () => {
-                                if (!fullAgencyData.technical?.id) return
-                                setLoadingHistory(true)
-                                setIsNotesHistoryDialogOpen(true)
-                                try {
-                                  const response = await fetch(
-                                    `/api/technical/${fullAgencyData.technical.id}/history`
-                                  )
-                                  if (response.ok) {
-                                    const data = await response.json()
-                                    setNotesHistory(data)
-                                  }
-                                } catch (error) {
-                                  console.error("Error loading history:", error)
-                                } finally {
-                                  setLoadingHistory(false)
-                                }
-                              }}
-                            >
-                              Historique
-                            </Button>
-                          )}
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        {editing || editingTechnical ? (
-                          <Textarea
-                            value={technicalData.technicalNotes || ""}
-                            onChange={(e) => {
-                              const newValue = e.target.value
-                              // Empêcher les non-Super Admin de vider les notes si elles existent déjà
-                              const hasExistingNotes = fullAgencyData?.technical?.technicalNotes && fullAgencyData.technical.technicalNotes.trim() !== ""
-                              if (newValue === "" && hasExistingNotes && userRole !== "Super Admin") {
-                                alert("Seul le Super Admin peut supprimer les notes techniques")
-                                return
-                              }
-                              setTechnicalData({ ...technicalData, technicalNotes: newValue })
-                            }}
-                            placeholder="Notes techniques..."
-                            rows={6}
-                          />
-                        ) : (
-                          <div className="whitespace-pre-wrap min-h-[100px] p-4 bg-muted/50 rounded-md">
-                            {latestTechnicalNotes !== null && latestTechnicalNotes !== "" 
-                              ? latestTechnicalNotes 
-                              : (fullAgencyData.technical?.technicalNotes && fullAgencyData.technical.technicalNotes !== ""
-                                  ? fullAgencyData.technical.technicalNotes
-                                  : "Aucune note")}
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-
-                    {/* Champs dynamiques */}
-                    <Card>
-                      <CardHeader>
-                        <div className="flex items-center justify-between">
-                          <CardTitle>Champs dynamiques</CardTitle>
-                          {editing && (
-                            <Button
-                              onClick={() => setIsDynamicFieldDialogOpen(true)}
-                              size="sm"
-                              className="gap-2"
-                            >
-                              <Plus className="h-4 w-4" />
-                              Ajouter
-                            </Button>
-                          )}
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        {fullAgencyData.technical?.dynamicFields &&
-                        fullAgencyData.technical.dynamicFields.length > 0 ? (
-                          <div className="space-y-2">
-                            {fullAgencyData.technical.dynamicFields
-                              .sort((a, b) => a.order - b.order)
-                              .map((field) => (
-                                <div
-                                  key={field.id}
-                                  className="border p-3 rounded flex items-center justify-between"
-                                >
-                                  <div>
-                                    <span className="font-semibold">{field.key}:</span> {field.value}
-                                  </div>
-                                  {editing && (
-                                    <div className="flex gap-2">
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => {
-                                          setSelectedDynamicField(field)
-                                          setIsDynamicFieldDialogOpen(true)
-                                        }}
-                                      >
-                                        <Edit className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={async () => {
-                                          if (!confirm("Supprimer ce champ ?")) return
-                                          try {
-                                            const response = await fetch(`/api/dynamic-fields/${field.id}`, {
-                                              method: "DELETE",
-                                            })
-                                            if (response.ok) {
-                                              await loadAgencyDetails(selectedAgency!.id)
-                                            }
-                                          } catch (error) {
-                                            console.error("Error deleting dynamic field:", error)
-                                          }
-                                        }}
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </Button>
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-                          </div>
-                        ) : (
-                          <div className="text-muted-foreground">Aucun champ dynamique</div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </>
-                )}
-              </TabsContent>
-
-              <TabsContent value="photos" className="space-y-2 sm:space-y-4 pt-2 sm:pt-4 mt-0">
-                <Card>
-                  <CardHeader>
-                    <div className="flex flex-col gap-4">
-                      <div className="flex items-center justify-between">
-                        <CardTitle>Photos</CardTitle>
-                        {editing && (
-                          <Button onClick={handleAddPhotoGroup} size="sm" className="gap-2">
-                            <Plus className="h-4 w-4" />
-                            Ajouter
-                          </Button>
-                        )}
-                      </div>
-                      {/* Champ de recherche */}
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          type="text"
-                          placeholder="Rechercher par libellé ou type de photo..."
-                          value={photoSearch}
-                          onChange={(e) => setPhotoSearch(e.target.value)}
-                          className="pl-9 pr-9"
-                        />
-                        {photoSearch && (
-                          <button
-                            type="button"
-                            onClick={() => setPhotoSearch("")}
-                            className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground hover:text-foreground transition-colors"
-                            aria-label="Effacer la recherche"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    {fullAgencyData.photos && fullAgencyData.photos.length > 0 ? (
-                      (() => {
-                        // Normaliser le terme de recherche (minuscules, sans accents)
-                        const normalizeSearch = (text: string) => {
-                          return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-                        }
-                        const searchTerm = normalizeSearch(photoSearch)
-
-                        // Grouper toutes les photos par type (toutes les photos d'un même type ensemble)
-                        const photosByType = fullAgencyData.photos.reduce((acc, photoGroup) => {
-                          const type = photoGroup.type
-                          const photos = JSON.parse(photoGroup.photos || "[]")
-                          if (!acc[type]) {
-                            acc[type] = []
-                          }
-                          // Ajouter toutes les photos du groupe avec leur titre et date
-                          photos.forEach((photo: string | { path: string; createdAt?: string; title?: string }) => {
-                            // Normaliser : gérer les strings (ancien format) et les objets (nouveau format)
-                            const photoPath = typeof photo === "string" ? photo : photo.path
-                            const createdAt = typeof photo === "string" ? null : (photo.createdAt || null)
-                            // Utiliser le titre de la photo si disponible, sinon celui du groupe (rétrocompatibilité)
-                            const photoTitle = typeof photo === "object" && photo.title !== undefined 
-                              ? photo.title 
-                              : (photoGroup.title || "")
-                            
-                            // Filtrer selon la recherche : par libellé (title) ou par type
-                            const matchesSearch = !searchTerm || 
-                              normalizeSearch(photoTitle).includes(searchTerm) ||
-                              normalizeSearch(type).includes(searchTerm)
-                            
-                            if (matchesSearch) {
-                              acc[type].push({
-                                url: photoPath,
-                                title: photoTitle,
-                                createdAt: createdAt,
-                                type: photoGroup.type,
-                                photoGroupId: photoGroup.id,
-                              })
-                            }
-                          })
-                          return acc
-                        }, {} as Record<string, Array<{ url: string; title?: string; createdAt: string | null; type: string; photoGroupId: string }>>)
-
-                        // Filtrer les types qui ont des photos après le filtrage
-                        const photoTypes = Object.keys(photosByType)
-                          .filter(type => photosByType[type].length > 0)
-                          .sort()
-                        const defaultTab = photoTypes.length > 0 ? photoTypes[0] : ""
-                        
-                        // Initialiser le tab sélectionné si vide ou si le type n'existe plus
-                        if (!selectedPhotoTypeTab || !photoTypes.includes(selectedPhotoTypeTab)) {
-                          if (defaultTab && selectedPhotoTypeTab !== defaultTab) {
-                            setSelectedPhotoTypeTab(defaultTab)
-                          }
-                        }
-
-                        // Si aucune photo ne correspond à la recherche
-                        if (photoTypes.length === 0) {
-                          return (
-                            <div className="text-muted-foreground text-center py-8">
-                              {photoSearch ? (
-                                <>Aucune photo ne correspond à la recherche &quot;{photoSearch}&quot;</>
-                              ) : (
-                                <>Aucune photo enregistrée</>
-                              )}
-                            </div>
-                          )
-                        }
-
-                        return (
-                          <Tabs 
-                            value={selectedPhotoTypeTab || defaultTab} 
-                            onValueChange={setSelectedPhotoTypeTab}
-                            className="w-full"
-                          >
-                            <div className="w-full mb-4 clear-both">
-                              <TabsList className="bg-background w-full sm:w-auto flex flex-wrap gap-1 sm:gap-0 sm:inline-flex h-auto sm:h-10" style={{ backgroundColor: 'hsl(var(--background))' }}>
-                                {photoTypes.map((type) => (
-                                  <TabsTrigger 
-                                    key={type} 
-                                    value={type}
-                                    className="text-xs sm:text-sm min-h-[44px] flex-shrink-0"
-                                  >
-                                    {type} ({photosByType[type].length})
-                                  </TabsTrigger>
-                                ))}
-                              </TabsList>
-                            </div>
-                            
-                            {photoTypes.map((type) => {
-                              const photos = photosByType[type]
-                              return (
-                                <TabsContent key={type} value={type} className="mt-0 clear-both">
-                                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                                    {photos.map((photo, index) => {
-                                      // Trouver le PhotoGroup qui contient cette photo
-                                      const photoGroup = fullAgencyData.photos?.find(
-                                        (pg) => pg.id === photo.photoGroupId
-                                      )
-                                      const photoIndex = photoGroup
-                                        ? JSON.parse(photoGroup.photos || "[]").findIndex((p: string | { path: string; createdAt?: string }) => {
-                                            const path = typeof p === "string" ? p : p.path
-                                            return path === photo.url
-                                          })
-                                        : -1
-
-                                      return (
+                              </CardHeader>
+                              <CardContent>
+                                {fullAgencyData.technical?.dynamicFields &&
+                                  fullAgencyData.technical.dynamicFields.length > 0 ? (
+                                  <div className="space-y-2">
+                                    {fullAgencyData.technical.dynamicFields
+                                      .sort((a, b) => a.order - b.order)
+                                      .map((field) => (
                                         <div
-                                          key={`${photo.photoGroupId}-${index}`}
-                                          className="relative flex flex-col aspect-square w-full bg-gray-100 dark:bg-secondary rounded overflow-hidden group"
+                                          key={field.id}
+                                          className="border p-3 rounded flex items-center justify-between"
                                         >
-                                          {/* Image cliquable pour lightbox */}
-                                          <div
-                                            className="flex-1 flex items-center justify-center overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
-                                            onClick={() => {
-                                              // Récupérer toutes les photos du même type pour la lightbox
-                                              const allPhotosOfType = fullAgencyData.photos
-                                                ?.filter((pg) => pg.type === type)
-                                                .flatMap((pg) => {
-                                                  const pgPhotos = JSON.parse(pg.photos || "[]")
-                                                  return pgPhotos.map((p: string | { path: string; createdAt?: string; title?: string }) => {
-                                                    const path = typeof p === "string" ? p : p.path
-                                                    const createdAt = typeof p === "string" ? null : (p.createdAt || null)
-                                                    const photoTitle = typeof p === "object" && p.title !== undefined 
-                                                      ? p.title 
-                                                      : (pg.title || "")
-                                                    return {
-                                                      url: path,
-                                                      title: photoTitle,
-                                                      createdAt: createdAt,
-                                                      type: pg.type,
-                                                    }
-                                                  })
-                                                }) || []
-
-                                              // Trouver l'index de la photo cliquée
-                                              const currentIndex = allPhotosOfType.findIndex((p) => p.url === photo.url)
-                                              setLightboxPhotos(allPhotosOfType)
-                                              setLightboxCurrentIndex(currentIndex >= 0 ? currentIndex : 0)
-                                              setZoomLevel(1)
-                                              setZoomPosition({ x: 0, y: 0 })
-                                              setHasDragged(false)
-                                              setLightboxOpen(true)
-                                            }}
-                                          >
-                                            <div className="relative w-full h-full">
-                                              <Image
-                                                src={photo.url}
-                                                alt={`${type} ${index + 1}`}
-                                                fill
-                                                className="object-contain"
-                                                unoptimized
-                                              />
-                                            </div>
+                                          <div>
+                                            <span className="font-semibold">{field.key}:</span> {field.value}
                                           </div>
-                                          {/* Titre et date en bas */}
-                                          {(photo.title || photo.createdAt) && (
-                                            <div className="bg-black/60 text-white text-xs px-2 py-1 flex items-center justify-between gap-2">
-                                              <span className="truncate flex-1">{photo.title || ""}</span>
-                                              {photo.createdAt && (
-                                                <span className="text-white/80 text-[10px] whitespace-nowrap">
-                                                  {new Date(photo.createdAt).toLocaleDateString("fr-FR", {
-                                                    day: "2-digit",
-                                                    month: "2-digit",
-                                                    year: "numeric"
-                                                  })}
-                                                </span>
-                                              )}
-                                            </div>
-                                          )}
-                                          {/* Boutons d'action en mode édition */}
                                           {editing && (
-                                            <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <div className="flex gap-2">
                                               <Button
-                                                variant="secondary"
+                                                variant="ghost"
                                                 size="sm"
-                                                className="h-6 w-6 p-0"
-                                                onClick={(e) => {
-                                                  e.stopPropagation()
-                                                  // Ouvrir le dialog d'édition du titre et de la date de cette photo spécifique
-                                                  setEditingPhotoUrl(photo.url)
-                                                  setEditingPhotoGroupId(photoGroup?.id || "")
-                                                  setEditingPhotoTitle(photo.title || "")
-                                                  // Initialiser la date de création : utiliser createdAt si disponible, sinon date du jour
-                                                  const photoCreatedAt = photo.createdAt 
-                                                    ? new Date(photo.createdAt).toISOString().split('T')[0]
-                                                    : new Date().toISOString().split('T')[0]
-                                                  setEditingPhotoCreatedAt(photoCreatedAt)
-                                                  setIsEditPhotoTitleDialogOpen(true)
+                                                onClick={() => {
+                                                  setSelectedDynamicField(field)
+                                                  setIsDynamicFieldDialogOpen(true)
                                                 }}
-                                                title="Modifier le titre"
                                               >
-                                                <Edit className="h-3 w-3" />
+                                                <Edit className="h-4 w-4" />
                                               </Button>
                                               <Button
-                                                variant="destructive"
+                                                variant="ghost"
                                                 size="sm"
-                                                className="h-6 w-6 p-0"
-                                                onClick={(e) => {
-                                                  e.stopPropagation()
-                                                  handleDeletePhoto(photoGroup?.id || "", photo.url)
-                                                }}
-                                                title="Supprimer la photo"
+                                                onClick={() => openConfirm({
+                                                  title: "Supprimer le champ",
+                                                  description: "Supprimer ce champ ?",
+                                                  onConfirm: async () => {
+                                                    setConfirmLoading(true)
+                                                    try {
+                                                      const response = await apiFetch(`/api/dynamic-fields/${field.id}`, { method: "DELETE" })
+                                                      if (response.ok) {
+                                                        await loadAgencyDetails(selectedAgency!.id)
+                                                        toast({ title: "Champ supprimé", variant: "success" })
+                                                      } else showError("Erreur lors de la suppression")
+                                                    } catch (error) {
+                                                      console.error("Error deleting dynamic field:", error)
+                                                      showError("Erreur lors de la suppression")
+                                                    } finally {
+                                                      setConfirmLoading(false)
+                                                    }
+                                                  },
+                                                })}
                                               >
-                                                <Trash2 className="h-3 w-3" />
+                                                <Trash2 className="h-4 w-4" />
                                               </Button>
                                             </div>
                                           )}
                                         </div>
+                                      ))}
+                                  </div>
+                                ) : (
+                                  <div className="text-muted-foreground">Aucun champ dynamique</div>
+                                )}
+                              </CardContent>
+                            </Card>
+                          </>
+                        )}
+                      </TabsContent>
+
+                      <TabsContent value="photos" className="space-y-2 sm:space-y-4 pt-2 sm:pt-4 mt-0">
+                        <Card>
+                          <CardHeader>
+                            <div className="flex flex-col gap-4">
+                              <div className="flex items-center justify-between">
+                                <CardTitle>Photos</CardTitle>
+                                {editing && (
+                                  <Button onClick={handleAddPhotoGroup} size="sm" className="gap-2">
+                                    <Plus className="h-4 w-4" />
+                                    Ajouter
+                                  </Button>
+                                )}
+                              </div>
+                              {/* Champ de recherche */}
+                              <div className="relative">
+                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                  type="text"
+                                  placeholder="Rechercher par libellé ou type de photo..."
+                                  value={photoSearch}
+                                  onChange={(e) => setPhotoSearch(e.target.value)}
+                                  className="pl-9 pr-9"
+                                />
+                                {photoSearch && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setPhotoSearch("")}
+                                    className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground hover:text-foreground transition-colors"
+                                    aria-label="Effacer la recherche"
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            {fullAgencyData.photos && fullAgencyData.photos.length > 0 ? (
+                              (() => {
+                                // Normaliser le terme de recherche (minuscules, sans accents)
+                                const normalizeSearch = (text: string) => {
+                                  return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+                                }
+                                const searchTerm = normalizeSearch(photoSearch)
+
+                                // Grouper toutes les photos par type (toutes les photos d'un même type ensemble)
+                                const photosByType = fullAgencyData.photos.reduce((acc, photoGroup) => {
+                                  const type = photoGroup.type
+                                  const photos = JSON.parse(photoGroup.photos || "[]")
+                                  if (!acc[type]) {
+                                    acc[type] = []
+                                  }
+                                  // Ajouter toutes les photos du groupe avec leur titre et date
+                                  photos.forEach((photo: string | { path: string; createdAt?: string; title?: string }) => {
+                                    // Normaliser : gérer les strings (ancien format) et les objets (nouveau format)
+                                    const photoPath = typeof photo === "string" ? photo : photo.path
+                                    const createdAt = typeof photo === "string" ? null : (photo.createdAt || null)
+                                    // Utiliser le titre de la photo si disponible, sinon celui du groupe (rétrocompatibilité)
+                                    const photoTitle = typeof photo === "object" && photo.title !== undefined
+                                      ? photo.title
+                                      : (photoGroup.title || "")
+
+                                    // Filtrer selon la recherche : par libellé (title) ou par type
+                                    const matchesSearch = !searchTerm ||
+                                      normalizeSearch(photoTitle).includes(searchTerm) ||
+                                      normalizeSearch(type).includes(searchTerm)
+
+                                    if (matchesSearch) {
+                                      acc[type].push({
+                                        url: photoPath,
+                                        title: photoTitle,
+                                        createdAt: createdAt,
+                                        type: photoGroup.type,
+                                        photoGroupId: photoGroup.id,
+                                      })
+                                    }
+                                  })
+                                  return acc
+                                }, {} as Record<string, Array<{ url: string; title?: string; createdAt: string | null; type: string; photoGroupId: string }>>)
+
+                                // Filtrer les types qui ont des photos après le filtrage
+                                const photoTypes = Object.keys(photosByType)
+                                  .filter(type => photosByType[type].length > 0)
+                                  .sort()
+                                const defaultTab = photoTypes.length > 0 ? photoTypes[0] : ""
+
+                                // Initialiser le tab sélectionné si vide ou si le type n'existe plus
+                                if (!selectedPhotoTypeTab || !photoTypes.includes(selectedPhotoTypeTab)) {
+                                  if (defaultTab && selectedPhotoTypeTab !== defaultTab) {
+                                    setSelectedPhotoTypeTab(defaultTab)
+                                  }
+                                }
+
+                                // Si aucune photo ne correspond à la recherche
+                                if (photoTypes.length === 0) {
+                                  return (
+                                    <div className="text-muted-foreground text-center py-8">
+                                      {photoSearch ? (
+                                        <>Aucune photo ne correspond à la recherche &quot;{photoSearch}&quot;</>
+                                      ) : (
+                                        <>Aucune photo enregistrée</>
+                                      )}
+                                    </div>
+                                  )
+                                }
+
+                                return (
+                                  <Tabs
+                                    value={selectedPhotoTypeTab || defaultTab}
+                                    onValueChange={setSelectedPhotoTypeTab}
+                                    className="w-full"
+                                  >
+                                    <div className="w-full mb-4 clear-both">
+                                      <TabsList className="bg-background w-full sm:w-auto flex flex-wrap gap-1 sm:gap-0 sm:inline-flex h-auto sm:h-10" style={{ backgroundColor: 'hsl(var(--background))' }}>
+                                        {photoTypes.map((type) => (
+                                          <TabsTrigger
+                                            key={type}
+                                            value={type}
+                                            className="text-xs sm:text-sm min-h-[44px] flex-shrink-0"
+                                          >
+                                            {type} ({photosByType[type].length})
+                                          </TabsTrigger>
+                                        ))}
+                                      </TabsList>
+                                    </div>
+
+                                    {photoTypes.map((type) => {
+                                      const photos = photosByType[type]
+                                      return (
+                                        <TabsContent key={type} value={type} className="mt-0 clear-both">
+                                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                                            {photos.map((photo, index) => {
+                                              // Trouver le PhotoGroup qui contient cette photo
+                                              const photoGroup = fullAgencyData.photos?.find(
+                                                (pg) => pg.id === photo.photoGroupId
+                                              )
+                                              const photoIndex = photoGroup
+                                                ? JSON.parse(photoGroup.photos || "[]").findIndex((p: string | { path: string; createdAt?: string }) => {
+                                                  const path = typeof p === "string" ? p : p.path
+                                                  return path === photo.url
+                                                })
+                                                : -1
+
+                                              return (
+                                                <div
+                                                  key={`${photo.photoGroupId}-${index}`}
+                                                  className="relative flex flex-col aspect-square w-full bg-gray-100 dark:bg-secondary rounded overflow-hidden group"
+                                                >
+                                                  {/* Image cliquable pour lightbox */}
+                                                  <div
+                                                    className="flex-1 flex items-center justify-center overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+                                                    onClick={() => {
+                                                      // Récupérer toutes les photos du même type pour la lightbox
+                                                      const allPhotosOfType = fullAgencyData.photos
+                                                        ?.filter((pg) => pg.type === type)
+                                                        .flatMap((pg) => {
+                                                          const pgPhotos = JSON.parse(pg.photos || "[]")
+                                                          return pgPhotos.map((p: string | { path: string; createdAt?: string; title?: string }) => {
+                                                            const path = typeof p === "string" ? p : p.path
+                                                            const createdAt = typeof p === "string" ? null : (p.createdAt || null)
+                                                            const photoTitle = typeof p === "object" && p.title !== undefined
+                                                              ? p.title
+                                                              : (pg.title || "")
+                                                            return {
+                                                              url: path,
+                                                              title: photoTitle,
+                                                              createdAt: createdAt,
+                                                              type: pg.type,
+                                                            }
+                                                          })
+                                                        }) || []
+
+                                                      // Trouver l'index de la photo cliquée
+                                                      const currentIndex = allPhotosOfType.findIndex((p) => p.url === photo.url)
+                                                      setLightboxPhotos(allPhotosOfType)
+                                                      setLightboxCurrentIndex(currentIndex >= 0 ? currentIndex : 0)
+                                                      setZoomLevel(1)
+                                                      setZoomPosition({ x: 0, y: 0 })
+                                                      setHasDragged(false)
+                                                      setLightboxOpen(true)
+                                                    }}
+                                                  >
+                                                    <div className="relative w-full h-full">
+                                                      <Image
+                                                        src={photo.url}
+                                                        alt={`${type} ${index + 1}`}
+                                                        fill
+                                                        className="object-contain"
+                                                        unoptimized
+                                                      />
+                                                    </div>
+                                                  </div>
+                                                  {/* Titre et date en bas */}
+                                                  {(photo.title || photo.createdAt) && (
+                                                    <div className="bg-black/60 text-white text-xs px-2 py-1 flex items-center justify-between gap-2">
+                                                      <span className="truncate flex-1">{photo.title || ""}</span>
+                                                      {photo.createdAt && (
+                                                        <span className="text-white/80 text-[10px] whitespace-nowrap">
+                                                          {new Date(photo.createdAt).toLocaleDateString("fr-FR", {
+                                                            day: "2-digit",
+                                                            month: "2-digit",
+                                                            year: "numeric"
+                                                          })}
+                                                        </span>
+                                                      )}
+                                                    </div>
+                                                  )}
+                                                  {/* Boutons d'action en mode édition */}
+                                                  {editing && (
+                                                    <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                      <Button
+                                                        variant="secondary"
+                                                        size="sm"
+                                                        className="h-6 w-6 p-0"
+                                                        onClick={(e) => {
+                                                          e.stopPropagation()
+                                                          // Ouvrir le dialog d'édition du titre et de la date de cette photo spécifique
+                                                          setEditingPhotoUrl(photo.url)
+                                                          setEditingPhotoGroupId(photoGroup?.id || "")
+                                                          setEditingPhotoTitle(photo.title || "")
+                                                          // Initialiser la date de création : utiliser createdAt si disponible, sinon date du jour
+                                                          const photoCreatedAt = photo.createdAt
+                                                            ? new Date(photo.createdAt).toISOString().split('T')[0]
+                                                            : new Date().toISOString().split('T')[0]
+                                                          setEditingPhotoCreatedAt(photoCreatedAt)
+                                                          setIsEditPhotoTitleDialogOpen(true)
+                                                        }}
+                                                        title="Modifier le titre"
+                                                      >
+                                                        <Edit className="h-3 w-3" />
+                                                      </Button>
+                                                      <Button
+                                                        variant="destructive"
+                                                        size="sm"
+                                                        className="h-6 w-6 p-0"
+                                                        onClick={(e) => {
+                                                          e.stopPropagation()
+                                                          handleDeletePhoto(photoGroup?.id || "", photo.url)
+                                                        }}
+                                                        title="Supprimer la photo"
+                                                      >
+                                                        <Trash2 className="h-3 w-3" />
+                                                      </Button>
+                                                    </div>
+                                                  )}
+                                                </div>
+                                              )
+                                            })}
+                                          </div>
+                                        </TabsContent>
                                       )
                                     })}
-                                  </div>
-                                </TabsContent>
-                              )
-                            })}
-                          </Tabs>
-                        )
-                      })()
-                    ) : (
-                      <div className="text-muted-foreground">
-                        Aucune photo enregistrée
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
-                </div>
-              </div>
-            </Tabs>
-          </>
-          </div>
-        ) : selectedAgency ? (
+                                  </Tabs>
+                                )
+                              })()
+                            ) : (
+                              <div className="text-muted-foreground">
+                                Aucune photo enregistrée
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </TabsContent>
+                    </div>
+                  </div>
+                </Tabs>
+              </>
+            </div>
+          ) : selectedAgency ? (
             <div className="p-6 flex items-center justify-center h-full text-muted-foreground">
               <div className="animate-pulse">Chargement des détails...</div>
             </div>
           ) : (
-            <div className="p-6 flex items-center justify-center h-full text-muted-foreground">
-              Sélectionnez une agence
-            </div>
+            <DashboardCockpit
+              userRole={userRole}
+              onSelectAgencyId={(id) => {
+                const agency = agencies.find((a) => a.id === id)
+                if (agency) handleSelectAgency(agency)
+              }}
+            />
           )}
         </div>
       </div>
-      
+
       {/* Dialog de création agence */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent className="max-w-[95vw] sm:max-w-lg">
+          <DialogTitle className="sr-only">Dialogue</DialogTitle>
           <DialogHeader>
             <DialogTitle>Nouvelle agence</DialogTitle>
             <DialogDescription>
@@ -5430,6 +5611,7 @@ export default function AgencesPage() {
       {/* Dialog adresse */}
       <Dialog open={isAddressDialogOpen} onOpenChange={setIsAddressDialogOpen}>
         <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogTitle className="sr-only">Dialogue</DialogTitle>
           <DialogHeader>
             <DialogTitle>
               {selectedAddress ? "Modifier l'adresse" : "Nouvelle adresse"}
@@ -5565,6 +5747,7 @@ export default function AgencesPage() {
       {/* Dialog contact */}
       <Dialog open={isContactDialogOpen} onOpenChange={setIsContactDialogOpen}>
         <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogTitle className="sr-only">Dialogue</DialogTitle>
           <DialogHeader>
             <DialogTitle>
               {selectedContact ? "Modifier le contact" : "Nouveau contact"}
@@ -5665,13 +5848,12 @@ export default function AgencesPage() {
                 maxLength={1000}
               />
               {contactNote.length > 100 && (
-                <p className={`text-xs mt-1 ${
-                  contactNote.length > 1000 
-                    ? "text-destructive" 
-                    : contactNote.length > 900 
-                    ? "text-orange-600 dark:text-orange-400" 
+                <p className={`text-xs mt-1 ${contactNote.length > 1000
+                  ? "text-destructive"
+                  : contactNote.length > 900
+                    ? "text-orange-600 dark:text-orange-400"
                     : "text-muted-foreground"
-                }`}>
+                  }`}>
                   {contactNote.length} / 1000 caractères
                 </p>
               )}
@@ -5700,6 +5882,7 @@ export default function AgencesPage() {
       {/* Dialog photos */}
       <Dialog open={isPhotoDialogOpen} onOpenChange={setIsPhotoDialogOpen}>
         <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogTitle className="sr-only">Dialogue</DialogTitle>
           <DialogHeader>
             <DialogTitle>
               {selectedPhotoGroup ? "Modifier le groupe de photos" : "Nouveau groupe de photos"}
@@ -5745,11 +5928,11 @@ export default function AgencesPage() {
                 onChange={(e) => {
                   const files = Array.from(e.target.files || [])
                   const MAX_SIZE = maxImageSizeMB * 1024 * 1024 // Convertir Mo en octets
-                  
+
                   // Vérifier la taille de chaque fichier
                   const validFiles: File[] = []
                   const invalidFiles: string[] = []
-                  
+
                   files.forEach((file) => {
                     if (file.size > MAX_SIZE) {
                       invalidFiles.push(file.name)
@@ -5757,14 +5940,14 @@ export default function AgencesPage() {
                       validFiles.push(file)
                     }
                   })
-                  
+
                   // Afficher un message d'erreur si des fichiers sont trop volumineux
                   if (invalidFiles.length > 0) {
-                    alert(
+                    showError(
                       `Les fichiers suivants dépassent la taille maximale de ${maxImageSizeMB} MB et n'ont pas été ajoutés :\n${invalidFiles.join("\n")}\n\nLa taille maximale autorisée est de ${maxImageSizeMB} MB par fichier.`
                     )
                   }
-                  
+
                   setPhotoFiles(validFiles)
                 }}
               />
@@ -5831,6 +6014,7 @@ export default function AgencesPage() {
       {/* Dialog édition titre photo individuelle */}
       <Dialog open={isEditPhotoTitleDialogOpen} onOpenChange={setIsEditPhotoTitleDialogOpen}>
         <DialogContent className="max-w-[95vw] sm:max-w-md">
+          <DialogTitle className="sr-only">Dialogue</DialogTitle>
           <DialogHeader>
             <DialogTitle>Modifier la photo</DialogTitle>
           </DialogHeader>
@@ -5891,6 +6075,7 @@ export default function AgencesPage() {
       {/* Dialog PC */}
       <Dialog open={isPCDialogOpen} onOpenChange={setIsPCDialogOpen}>
         <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogTitle className="sr-only">Dialogue</DialogTitle>
           <DialogHeader>
             <DialogTitle>{selectedPC ? "Modifier le PC" : "Nouveau PC"}</DialogTitle>
           </DialogHeader>
@@ -5908,6 +6093,7 @@ export default function AgencesPage() {
       {/* Dialog Imprimante */}
       <Dialog open={isPrinterDialogOpen} onOpenChange={setIsPrinterDialogOpen}>
         <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogTitle className="sr-only">Dialogue</DialogTitle>
           <DialogHeader>
             <DialogTitle>
               {selectedPrinter ? "Modifier l'imprimante" : "Nouvelle imprimante"}
@@ -5927,6 +6113,7 @@ export default function AgencesPage() {
       {/* Dialog Point d'accès Wifi */}
       <Dialog open={isWifiAPDialogOpen} onOpenChange={setIsWifiAPDialogOpen}>
         <DialogContent>
+          <DialogTitle className="sr-only">Dialogue</DialogTitle>
           <DialogHeader>
             <DialogTitle>
               {selectedWifiAP ? "Modifier le point d'accès" : "Nouveau point d'accès Wifi"}
@@ -5958,11 +6145,11 @@ export default function AgencesPage() {
                   setSelectedWifiAP(null)
                 } else {
                   const error = await response.json()
-                  alert(error.error || "Erreur lors de la sauvegarde")
+                  showError(error.error || "Erreur lors de la sauvegarde")
                 }
               } catch (error) {
                 console.error("Error saving wifi AP:", error)
-                alert("Erreur lors de la sauvegarde")
+                showError("Erreur lors de la sauvegarde")
               }
             }}
             onCancel={() => {
@@ -5976,6 +6163,7 @@ export default function AgencesPage() {
       {/* Dialog Caméra */}
       <Dialog open={isCameraDialogOpen} onOpenChange={setIsCameraDialogOpen}>
         <DialogContent>
+          <DialogTitle className="sr-only">Dialogue</DialogTitle>
           <DialogHeader>
             <DialogTitle>{selectedCamera ? "Modifier la caméra" : "Nouvelle caméra"}</DialogTitle>
           </DialogHeader>
@@ -6003,11 +6191,11 @@ export default function AgencesPage() {
                   setSelectedCamera(null)
                 } else {
                   const error = await response.json()
-                  alert(error.error || "Erreur lors de la sauvegarde")
+                  showError(error.error || "Erreur lors de la sauvegarde")
                 }
               } catch (error) {
                 console.error("Error saving camera:", error)
-                alert("Erreur lors de la sauvegarde")
+                showError("Erreur lors de la sauvegarde")
               }
             }}
             onCancel={() => {
@@ -6021,6 +6209,7 @@ export default function AgencesPage() {
       {/* Dialog Champ dynamique */}
       <Dialog open={isDynamicFieldDialogOpen} onOpenChange={setIsDynamicFieldDialogOpen}>
         <DialogContent>
+          <DialogTitle className="sr-only">Dialogue</DialogTitle>
           <DialogHeader>
             <DialogTitle>
               {selectedDynamicField ? "Modifier le champ" : "Nouveau champ dynamique"}
@@ -6057,11 +6246,11 @@ export default function AgencesPage() {
                   setSelectedDynamicField(null)
                 } else {
                   const error = await response.json()
-                  alert(error.error || "Erreur lors de la sauvegarde")
+                  showError(error.error || "Erreur lors de la sauvegarde")
                 }
               } catch (error) {
                 console.error("Error saving dynamic field:", error)
-                alert("Erreur lors de la sauvegarde")
+                showError("Erreur lors de la sauvegarde")
               }
             }}
             onCancel={() => {
@@ -6099,7 +6288,7 @@ export default function AgencesPage() {
             {/* Photo agrandie - Plein écran */}
             <div className="relative w-full h-full flex flex-col items-center justify-center">
               <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
-                <div 
+                <div
                   className="relative w-full h-full"
                   onWheel={handleZoom}
                   onMouseDown={handleMouseDown}
@@ -6165,6 +6354,7 @@ export default function AgencesPage() {
       {/* Dialog Création Tâche */}
       <Dialog open={isTaskDialogOpen} onOpenChange={setIsTaskDialogOpen}>
         <DialogContent>
+          <DialogTitle className="sr-only">Dialogue</DialogTitle>
           <DialogHeader>
             <DialogTitle>Nouvelle tâche</DialogTitle>
             <DialogDescription>
@@ -6228,7 +6418,7 @@ export default function AgencesPage() {
                 onChange={async (e) => {
                   const files = Array.from(e.target.files || [])
                   if ((taskFormData.photos?.length || 0) + files.length > maxPhotosPerTask) {
-                    alert(`Maximum ${maxPhotosPerTask} photo(s) autorisée(s)`)
+                    showError(`Maximum ${maxPhotosPerTask} photo(s) autorisée(s)`)
                     return
                   }
                   for (const file of files) {
@@ -6253,11 +6443,11 @@ export default function AgencesPage() {
                         setTaskPhotos((prev) => [...prev, { path: data.path, preview: URL.createObjectURL(file) }])
                       } else {
                         const error = await response.json()
-                        alert(error.error || "Erreur lors de l'upload")
+                        showError(error.error || "Erreur lors de l'upload")
                       }
                     } catch (error) {
                       console.error("Error uploading photo:", error)
-                      alert("Erreur lors de l'upload")
+                      showError("Erreur lors de l'upload")
                     }
                   }
                   e.target.value = ""
@@ -6321,17 +6511,17 @@ export default function AgencesPage() {
         }
       }}>
         <DialogContent className="max-w-[95vw] sm:max-w-6xl max-h-[90vh] overflow-hidden p-0">
+          <DialogTitle className="sr-only">Dialogue</DialogTitle>
           {viewingImage && (
             <div className="relative w-full h-[85vh] flex items-center justify-center bg-black/90 overflow-hidden">
               {/* Image avec zoom et drag */}
               <div
-                className={`relative w-full h-full flex items-center justify-center ${
-                  imageZoom > 1 
-                    ? "cursor-grab active:cursor-grabbing" 
-                    : viewingImageList.length > 1 
-                      ? "cursor-pointer" 
-                      : ""
-                }`}
+                className={`relative w-full h-full flex items-center justify-center ${imageZoom > 1
+                  ? "cursor-grab active:cursor-grabbing"
+                  : viewingImageList.length > 1
+                    ? "cursor-pointer"
+                    : ""
+                  }`}
                 onWheel={handleImageZoom}
                 onMouseDown={handleImageMouseDown}
                 onMouseMove={handleImageMouseMove}
@@ -6424,6 +6614,7 @@ export default function AgencesPage() {
       {/* Dialog Modification Tâche */}
       <Dialog open={isTaskEditDialogOpen} onOpenChange={setIsTaskEditDialogOpen}>
         <DialogContent>
+          <DialogTitle className="sr-only">Dialogue</DialogTitle>
           <DialogHeader>
             <DialogTitle>Modifier la tâche</DialogTitle>
             <DialogDescription>
@@ -6487,7 +6678,7 @@ export default function AgencesPage() {
                 onChange={async (e) => {
                   const files = Array.from(e.target.files || [])
                   if ((taskFormData.photos?.length || 0) + files.length > maxPhotosPerTask) {
-                    alert(`Maximum ${maxPhotosPerTask} photo(s) autorisée(s)`)
+                    showError(`Maximum ${maxPhotosPerTask} photo(s) autorisée(s)`)
                     return
                   }
                   for (const file of files) {
@@ -6512,11 +6703,11 @@ export default function AgencesPage() {
                         setTaskPhotos((prev) => [...prev, { path: data.path, preview: URL.createObjectURL(file) }])
                       } else {
                         const error = await response.json()
-                        alert(error.error || "Erreur lors de l'upload")
+                        showError(error.error || "Erreur lors de l'upload")
                       }
                     } catch (error) {
                       console.error("Error uploading photo:", error)
-                      alert("Erreur lors de l'upload")
+                      showError("Erreur lors de l'upload")
                     }
                   }
                   e.target.value = ""
@@ -6584,6 +6775,7 @@ export default function AgencesPage() {
       {/* Dialog Historique Notes techniques */}
       <Dialog open={isNotesHistoryDialogOpen} onOpenChange={setIsNotesHistoryDialogOpen}>
         <DialogContent className="max-w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogTitle className="sr-only">Dialogue</DialogTitle>
           <DialogHeader>
             <DialogTitle>Historique des notes techniques</DialogTitle>
             <DialogDescription>
@@ -6620,39 +6812,39 @@ export default function AgencesPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={async () => {
+                        onClick={() => {
                           if (!fullAgencyData?.technical?.id) return
-                          if (
-                            !confirm(
-                              `Êtes-vous sûr de vouloir restaurer la version ${entry.version} ?`
-                            )
-                          )
-                            return
-
-                          try {
-                            const response = await fetch(
-                              `/api/technical/${fullAgencyData.technical.id}/history/restore`,
-                              {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ version: entry.version }),
+                          openConfirm({
+                            title: "Restaurer la version",
+                            description: `Êtes-vous sûr de vouloir restaurer la version ${entry.version} ?`,
+                            confirmLabel: "Restaurer",
+                            variant: "default",
+                            onConfirm: async () => {
+                              setConfirmLoading(true)
+                              try {
+                                const response = await apiFetch(
+                                  `/api/technical/${fullAgencyData!.technical!.id}/history/restore`,
+                                  {
+                                    method: "POST",
+                                    body: JSON.stringify({ version: entry.version }),
+                                  }
+                                )
+                                if (response.ok) {
+                                  setIsNotesHistoryDialogOpen(false)
+                                  if (selectedAgency) loadAgencyDetails(selectedAgency.id)
+                                  toast({ title: "Version restaurée", variant: "success" })
+                                } else {
+                                  const error = await response.json()
+                                  showError(error.error || "Erreur lors de la restauration")
+                                }
+                              } catch (error) {
+                                console.error("Error restoring version:", error)
+                                showError("Erreur lors de la restauration")
+                              } finally {
+                                setConfirmLoading(false)
                               }
-                            )
-
-                            if (response.ok) {
-                              setIsNotesHistoryDialogOpen(false)
-                              // Recharger les données de l'agence
-                              if (selectedAgency) {
-                                loadAgencyDetails(selectedAgency.id)
-                              }
-                            } else {
-                              const error = await response.json()
-                              alert(error.error || "Erreur lors de la restauration")
-                            }
-                          } catch (error) {
-                            console.error("Error restoring version:", error)
-                            alert("Erreur lors de la restauration")
-                          }
+                            },
+                          })
                         }}
                       >
                         Restaurer
@@ -6679,6 +6871,7 @@ export default function AgencesPage() {
       {/* Dialog Historique Agences */}
       <Dialog open={isAgencyHistoryDialogOpen} onOpenChange={setIsAgencyHistoryDialogOpen}>
         <DialogContent className="max-w-[95vw] sm:max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogTitle className="sr-only">Dialogue</DialogTitle>
           <DialogHeader>
             <DialogTitle>Historique de l&apos;agence</DialogTitle>
             <DialogDescription>
@@ -6722,40 +6915,40 @@ export default function AgencesPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={async () => {
+                          onClick={() => {
                             if (!selectedAgency) return
-                            if (
-                              !confirm(
-                                `Êtes-vous sûr de vouloir restaurer la version ${entry.version} ? Cette action est irréversible.`
-                              )
-                            )
-                              return
-
-                            try {
-                              const response = await fetch(
-                                `/api/agencies/${selectedAgency.id}/history/restore`,
-                                {
-                                  method: "POST",
-                                  headers: { "Content-Type": "application/json" },
-                                  body: JSON.stringify({ version: entry.version }),
+                            openConfirm({
+                              title: "Restaurer la version de l'agence",
+                              description: `Êtes-vous sûr de vouloir restaurer la version ${entry.version} ? Cette action est irréversible.`,
+                              confirmLabel: "Restaurer",
+                              variant: "default",
+                              onConfirm: async () => {
+                                setConfirmLoading(true)
+                                try {
+                                  const response = await apiFetch(
+                                    `/api/agencies/${selectedAgency.id}/history/restore`,
+                                    {
+                                      method: "POST",
+                                      body: JSON.stringify({ version: entry.version }),
+                                    }
+                                  )
+                                  if (response.ok) {
+                                    setIsAgencyHistoryDialogOpen(false)
+                                    await loadAgencyDetails(selectedAgency.id)
+                                    await loadAgencies()
+                                    toast({ title: "Version restaurée", variant: "success" })
+                                  } else {
+                                    const error = await response.json()
+                                    showError(error.error || "Erreur lors de la restauration")
+                                  }
+                                } catch (error) {
+                                  console.error("Error restoring version:", error)
+                                  showError("Erreur lors de la restauration")
+                                } finally {
+                                  setConfirmLoading(false)
                                 }
-                              )
-
-                              if (response.ok) {
-                                setIsAgencyHistoryDialogOpen(false)
-                                // Recharger les données de l'agence
-                                if (selectedAgency) {
-                                  await loadAgencyDetails(selectedAgency.id)
-                                  await loadAgencies()
-                                }
-                              } else {
-                                const error = await response.json()
-                                alert(error.error || "Erreur lors de la restauration")
-                              }
-                            } catch (error) {
-                              console.error("Error restoring version:", error)
-                              alert("Erreur lors de la restauration")
-                            }
+                              },
+                            })
                           }}
                         >
                           Restaurer
@@ -7065,6 +7258,65 @@ export default function AgencesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={showDirtyDialog} onOpenChange={setShowDirtyDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-600">
+              <AlertCircle className="h-5 w-5" />
+              Modifications non sauvegardées
+            </DialogTitle>
+            <DialogDescription>
+              Vous avez des modifications en cours qui seront perdues si vous changez d'agence.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 text-sm text-foreground">
+            Voulez-vous abandonner ces modifications et changer d'agence ?
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setShowDirtyDialog(false)}>
+              Annuler
+            </Button>
+            <Button
+              variant="default"
+              className="bg-amber-600 hover:bg-amber-700"
+              onClick={() => {
+                setShowDirtyDialog(false)
+                if (pendingAgencyToSelect) {
+                  startTransition(() => {
+                    setSelectedAgency(pendingAgencyToSelect)
+                    setEditing(false)
+                    setEditingTechnical(false)
+                    setTechnicalData({})
+                    setEditedCodeAgence("")
+                    setEditedCodeRayon("")
+                    setEditedDateOuverture("")
+                    setEditedDateFermeture("")
+                  })
+                  if (isMobile) {
+                    setShowDetailsOnMobile(true)
+                    loadAgencyDetails(pendingAgencyToSelect.id)
+                  }
+                  setPendingAgencyToSelect(null)
+                }
+              }}
+            >
+              Abandonner les modifications
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmDialog
+        open={confirmState.open}
+        onOpenChange={(open) => !open && setConfirmState((p) => ({ ...p, open: false }))}
+        title={confirmState.title}
+        description={confirmState.description}
+        confirmLabel={confirmState.confirmLabel}
+        variant={confirmState.variant}
+        onConfirm={confirmState.onConfirm}
+        loading={confirmLoading}
+      />
     </>
   )
 }

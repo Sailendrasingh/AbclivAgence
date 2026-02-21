@@ -192,11 +192,11 @@ export default function LoginContent() {
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-white/5 rounded-full -translate-x-1/2 translate-y-1/2" />
         <div className="absolute top-1/2 left-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 -translate-x-1/2" />
         <div className="relative z-10">
-          <div className="flex items-center gap-4">
-            <div className="w-96 h-96 shrink-0 rounded-xl bg-white/20 backdrop-blur flex items-center justify-center overflow-hidden" suppressHydrationWarning>
-              <img src="/logo.png" alt="" className="object-contain w-full h-full p-6" suppressHydrationWarning />
+          <div className="flex flex-col xl:flex-row items-start xl:items-center gap-4 xl:gap-6">
+            <div className="w-48 h-48 lg:w-64 lg:h-64 shrink-0 rounded-xl bg-[#000000a8] backdrop-blur flex items-center justify-center overflow-hidden" suppressHydrationWarning>
+              <img src="/logo.png" alt="" className="object-contain w-full h-full p-3" suppressHydrationWarning />
             </div>
-            <span className="text-6xl font-bold text-white leading-none">Gestion Agences</span>
+            <span className="text-4xl lg:text-5xl font-bold text-white leading-tight break-words hyphens-auto">Gestion Agences</span>
           </div>
         </div>
         <div className="relative z-10 space-y-4">
@@ -210,18 +210,18 @@ export default function LoginContent() {
         </div>
       </div>
 
-      <div className="md:hidden pt-8 pb-4 px-6 text-center bg-gradient-to-b from-primary/20 to-transparent dark:from-primary/10">
-        <div className="flex justify-center mb-3">
-          <div className="w-96 h-96 shrink-0 rounded-2xl bg-white/20 dark:bg-white/10 flex items-center justify-center overflow-hidden" suppressHydrationWarning>
-            <img src="/logo.png" alt="Logo Gestion Agences" className="object-contain w-full h-full p-6" suppressHydrationWarning />
+      <div className="md:hidden pt-6 pb-2 px-6 text-center bg-gradient-to-b from-primary/20 to-transparent dark:from-primary/10">
+        <div className="flex justify-center mb-2">
+          <div className="w-48 h-16 shrink-0 rounded-2xl bg-black/10 dark:bg-white/10 flex items-center justify-center overflow-hidden" suppressHydrationWarning>
+            <img src="/logo.png" alt="Logo Gestion Agences" className="object-contain w-full h-full p-3" suppressHydrationWarning />
           </div>
         </div>
         <h1 className="text-xl font-bold text-foreground">Gestion Agences</h1>
         <p className="text-muted-foreground text-sm mt-1">Connectez-vous pour continuer</p>
       </div>
 
-      <div className="flex-1 min-h-screen md:min-h-0 flex items-center justify-center p-6 bg-muted/30 dark:bg-background">
-        <Card className="w-full max-w-md border-border/80 shadow-xl bg-card/95 dark:bg-card backdrop-blur-sm">
+      <div className="flex-1 min-h-screen md:min-h-0 flex items-start md:items-center justify-center p-4 md:p-6 bg-muted/30 dark:bg-background">
+        <Card className="w-full max-w-md border-border/80 shadow-xl bg-card/95 dark:bg-card backdrop-blur-sm mt-2 md:mt-0">
           <CardHeader className="space-y-1.5 pb-4">
             <div className="flex items-center gap-2 text-primary">
               <IconLock className="h-5 w-5" />

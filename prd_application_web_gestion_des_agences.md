@@ -122,19 +122,19 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
 * **Configuration Tailwind** : `darkMode: ["class"]`
 * **Implémentation** : Variables CSS HSL dans `globals.css`
 * **Thème clair** :
-  * Ambiance administrative claire
-  * Couleur principale : **Orange** (HSL: 25 95% 50%)
-  * Dégradé de marque : Orange → Blanc
+  * Ambiance administrative claire (inspirée de CoreUI)
+  * Couleur principale : **Violet / Bleu** (HSL: 241 55% 59%)
+  * Dégradé de marque : Violet → Blanc
   * Surfaces très lisibles (fonds blancs / très clairs)
-  * **Accentuation des sections** : Les Cards et sections utilisent un fond légèrement accentué (`--card: 0 0% 97%`) pour se distinguer du fond de page (`--background: 0 0% 100%`), améliorant la lisibilité et la distinction visuelle
-  * Tokens avec teintes orange subtiles
+  * **Accentuation des sections** : Les Cards et sections utilisent un fond légèrement accentué (`--card: 0 0% 100%`) pour se distinguer du fond de page (`--background: 225 20% 96%`), améliorant la lisibilité et la distinction visuelle
+  * Tokens avec teintes violettes et bordures subtiles (`--radius: 0.375rem`)
 * **Thème sombre** :
-  * Ambiance aérée et moderne avec **Bleu ciel sombre** (Dark Sky Blue)
-  * Couleur principale : **Bleu ciel** (HSL: 200 70% 60%)
-  * Fonds : Bleu ciel très foncé (HSL: 200 30% 11%)
-  * Surfaces : Bleu ciel foncé (HSL: 200 30% 13%)
-  * Dégradé de marque : Bleu ciel → Bleu ciel foncé
-  * Fonds sombres avec contrastes accessibles et tons bleu-gris perle
+  * Ambiance aérée et moderne (inspirée de CoreUI Dark)
+  * Couleur principale : **Violet / Bleu** (HSL: 241 55% 59%)
+  * Fonds : Gris-Bleu très foncé (HSL: 219 19% 14%)
+  * Surfaces : Gris-Bleu foncé (HSL: 217 15% 17%)
+  * Dégradé de marque : Violet → Transparent
+  * Fonds sombres avec contrastes accessibles et tons neutres (`--foreground: 217 13% 86%`)
 * **Fonctionnalités avancées** :
   * **Script inline dans `<head>`** : Évite le FOUC (Flash of Unstyled Content) en appliquant le thème avant le rendu
   * **Persistance localStorage** : Sauvegarde de la préférence utilisateur avec gestion d'erreurs (mode privé, etc.)
@@ -142,7 +142,7 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
   * **Synchronisation temps réel** : Écoute des changements de préférence système et mise à jour automatique (si aucune préférence stockée)
   * **Transitions CSS** : Transitions douces (200ms) entre les thèmes avec respect de `prefers-reduced-motion`
   * **Gestion d'hydratation React** : Évite les flashes pendant l'hydratation avec état `mounted`
-  * **Accessibilité** : Support des navigateurs plus anciens avec fallback `addListener`/`removeListener`, `aria-label` sur le bouton
+  * **Accessibilité** : Support des navigateurs plus anciens avec fallback `addListener`/`removeListener`, `aria-label` sur le bouton. Toutes les modales (composants `Dialog`) exigent impérativement la présence d'un composant `DialogTitle` (affiché ou masqué avec `sr-only`) pour garantir la compatibilité avec les lecteurs d'écran.
 * **Tokens couleurs disponibles** :
   * `background`, `surface`, `card`
   * `text` (via `foreground`), `muted`, `border`
@@ -312,6 +312,8 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
     * Positionnés au niveau du nom de l'agence, à droite
     * Visibles uniquement en mode édition
 * **Menu vertical à gauche (Sidebar)** :
+  * **Largeur (desktop)** : Largeur fixe de **14rem** (224px), calée sur le bouton « Tableau de bord » (icône + texte + padding). La sidebar ne s'élargit pas en fonction du logo ni des autres contenus.
+  * **Largeur (mobile)** : En mode drawer (menu burger), la sidebar occupe **50 %** de la largeur de l'écran (`w-1/2`).
   * **Logo** :
     * Affichage du logo `logo.png` en haut et centré
     * Fond gris (`bg-gray-600`) en thème clair uniquement
@@ -320,6 +322,7 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
     * Logo centré à l'intérieur du fond
   * **Titre** : "Gestion Agences" affiché sous le logo, centré
   * Liste des menus de navigation avec icônes :
+    * **Tableau de bord** : Icône LayoutDashboard, lien vers `/dashboard`
     * **Agences** : Icône Building2
     * **Utilisateurs** : Icône Users (visible uniquement pour Super Admin)
     * **Logs** : Icône FileText (visible uniquement pour Super Admin)
@@ -356,6 +359,12 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
     * **Format d'affichage** : `[Icône] [Nombre] [Label]` (label masqué sur mobile)
 * **Boutons CRUD conditionnels** :
   * Tous les boutons "Ajouter", "Modifier", "Supprimer" dans tous les onglets (Général, Technique, Photos) ne sont visibles **que si le mode édition est activé** (après clic sur Modifier du Master)
+* **Feedback utilisateur et confirmations** :
+  * **Toasts** : Les messages de succès et d'erreur après une action (création, modification, suppression) sont affichés via un système de toasts (notifications temporaires en bas à droite), et non via des boîtes de dialogue natives (`alert`). Variantes : succès (vert), erreur (destructive), information (défaut). Fermeture automatique après 5 secondes ou manuelle.
+  * **Modales de confirmation** : Toutes les actions destructives (suppression d'agence, adresse, contact, tâche, photo, groupe de photos, PC, imprimante, point d'accès WiFi, caméra, champ dynamique) et les restaurations d'historique (notes techniques, agence) utilisent une modale de confirmation réutilisable (composant `ConfirmDialog`) avec titre, description, boutons Annuler et Confirmer/Supprimer/Restaurer. Aucune utilisation de `confirm()` ou `alert()` pour ces cas.
+  * **États de chargement** : Les boutons d'action asynchrones (Enregistrer agence, Supprimer dans la modale, Créer agence, Restaurer) affichent un état de chargement (spinner et libellé « Enregistrement… », « Supprimer… », etc.) et sont désactivés pendant le traitement.
+  * **Champs obligatoires** : Les champs obligatoires peuvent être indiqués visuellement via le composant `Label` avec la prop `required` (astérisque rouge et `aria-required` pour l'accessibilité).
+  * **Erreurs de chargement** : Sur la page Tableau de bord (`/dashboard`), en cas d'échec du chargement des données, un message d'erreur et un bouton « Réessayer » sont affichés pour relancer la requête.
 * **Restrictions d'accès par rôle** :
   * **Menu de navigation** :
     * Boutons "Utilisateurs", "Logs" et "Sauvegardes" : Visibles uniquement pour les utilisateurs avec le rôle **Super Admin**
@@ -542,6 +551,7 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
 * Modèle - **OPTIONNEL**
 * Date achat - **OPTIONNEL**
 * Date garantie - **OPTIONNEL**
+* **Note sur les champs optionnels** : L'interface permet de laisser ces champs vides. L'API convertit silencieusement ces entrées vides (`""`) en valeurs `null` saines pour valider le schéma strict de Prisma et de la base de données.
 * Fichiers - **OPTIONNEL** (JSON array de chemins)
 * Photos - **OPTIONNEL** (JSON array de chemins)
 * **Gestion de l'ordre d'affichage** :
@@ -1031,6 +1041,7 @@ Aucun autre type autorisé.
 ### 11.5 Paramètres de l'application
 
 * **Page Paramètres** : `/dashboard/parametres` (accessible uniquement aux Super Admin)
+* **Fil d'Ariane** : Un fil d'Ariane (breadcrumb) est affiché en haut de la page : « Tableau de bord > Paramètres > [onglet actif] » (Général, Utilisateurs, Sauvegardes, Logs, Monitoring) pour faciliter la navigation et le repérage.
 * **Accès** : Bouton "Paramètres" dans la barre latérale (icône Settings), visible uniquement pour les utilisateurs avec le rôle **Super Admin**
 * **Vérification d'accès** : Si un utilisateur non-Super Admin tente d'accéder à la page, un message "Accès refusé. Cette page est réservée aux Super Admin." est affiché
 * **Onglets disponibles** :
@@ -1214,7 +1225,7 @@ Aucun autre type autorisé.
     * **Accès restreint** : Visible uniquement pour les utilisateurs avec le rôle **Super Admin**
   * **Restauration possible** : Restauration version par version depuis l'interface
     * Dialog affichant toutes les versions avec date, utilisateur et aperçu des données
-    * Bouton "Restaurer" pour chaque version avec confirmation
+    * Bouton "Restaurer" pour chaque version avec modale de confirmation (ConfirmDialog, variant default, libellé « Restaurer »)
     * La restauration crée automatiquement une nouvelle entrée d'historique
   * **Routes API** :
     * `GET /api/agencies/[id]/history` : Récupération de l'historique d'une agence (accès réservé aux **Super Admin**)
@@ -1232,8 +1243,7 @@ Aucun autre type autorisé.
   * Commande : `npm run backup`
   * Format du nom de fichier : `backup-YYYY-MM-DDTHH-mm-ss-sssZ.encrypted.zip` (timestamp ISO)
   * **Format de sauvegarde** : Archive ZIP compressée et chiffrée contenant :
-    * La base de données SQLite complète (chemin fourni par **DATABASE_URL** : ex. `prisma/dev.db` en dev, `/app/data/prod.db` en production)
-    * Dans l'archive, le fichier base est nommé **dev.db** (convention fixe) quel que soit le nom du fichier sur disque
+    * La base de données SQLite complète (`prisma/dev.db`)
     * Le dossier `/uploads` complet avec toutes les photos et fichiers uploadés
   * **Compression** : Niveau de compression maximal (zlib level 9) pour optimiser l'espace disque
   * **Chiffrement** : **AES-256-GCM** (Advanced Encryption Standard avec Galois/Counter Mode)
@@ -1283,21 +1293,18 @@ Aucun autre type autorisé.
         * Pour les sauvegardes `.encrypted.zip` : Déchiffrement automatique puis extraction complète de l'archive (base de données + dossier uploads)
           * **Déchiffrement** : Détection automatique du format chiffré et déchiffrement avec la clé `ENCRYPTION_KEY`
           * **Bibliothèque d'extraction** : `yauzl` (bibliothèque légère sans dépendances externes)
-          * **Chemin de la base** : La base est restaurée dans le chemin défini par **DATABASE_URL** (ex. `prisma/dev.db` en dev, `/app/data/prod.db` en production)
-          * **Fichier base dans l'archive** : Accepte `dev.db`, `prod.db` ou tout fichier `.db` à la racine de l'archive (normalisation des noms : préfixe `./`, antislashs)
-          * **Dossier uploads** : Le contenu de `/uploads` est vidé puis remplacé par celui de la sauvegarde (sous Docker/volumes montés, le dossier n'est pas supprimé pour éviter EBUSY)
+          * La base de données est restaurée dans `prisma/dev.db`
+          * Le dossier `/uploads` est remplacé par celui de la sauvegarde
           * Une sauvegarde de l'état actuel est créée automatiquement avant la restauration
-          * **Sauvegarde avant restauration** : Format `backup-before-restore-*.zip` (ZIP non chiffré), avec checksum SHA-256 pour affichage "valide" dans la liste
           * **Sécurité** : Protection contre les chemins malformés (chemins avec `..`, chemins absolus) - ces entrées sont ignorées lors de l'extraction
           * **Gestion d'erreurs** : Les erreurs individuelles lors de l'extraction sont loggées sans interrompre le processus complet, permettant la restauration partielle en cas de problème sur certains fichiers
-          * **Déploiement Docker** : Variable optionnelle **RESTART_AFTER_RESTORE=true** pour redémarrer le processus après une restauration réussie (recommandé en production pour que tous les workers voient la nouvelle base)
         * Pour les sauvegardes `.zip` non chiffrées (rétrocompatibilité) : Détection automatique du format et extraction directe
         * Pour les anciennes sauvegardes `.db` (rétrocompatibilité) : 
           * Détection automatique du format chiffré
           * Si chiffré : Déchiffrement puis restauration de la base de données
           * Si non chiffré : Restauration directe de la base de données
-      * **Note** : La restauration remplace complètement la base de données ET les fichiers uploadés par la version sauvegardée. Prisma est déconnecté avant l'écriture de la base puis reconnecté après pour éviter les verrous SQLite.
-      * **Sauvegarde avant restauration** : Une sauvegarde automatique de l'état actuel est créée avant chaque restauration (format `backup-before-restore-YYYY-MM-DDTHH-mm-ss-sssZ.zip`, ZIP non chiffré avec checksum pour statut valide)
+      * **Note** : La restauration remplace complètement la base de données ET les fichiers uploadés par la version sauvegardée
+      * **Sauvegarde avant restauration** : Une sauvegarde automatique de l'état actuel est créée avant chaque restauration (format `backup-before-restore-YYYY-MM-DDTHH-mm-ss-sssZ.zip`)
 * **Purge de toutes les sauvegardes** :
   * **Bouton** : "Purger toutes les sauvegardes" visible uniquement si des sauvegardes existent
   * **Confirmation obligatoire** : Dialog de confirmation avec saisie du mot "PURGER" (en majuscules)
@@ -1307,7 +1314,7 @@ Aucun autre type autorisé.
   * **Action** : Suppression définitive de toutes les sauvegardes (fichiers `.zip` et `.db`)
   * **Logging** : Action journalisée avec le nombre de sauvegardes supprimées
 * **Automatisation** :
-  * **À implémenter** : Configuration d'un cron job ou scheduler pour exécuter automatiquement la sauvegarde quotidienne
+  * **Implémenté via PM2** : Un processus automatisé dans `ecosystem.config.js` exécute la sauvegarde quotidienne en ciblant le script `npm run backup` (à 02:00 du matin).
   * **Commande manuelle** : `npm run backup` pour créer une sauvegarde manuelle
 * **Nettoyage de la quarantaine** :
   * **Script** : `scripts/clean-quarantine.js`
@@ -1317,7 +1324,6 @@ Aucun autre type autorisé.
 * **Accès** :
   * Menu "Sauvegardes" dans la barre latérale : Visible uniquement pour les utilisateurs avec le rôle **Super Admin**
   * Icône : HardDrive
-* **Mise à jour PRD (2026-02-08)** : Alignement avec l’implémentation — création et restauration utilisent **DATABASE_URL** pour le chemin de la base (support prod.db en production) ; restauration accepte dev.db/prod.db ou tout .db à la racine dans l’archive ; sauvegarde avant restauration en ZIP avec checksum ; option **RESTART_AFTER_RESTORE** et gestion Docker (vidage uploads, pas suppression).
 
 ---
 
@@ -1403,13 +1409,12 @@ L'application doit être conforme aux standards de sécurité OWASP Top 10 2021.
   * `Permissions-Policy` (limitation des APIs)
 * **Mode strict React** : `reactStrictMode: true` dans `next.config.js`
 * **Variables d'environnement** : Utilisation de `.env` pour la configuration
-  * **DATABASE_URL** : Chemin vers la base de données SQLite (ex: `file:./prisma/dev.db` en dev, `file:/app/data/prod.db` en production Docker). Utilisé pour la création et la restauration des sauvegardes.
+  * **DATABASE_URL** : Chemin vers la base de données SQLite (ex: `file:./prisma/dev.db`)
   * **ENCRYPTION_KEY** : **OBLIGATOIRE** - Clé de chiffrement pour les sauvegardes et la base de données (minimum 32 caractères)
     * **Génération** : Utiliser `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` pour générer une clé sécurisée
     * **Sécurité** : Ne jamais commiter cette clé dans Git, utiliser `.env.local` en développement et variables d'environnement sécurisées en production
     * **Usage** : Utilisée pour chiffrer les backups et potentiellement la base de données
   * **NODE_ENV** : Environnement d'exécution (`development`, `production`, `test`)
-  * **RESTART_AFTER_RESTORE** (optionnel) : Si `true`, le processus redémarre après une restauration de sauvegarde réussie (recommandé en production Docker pour que tous les workers voient la nouvelle base)
 * **Cookies sécurisés** : Configuration correcte selon l'environnement
 
 ### 15.6 A06:2021 – Vulnerable and Outdated Components

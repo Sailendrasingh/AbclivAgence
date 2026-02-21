@@ -1,8 +1,8 @@
 import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
-import "./globals.css"
+import "./theme.css"
 
-const inter = Inter({ 
+const inter = Inter({
   subsets: ["latin"],
   preload: false, // Désactiver le préchargement pour éviter les warnings
   display: 'swap', // Améliorer les performances de chargement

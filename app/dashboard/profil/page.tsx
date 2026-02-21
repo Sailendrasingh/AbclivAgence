@@ -604,7 +604,8 @@ export default function ProfilPage() {
           }}
         >
           <DialogContent className="max-w-md">
-            <DialogHeader>
+        <DialogTitle className="sr-only">Dialogue</DialogTitle>
+ <DialogHeader>
               <DialogTitle>Configuration 2FA</DialogTitle>
               <DialogDescription>
                 Scannez le QR Code avec Google Authenticator ou entrez le secret

@@ -40,7 +40,7 @@ export const createContactSchema = z.object({
         // Normaliser la valeur avant validation
         if (val === null || val === undefined) return []
         if (Array.isArray(val)) return val
-        return []
+        return val // Laisser Zod gérer les types invalides
       },
       z.array(z.string().email("Email invalide")).default([])
     )

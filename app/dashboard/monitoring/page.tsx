@@ -299,7 +299,8 @@ export default function MonitoringPage() {
       {/* Dialog de résolution */}
       <Dialog open={resolveDialogOpen} onOpenChange={setResolveDialogOpen}>
         <DialogContent>
-          <DialogHeader>
+        <DialogTitle className="sr-only">Dialogue</DialogTitle>
+ <DialogHeader>
             <DialogTitle>Résoudre l'alerte</DialogTitle>
             <DialogDescription>
               Êtes-vous sûr de vouloir marquer cette alerte comme résolue ?

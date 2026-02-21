@@ -66,10 +66,10 @@ async function backup() {
     console.log("Chiffrement de la sauvegarde...")
     await encryptFile(backupZipPath, backupPath)
     console.log(`Sauvegarde chiffrée créée: ${backupPath}`)
-    
+
     // Supprimer le fichier ZIP non chiffré
     await unlink(backupZipPath)
-    
+
     const { stat } = await import("fs/promises")
     const backupStats = await stat(backupPath)
     console.log(`Taille de la sauvegarde chiffrée: ${backupStats.size} bytes`)
@@ -92,13 +92,13 @@ async function backup() {
 
     for (const file of files) {
       if (file.startsWith("backup-") && (
-        file.endsWith(".encrypted.zip") || 
-        file.endsWith(".zip") || 
+        file.endsWith(".encrypted.zip") ||
+        file.endsWith(".zip") ||
         file.endsWith(".db")
       )) {
         const filePath = join(backupsDir, file)
         const stats = await stat(filePath)
-        
+
         if (stats.mtimeMs < tenDaysAgo) {
           await unlink(filePath)
           // Supprimer aussi le fichier de checksum associé s'il existe
@@ -106,7 +106,7 @@ async function backup() {
           if (existsSync(checksumPath)) {
             try {
               await unlink(checksumPath)
-            } catch {}
+            } catch { }
           }
           console.log(`Sauvegarde supprimée: ${file}`)
         }
@@ -122,6 +122,17 @@ async function backup() {
     } catch (error) {
       console.warn("Erreur lors du nettoyage des checksums orphelins:", error)
     }
+
+    // Nettoyer les logs obsolètes (plus de 30 jours)
+    console.log("Nettoyage des anciens logs...")
+    try {
+      const { cleanupOldLogs } = await import("../lib/logs")
+      await cleanupOldLogs()
+      console.log("Nettoyage des logs terminé.")
+    } catch (logError) {
+      console.warn("Erreur lors du nettoyage des logs:", logError)
+    }
+
   } catch (error) {
     console.error("Erreur lors de la sauvegarde:", error)
     process.exit(1)

@@ -3,6 +3,11 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { hashPassword } from '@/lib/auth'
 
+// Mock de la validation CSRF
+jest.mock('@/lib/csrf-middleware', () => ({
+  requireCSRF: jest.fn(() => Promise.resolve(null)),
+}));
+
 // Mock des logs
 jest.mock('@/lib/logs', () => ({
   createLog: jest.fn(),
