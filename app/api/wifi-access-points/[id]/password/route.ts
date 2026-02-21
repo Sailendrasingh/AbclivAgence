@@ -6,10 +6,14 @@ import { logError, logInfo, logWarning } from "@/lib/logger"
 import crypto from "crypto"
 
 // Fonction de déchiffrement pour l'ancien format (AES-256-CBC)
-// Utilisée uniquement pour la migration
+// Utilisée uniquement pour la migration. Refuse de déchiffrer si ENCRYPTION_KEY est absente.
 function decryptOldFormat(text: string): string {
   try {
-    const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || "default-encryption-key-32-chars!!"
+    const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY
+    if (!ENCRYPTION_KEY || ENCRYPTION_KEY.length < 32) {
+      logError("ENCRYPTION_KEY manquante ou trop courte, impossible de déchiffrer l'ancien format WiFi", new Error("ENCRYPTION_KEY required"))
+      return ""
+    }
     const key = ENCRYPTION_KEY.substring(0, 32)
     const parts = text.split(":")
     const iv = Buffer.from(parts.shift()!, "hex")

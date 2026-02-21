@@ -37,23 +37,11 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log(`[LOGIN DEBUG] Recherche de l'utilisateur avec login: "${login}" (length: ${login.length})`)
-    console.log(`[LOGIN DEBUG] DATABASE_URL: ${process.env.DATABASE_URL}`)
-    
-    // Lister tous les utilisateurs pour le débogage
-    const allUsers = await prisma.user.findMany({
-      select: { login: true, active: true },
-    })
-    console.log(`[LOGIN DEBUG] Total users in database: ${allUsers.length}`)
-    console.log(`[LOGIN DEBUG] Users in database:`, allUsers.map(u => `${u.login} (active: ${u.active})`))
-    
     const user = await prisma.user.findUnique({
       where: { login },
     })
 
     if (!user) {
-      console.error(`[LOGIN DEBUG] User not found: "${login}"`)
-      console.error(`[LOGIN DEBUG] Available logins:`, allUsers.map(u => u.login))
       await createLog(null, "TENTATIVE_CONNEXION_ECHOUEE", {
         login,
         reason: "Utilisateur inexistant",
@@ -70,7 +58,6 @@ export async function POST(request: NextRequest) {
     }
 
     if (!user.active) {
-      console.error(`User inactive: ${login}`)
       await createLog(user.id, "TENTATIVE_CONNEXION_ECHOUEE", {
         reason: "Utilisateur désactivé",
       }, request)
@@ -97,18 +84,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log(`[LOGIN DEBUG] Vérification du mot de passe pour: ${login}`)
-    console.log(`[LOGIN DEBUG] Hash length: ${user.passwordHash.length}`)
-    console.log(`[LOGIN DEBUG] Hash preview: ${user.passwordHash.substring(0, 30)}...`)
-    console.log(`[LOGIN DEBUG] Password length: ${password.length}`)
-    console.log(`[LOGIN DEBUG] Password preview: ${password.substring(0, 3)}...`)
-    
     const isValidPassword = await verifyPassword(user.passwordHash, password)
     
-    console.log(`[LOGIN DEBUG] Password valid: ${isValidPassword}`)
-    
     if (!isValidPassword) {
-      console.error(`Invalid password for user: ${login}`)
       
       // Incrémenter les tentatives échouées
       const newFailedAttempts = (user.failedLoginAttempts || 0) + 1

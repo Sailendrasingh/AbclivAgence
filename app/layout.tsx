@@ -41,14 +41,20 @@ export default function RootLayout({
                   const theme = stored || systemTheme;
                   if (theme === 'dark') {
                     document.documentElement.classList.add('dark');
+                    document.documentElement.classList.remove('light');
                   } else {
                     document.documentElement.classList.remove('dark');
+                    document.documentElement.classList.add('light');
                   }
                 } catch (e) {
                   // localStorage non disponible (mode privé, etc.)
                   const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
                   if (systemTheme === 'dark') {
                     document.documentElement.classList.add('dark');
+                    document.documentElement.classList.remove('light');
+                  } else {
+                    document.documentElement.classList.remove('dark');
+                    document.documentElement.classList.add('light');
                   }
                 }
               })();

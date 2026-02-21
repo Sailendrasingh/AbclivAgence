@@ -32,7 +32,7 @@ export default async function DashboardLayout({
   return (
     <Require2FASetup>
       <DashboardToastProvider>
-      <div className="flex h-screen overflow-hidden bg-background w-full max-w-full">
+      <div className="dashboard-shell flex h-screen overflow-hidden bg-background w-full max-w-full">
         <SessionTimeoutWrapper />
         <Sidebar />
         <div className="flex-1 flex flex-col min-h-0 w-full min-w-0 max-w-full overflow-hidden" style={{ paddingTop: "env(safe-area-inset-top)" }}>

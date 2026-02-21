@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { readFile, writeFile, mkdir, rm, unlink, readdir, stat } from "fs/promises"
 import { createWriteStream } from "fs"
-import { join, dirname } from "path"
+import { join, dirname, resolve } from "path"
 import { existsSync } from "fs"
 import { getSession } from "@/lib/session"
 import { createLog } from "@/lib/logs"
@@ -34,13 +34,26 @@ export async function POST(
   }
 
   try {
-    const backupsDir = join(process.cwd(), "backups")
+    const backupsDir = resolve(process.cwd(), "backups")
+    // Protection path traversal : rejeter "..", "/", "\"
+    if (filename.includes("..") || filename.includes("/") || filename.includes("\\")) {
+      return NextResponse.json(
+        { error: "Nom de fichier invalide" },
+        { status: 400 }
+      )
+    }
     // Utiliser le chemin de la base depuis DATABASE_URL (ex: file:/app/data/prod.db ou file:./prisma/dev.db)
     const dbUrl = process.env.DATABASE_URL || "file:./prisma/dev.db"
     const dbPathRaw = dbUrl.replace(/^file:/, "").trim()
     const dbPath = dbPathRaw.startsWith("/") ? dbPathRaw : join(process.cwd(), dbPathRaw)
-    const backupPath = join(backupsDir, filename)
-    console.log("[RESTORE] dbPath=", dbPath, "filename=", filename)
+    const backupPath = resolve(backupsDir, filename)
+    // Vérifier que le chemin résolu reste dans backups
+    if (!backupPath.startsWith(backupsDir)) {
+      return NextResponse.json(
+        { error: "Chemin de sauvegarde invalide" },
+        { status: 400 }
+      )
+    }
 
     // Vérifier que le fichier de sauvegarde existe
     if (!existsSync(backupPath)) {

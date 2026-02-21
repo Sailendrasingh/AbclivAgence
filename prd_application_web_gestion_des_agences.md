@@ -118,16 +118,17 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
 
 ## 3.1 Système de thèmes (clair / sombre)
 
-* **Activation** : Mode dark via classe `dark` sur `<html>` (géré par `ThemeToggle`)
+* **Activation** : Mode dark via classe `dark` sur `<html>`, mode clair via classe `light` (géré par `ThemeToggle` et script inline dans `<head>`)
 * **Configuration Tailwind** : `darkMode: ["class"]`
-* **Implémentation** : Variables CSS HSL dans `globals.css`
-* **Thème clair** :
-  * Ambiance administrative claire (inspirée de CoreUI)
-  * Couleur principale : **Violet / Bleu** (HSL: 241 55% 59%)
-  * Dégradé de marque : Violet → Blanc
-  * Surfaces très lisibles (fonds blancs / très clairs)
-  * **Accentuation des sections** : Les Cards et sections utilisent un fond légèrement accentué (`--card: 0 0% 100%`) pour se distinguer du fond de page (`--background: 225 20% 96%`), améliorant la lisibilité et la distinction visuelle
-  * Tokens avec teintes violettes et bordures subtiles (`--radius: 0.375rem`)
+* **Implémentation** : Variables CSS HSL dans `app/theme.css`
+* **Thème clair (orange dégradé)** :
+  * Ambiance chaude avec dégradé orange visible
+  * Couleur principale : **Orange** (HSL: 26 90% 52%)
+  * **Fond en dégradé** : Le body et la zone principale utilisent un dégradé orange visible (orange chaud → pêche → crème), défini en HSL (ex. 18° 85% 82% → 28° 70% 90% → 42° 50% 96%). Le wrapper du dashboard (classe `dashboard-shell`) a un fond transparent en mode clair pour laisser voir ce dégradé sur tout l'écran.
+  * Variables `:root` et `.light` partagées pour garantir l'application du thème orange (primary, accent, border, etc. en teintes orange)
+  * Surfaces de contenu : Cards et popovers en blanc (`--card: 0 0% 100%`) pour une lisibilité optimale sur le dégradé
+  * Texte : `--foreground` sombre (HSL ~24 30% 12%) pour contraste suffisant
+  * Tokens avec teintes orange et bordures (`--radius: 0.375rem`)
 * **Thème sombre** :
   * Ambiance aérée et moderne (inspirée de CoreUI Dark)
   * Couleur principale : **Violet / Bleu** (HSL: 241 55% 59%)
@@ -157,12 +158,13 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
   * `.btn-primary` : Bouton primaire avec hover
   * `.input` : Style d'input avec focus ring
   * `.badge` : Badge arrondi
-  * `.brand-gradient` : Dégradé de marque (orange→blanc / bleu ciel→bleu ciel foncé)
+  * `.brand-gradient` : Dégradé de marque (mode clair : primary orange → teinte milieu du dégradé ; mode sombre : primary violet → background)
+  * `.dashboard-shell` : Wrapper principal du dashboard ; en mode clair (` .light .dashboard-shell`), fond transparent pour laisser visible le dégradé orange du body
 * **Adaptation des composants** :
   * **Vignettes de photos** : Utilisation de `dark:bg-secondary` (HSL: 200 25% 20%) pour distinguer du fond de l'onglet Photos (`background` à 11% de luminosité)
-  * **Bordures des champs de saisie** : Tous les champs de saisie (Input, Textarea) utilisent la variable `border` (et non `input`) pour garantir une bordure visible en thème clair
-    * En thème clair : Bordure grise (`--border: 0 0% 88%`) visible sur fond blanc
-    * En thème sombre : Bordure bleu-gris (`--border: 200 25% 24%`) visible sur fond sombre
+  * **Bordures des champs de saisie** : Tous les champs de saisie (Input, Textarea) utilisent la variable `border` (et non `input`) pour garantir une bordure visible
+    * En thème clair : Bordure orange claire (`--border` teinte orange ~26 35% 85%) visible sur fond blanc / dégradé
+    * En thème sombre : Bordure bleu-gris (`--border: 218 14% 27%`) visible sur fond sombre
     * La bordure est visible même sans focus pour améliorer la lisibilité et l'accessibilité
   * Tous les composants s'adaptent automatiquement via les variables CSS du thème
 
@@ -1329,7 +1331,7 @@ Aucun autre type autorisé.
 
 ## 15. Conformité OWASP Top 10 2021
 
-L'application doit être conforme aux standards de sécurité OWASP Top 10 2021. Les mesures suivantes sont **obligatoires** et **implémentées** :
+L'application doit être conforme aux standards de sécurité OWASP Top 10 2021. Les mesures suivantes sont **obligatoires** et **implémentées**. Un rapport de synthèse (risques identifiés, correctifs appliqués, recommandations) est maintenu à la racine du projet dans **`SECURITY.md`**.
 
 ### 15.1 A01:2021 – Broken Access Control
 
@@ -1378,7 +1380,10 @@ L'application doit être conforme aux standards de sécurité OWASP Top 10 2021.
   * **Validation regex** : Validation stricte avec regex pour les champs spécifiques (poste, agent, ligne directe)
   * **Validation des emails** : Utilisation de `validator.isEmail()` (RFC compliant) combinée avec validation Zod
 * **Sanitization des entrées** : Toutes les entrées utilisateur sont sanitizées après validation pour prévenir les attaques XSS
-* **Sanitization des chemins** : Protection contre path traversal dans restauration de sauvegarde (`entry.fileName.includes("..")`)
+* **Sanitization des chemins** : Protection contre path traversal :
+  * Fichiers servis : `app/api/files/[...path]/route.ts` (chemin résolu et vérification `startsWith(uploadsDir)`)
+  * Sauvegardes : rejet du paramètre `filename` contenant `..`, `/` ou `\` sur les routes backup (DELETE et POST restore) ; chemin résolu vérifié pour rester dans le répertoire des sauvegardes
+  * Entrées d'archive : `entry.fileName.includes("..")` lors de la restauration
 
 ### 15.4 A04:2021 – Insecure Design
 
@@ -1822,7 +1827,7 @@ L'application doit être conforme aux standards de sécurité OWASP Top 10 2021.
 
 ---
 
-**Dernière mise à jour** : 2026-01-31
+**Dernière mise à jour** : 2026-02-21
 
 ---
 

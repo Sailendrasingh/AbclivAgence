@@ -40,11 +40,13 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }) {
     const initialTheme = stored || systemTheme
     setTheme(initialTheme)
     
-    // S'assurer que la classe est appliquée (au cas où le script inline n'aurait pas fonctionné)
+    // S'assurer que les classes thème sont appliquées
     if (initialTheme === "dark") {
       document.documentElement.classList.add("dark")
+      document.documentElement.classList.remove("light")
     } else {
       document.documentElement.classList.remove("dark")
+      document.documentElement.classList.add("light")
     }
   }, [])
 
@@ -60,8 +62,10 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }) {
         setTheme(newTheme)
         if (newTheme === "dark") {
           document.documentElement.classList.add("dark")
+          document.documentElement.classList.remove("light")
         } else {
           document.documentElement.classList.remove("dark")
+          document.documentElement.classList.add("light")
         }
       }
     }
@@ -90,8 +94,10 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }) {
     
     if (newTheme === "dark") {
       document.documentElement.classList.add("dark")
+      document.documentElement.classList.remove("light")
     } else {
       document.documentElement.classList.remove("dark")
+      document.documentElement.classList.add("light")
     }
   }
 
