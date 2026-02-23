@@ -87,7 +87,7 @@ export default function LoginContent() {
       if (data.requiresTwoFactorSetup) {
         window.location.href = "/dashboard/setup-2fa"
       } else {
-        window.location.href = "/dashboard/agences"
+        window.location.href = "/dashboard"
       }
     } catch (err) {
       setError("Erreur de connexion")

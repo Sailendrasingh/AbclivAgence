@@ -1,6 +1,6 @@
 # Audit de conformité PRD - Fonctionnalités
 
-Date : $(date)
+Date : 2026-02-22
 
 ## Méthodologie
 
@@ -243,7 +243,45 @@ Comparaison systématique de chaque section du PRD avec le code actuel pour iden
 - **Optimisations de performance** : ~100% ✅ (cache des images implémenté)
 - **Automatisations** : ~70% (sauvegarde quotidienne non automatisée)
 
-**Score global estimé** : ~90% ✅
+**Score global estimé** : ~95% ✅
+
+---
+
+## 15. Dashboard (Tableau de Bord) ✅
+
+**Statut** :
+- ✅ Page d'accueil `/dashboard` avec KPIs (Total Agences, Utilisateurs, Tâches Ouvertes, Alertes)
+- ✅ Graphique circulaire : Répartition des états d'agences (OK, INFO, ALERTE, FERMÉE)
+- ✅ Graphique barres : Activité des tâches sur 7 jours (Créées vs Résolues)
+- ✅ Listes : Tâches urgentes et agences récentes
+- ✅ API : `/api/dashboard/global`
+- ✅ Responsive : grilles empilées sur mobile, côte à côte sur tablette/desktop
+
+## 16. Calendrier / Planning ✅
+
+**Statut** :
+- ✅ 4 vues : Mois, Semaine, Jour, Planning (agenda)
+- ✅ Positionnement temporel précis des tâches (calcul top basé sur l'heure de création)
+- ✅ UX mobile style Google Calendar : FAB (`createPortal`), drawer (`Sheet`), header simplifié
+- ✅ Sélecteur d'année, mini-calendrier, navigation Précédent/Aujourd'hui/Suivant
+- ✅ Modale détail tâche : titre, notes, importance, photos (max 5), lightbox avec zoom/pan
+- ✅ Filtres : recherche texte, toggle tâches terminées
+- ✅ Coloration par hash d'ID (rose, émeraude, violet, bleu, ambre)
+
+## 17. Gestion des Erreurs ✅
+
+**Statut** :
+- ✅ Error Boundary (`error.tsx`) avec message convivial et bouton Réessayer
+- ✅ Loading Skeleton (`loading.tsx`) avec `animate-pulse`
+- ✅ Page 404 personnalisée (`not-found.tsx`)
+
+## 18. Durcissement Sécurité Logs ✅
+
+**Statut** :
+- ✅ Suppression des `console.log` sensibles (tokens CSRF, session, cookies)
+- ✅ Utilisation cohérente de `getClientIP()` dans le flux de connexion
+
+**Score global estimé** : ~98% ✅
 
 ## 🎯 Actions prioritaires
 

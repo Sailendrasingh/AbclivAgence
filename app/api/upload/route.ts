@@ -33,7 +33,7 @@ const MAGIC_BYTES: Record<string, number[]> = {
 function verifyFileType(buffer: Buffer, expectedMime: string): boolean {
   const magicBytes = MAGIC_BYTES[expectedMime]
   if (!magicBytes) return false
-  
+
   for (let i = 0; i < magicBytes.length; i++) {
     if (buffer[i] !== magicBytes[i]) {
       return false
@@ -55,24 +55,22 @@ export async function POST(request: NextRequest) {
     const csrfTokenFromForm = formData.get("_csrf")
     const csrfTokenFromHeader = request.headers.get("x-csrf-token")
     const csrfToken = (csrfTokenFromForm && typeof csrfTokenFromForm === "string" ? csrfTokenFromForm : null) || csrfTokenFromHeader
-    
-    console.log("[UPLOAD] CSRF Token from FormData:", csrfTokenFromForm ? "présent" : "absent")
-    console.log("[UPLOAD] CSRF Token from Header:", csrfTokenFromHeader ? "présent" : "absent")
-    console.log("[UPLOAD] CSRF Token final:", csrfToken ? "présent" : "absent")
-    
+
+
+    console.log("[UPLOAD] CSRF validation:", csrfToken ? "token présent" : "absent")
+
     // Valider le token CSRF
     const { verifyCSRFToken } = await import("@/lib/csrf")
     const isValid = await verifyCSRFToken(csrfToken)
-    
-    console.log("[UPLOAD] CSRF Token validation:", isValid ? "valide" : "invalide")
-    
+
+
     if (!isValid) {
       return NextResponse.json(
         { error: "Token CSRF invalide ou manquant" },
         { status: 403 }
       )
     }
-    
+
     // Retirer le token CSRF du FormData (il a été utilisé pour la validation)
     formData.delete("_csrf")
     const file = formData.get("file") as File
@@ -126,17 +124,17 @@ export async function POST(request: NextRequest) {
     // Vérification stricte du type MIME via magic bytes (protection contre falsification)
     const isValidJPEG = verifyFileType(buffer, "image/jpeg")
     const isValidPNG = verifyFileType(buffer, "image/png")
-    
+
     if (!isValidJPEG && !isValidPNG) {
       return NextResponse.json(
         { error: "Type de fichier non autorisé. Seuls les fichiers JPEG et PNG valides sont acceptés." },
         { status: 400 }
       )
     }
-    
+
     // Vérifier que le type déclaré correspond au type réel
-    if ((file.type === "image/jpeg" && !isValidJPEG) || 
-        (file.type === "image/png" && !isValidPNG)) {
+    if ((file.type === "image/jpeg" && !isValidJPEG) ||
+      (file.type === "image/png" && !isValidPNG)) {
       return NextResponse.json(
         { error: "Le type de fichier déclaré ne correspond pas au contenu réel." },
         { status: 400 }
@@ -146,12 +144,12 @@ export async function POST(request: NextRequest) {
     // Récupérer la date de création originale depuis les métadonnées EXIF de l'image
     // IMPORTANT : Faire cela AVANT d'écrire le fichier pour éviter d'utiliser la date de création du nouveau fichier
     let createdAt: Date | null = null
-    
+
     try {
       const exifData = await exifr.parse(buffer, {
         pick: ['DateTimeOriginal', 'CreateDate', 'ModifyDate', 'FileModifyDate']
       })
-      
+
       // Priorité : DateTimeOriginal > CreateDate > ModifyDate
       if (exifData?.DateTimeOriginal) {
         createdAt = new Date(exifData.DateTimeOriginal)
@@ -164,18 +162,17 @@ export async function POST(request: NextRequest) {
       // Si la lecture EXIF échoue, on essaie d'utiliser lastModified du File object
       console.log("Erreur lecture EXIF:", exifError)
     }
-    
+
     // Si pas de date EXIF, utiliser lastModified du File object (date de modification originale du fichier)
     if (!createdAt || isNaN(createdAt.getTime())) {
       if (file.lastModified) {
         createdAt = new Date(file.lastModified)
       }
     }
-    
+
     // Écrire le fichier après avoir récupéré la date
-    console.log('[UPLOAD_DEBUG] About to write file');
     await writeFile(filepath, buffer)
-    
+
     // Si toujours pas de date valide, utiliser la date de création du fichier système (dernier recours)
     if (!createdAt || isNaN(createdAt.getTime())) {
       const fileStats = await stat(filepath)
@@ -192,8 +189,8 @@ export async function POST(request: NextRequest) {
       type: file.type,
     }, request)
 
-    return NextResponse.json({ 
-      path: relativePath, 
+    return NextResponse.json({
+      path: relativePath,
       filename,
       createdAt: createdAt.toISOString()
     })

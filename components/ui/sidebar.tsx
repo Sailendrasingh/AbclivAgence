@@ -6,7 +6,7 @@ import Image from "next/image"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Button } from "./button"
 import { ThemeToggle } from "./theme-toggle"
-import { Menu, X, LogOut, User, Building2, Users, FileText, HardDrive, Settings, ChevronDown, ChevronRight, Sliders, Activity, LayoutDashboard } from "lucide-react"
+import { Menu, X, LogOut, User, Building2, Users, FileText, HardDrive, Settings, ChevronDown, ChevronRight, Sliders, Activity, LayoutDashboard, Calendar } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { LucideIcon } from "lucide-react"
 
@@ -20,6 +20,7 @@ interface MenuItem {
 const allMenuItems: MenuItem[] = [
   { href: "/dashboard", label: "Tableau de bord", adminOnly: false, icon: LayoutDashboard },
   { href: "/dashboard/agences", label: "Agences", adminOnly: false, icon: Building2 },
+  { href: "/dashboard/calendrier", label: "Calendrier", adminOnly: false, icon: Calendar },
   { href: "/dashboard/parametres", label: "Paramètres", adminOnly: true, icon: Settings },
 ]
 
@@ -29,6 +30,7 @@ function SidebarContent() {
   const [userLogin, setUserLogin] = useState<string | null>(null)
   const [userPhoto, setUserPhoto] = useState<string | null>(null)
   const [parametresOpen, setParametresOpen] = useState(false)
+  const [urgentCount, setUrgentCount] = useState(0)
   const pathname = usePathname()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -81,6 +83,16 @@ function SidebarContent() {
     }
 
     fetchUserData()
+
+    // Fetch urgent tasks count
+    fetch("/api/dashboard/global", { credentials: 'include' })
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
+        if (data?.globalMetrics?.totalTasksOpen) {
+          setUrgentCount(data.globalMetrics.totalTasksOpen)
+        }
+      })
+      .catch(() => { })
   }, []) // Dépendances vides = exécution unique au montage
 
   const handleLogout = useCallback(async () => {
@@ -249,6 +261,11 @@ function SidebarContent() {
                     )}
                     <Icon className="h-4 w-4 shrink-0" />
                     <span className="whitespace-nowrap" style={{ whiteSpace: 'nowrap' }}>{item.label}</span>
+                    {item.href === "/dashboard/calendrier" && urgentCount > 0 && (
+                      <span className="ml-auto flex items-center justify-center h-5 min-w-[20px] px-1 text-[10px] font-bold bg-red-500 text-white rounded-full">
+                        {urgentCount > 99 ? "99+" : urgentCount}
+                      </span>
+                    )}
                   </Link>
                 </div>
               )

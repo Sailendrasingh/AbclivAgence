@@ -1,0 +1,22 @@
+---
+description: Ne pas modifier l'UI/UX sauf demande explicite. Préserver layout, styles, textes. Référence .cursor/skills/ui-ux-preservation/
+alwaysApply: true
+---
+
+# Préservation UI/UX — ABCLIV Agency
+
+**Règle impérative** : Ne pas modifier l'UI/UX sauf demande explicite de l'utilisateur.
+
+## Si la demande ne mentionne PAS l'interface (ex: "Corriger le bug X", "Ajouter la validation Y")
+- Modifier **uniquement** la logique (API, lib, validation)
+- Ne pas toucher aux composants React, classes CSS, markup, textes, layout
+- Changer le strict minimum si le fix impose un élément visuel
+
+## Si demande explicite UI/UX
+- Respecter le PRD Section 4 et le responsive
+
+## Interdits sans demande explicite
+- Amélioration visuelle, refonte, "nettoyage" UI
+- Réécriture de libellés ou textes
+- Réorganisation de layout
+- En cas de doute : demander confirmation avant modification UI

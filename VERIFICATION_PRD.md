@@ -39,17 +39,16 @@
 - [x] Champ note texte
 - [x] Routes API CRUD complètes
 
-### 5. Groupe TECHNIQUE (Section 7) ⚠️ PARTIEL
+### 5. Groupe TECHNIQUE (Section 7) ✅
 - [x] Réseau : Adresse IP LAN (CIDR) - validation implémentée
-- [x] PC (0 à N) - schéma et routes API créés
-- [x] Imprimantes (0 à N) - schéma et routes API créés
+- [x] PC (0 à N) - schéma, routes API et CRUD UI complets
+- [x] Imprimantes (0 à N) - schéma, routes API et CRUD UI complets
 - [x] Machine à affranchir - champs dans Technical
-- [x] Wifi : Routeur et Points d'accès - schéma créé
+- [x] Wifi : Routeur et Points d'accès - schéma créé et UI complète
 - [x] Routeurs : Principal et Secours - champs dans Technical
-- [x] Vidéo protection : Enregistreur et Caméras - schéma créé
+- [x] Vidéo protection : Enregistreur et Caméras - schéma créé et UI complète
 - [x] Notes techniques avec historisation (max 100 versions)
 - [x] Champs dynamiques (Clé/Valeur, ordre modifiable)
-- ⚠️ **MANQUE** : Interface UI complète pour tous ces champs dans la zone Détails
 
 ### 6. Groupes PHOTOS (Section 8) ✅
 - [x] Photos Bureau - type dans PhotoGroup
@@ -69,8 +68,8 @@
 ### 8. Recherche & Filtres (Section 10) ✅
 - [x] Champ de recherche global (dans zone Master)
 - [x] Recherche texte simple
-- ⚠️ **PARTIEL** : Recherche sur TOUS les champs - actuellement seulement sur nom
-- [x] Filtres état : Tous | OK | ALERTE
+- [x] Recherche sur TOUS les champs (agence, adresses, contacts, technique, PC, imprimantes, caméras, WiFi, champs dynamiques, photos)
+- [x] Filtres état : Tous | OK | INFO | ALERTE | FERMÉE
 
 ### 9. Authentification & Sécurité (Section 11) ✅
 - [x] Compte initial : Admin / Password / Super Admin
@@ -98,7 +97,7 @@
 - [x] Max 100 versions par agence
 - [x] Restauration possible version par version
 - [x] Fonctions createAgencyHistory et restoreAgencyVersion
-- ⚠️ **MANQUE** : Interface UI pour consulter et restaurer l'historique
+- [x] Interface UI pour consulter et restaurer l'historique
 
 ### 12. PWA & Offline (Section 14) ✅
 - [x] Mode PWA obligatoire (manifest.json)
@@ -169,6 +168,21 @@
 ### 2. Interface de gestion des contacts (Section 6)
 - **PRD requis** : CRUD complet des contacts
 - **Actuel** : Routes API créées, affichage seulement
+-## 📦 Nouvelles Fonctionnalités (ajout 2026-02-22)
+
+### Dashboard (Tableau de Bord) ✅
+- [x] Page d'accueil `/dashboard` avec KPIs, graphiques (circulaire, barres), listes urgentes et récentes
+- [x] API `/api/dashboard/global`
+- [x] Responsive mobile/tablette/desktop
+
+### Calendrier / Planning ✅
+- [x] 4 vues : Mois, Semaine, Jour, Planning (agenda)
+- [x] Positionnement temporel précis des tâches (heures × 48px)
+- [x] UX mobile Google Calendar : FAB, drawer Sheet, header simplifié
+- [x] Sélecteur d'année, mini-calendrier, navigation Précédent/Aujourd'hui/Suivant
+- [x] Modale détail tâche : titre, notes, importance, photos (max 5), lightbox
+- [x] Filtres : recherche texte, toggle tâches terminées
+- [x] Coloration par hash d'ID (5 couleurs), gris si clôturée
 - **Action** : Ajouter formulaires de création/édition de contacts
 
 ### 3. Interface de gestion des photos (Section 8)

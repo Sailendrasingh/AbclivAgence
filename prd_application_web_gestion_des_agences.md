@@ -130,12 +130,15 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
   * Texte : `--foreground` sombre (HSL ~24 30% 12%) pour contraste suffisant
   * Tokens avec teintes orange et bordures (`--radius: 0.375rem`)
 * **Thème sombre** :
-  * Ambiance aérée et moderne (inspirée de CoreUI Dark)
-  * Couleur principale : **Violet / Bleu** (HSL: 241 55% 59%)
-  * Fonds : Gris-Bleu très foncé (HSL: 219 19% 14%)
-  * Surfaces : Gris-Bleu foncé (HSL: 217 15% 17%)
+  * Ambiance raffinée avec profondeur et contraste améliorés (inspirée de CoreUI Dark)
+  * Couleur principale : **Violet / Bleu** (HSL: 239 84% 67%)
+  * Fonds : Dégradé subtil sur le body (HSL 224° 22% 9% → 218° 16% 14%) pour profondeur
+  * Background : HSL 222 20% 11%
+  * Surfaces : Gris-Bleu foncé (HSL: 220 16% 15% pour card/popover)
+  * Texte : `--foreground` (HSL: 220 14% 92%) pour contraste optimal
   * Dégradé de marque : Violet → Transparent
-  * Fonds sombres avec contrastes accessibles et tons neutres (`--foreground: 217 13% 86%`)
+  * Bordures : HSL 220 14% 24% pour meilleure définition
+  * Primary : HSL 239 84% 67% (violet plus vif pour meilleure visibilité)
 * **Fonctionnalités avancées** :
   * **Script inline dans `<head>`** : Évite le FOUC (Flash of Unstyled Content) en appliquant le thème avant le rendu
   * **Persistance localStorage** : Sauvegarde de la préférence utilisateur avec gestion d'erreurs (mode privé, etc.)
@@ -164,7 +167,7 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
   * **Vignettes de photos** : Utilisation de `dark:bg-secondary` (HSL: 200 25% 20%) pour distinguer du fond de l'onglet Photos (`background` à 11% de luminosité)
   * **Bordures des champs de saisie** : Tous les champs de saisie (Input, Textarea) utilisent la variable `border` (et non `input`) pour garantir une bordure visible
     * En thème clair : Bordure orange claire (`--border` teinte orange ~26 35% 85%) visible sur fond blanc / dégradé
-    * En thème sombre : Bordure bleu-gris (`--border: 218 14% 27%`) visible sur fond sombre
+    * En thème sombre : Bordure bleu-gris (`--border: 220 14% 24%`) visible sur fond sombre
     * La bordure est visible même sans focus pour améliorer la lisibilité et l'accessibilité
   * Tous les composants s'adaptent automatiquement via les variables CSS du thème
 
@@ -196,7 +199,7 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
   * **Gestion mobile (< 768px)** :
     * **Affichage par défaut** : Sur mobile, seul le Master (liste des agences) est affiché par défaut (100% de largeur)
     * **Navigation** : Au clic sur une agence dans le Master, les Détails s'affichent en plein écran (remplacement du Master)
-    * **Bouton Retour** : Un bouton "Retour" (icône `ArrowLeft`) est affiché dans l'en-tête des Détails sur mobile pour revenir au Master
+    * **Bouton Retour** : Un bouton "Retour" (icône `ArrowLeft`) est affiché dans l'en-tête des Détails sur mobile pour revenir au Master. Le bouton doit avoir `aria-label="Retour à la liste des agences"` pour l'accessibilité (lecteurs d'écran). Au clic, la zone Master redevient visible et les données des détails sont réinitialisées.
     * **Barre de redimensionnement** : Masquée sur mobile (redimensionnement non disponible)
     * **Chargement des détails** : Les détails ne sont chargés que lorsque l'utilisateur clique sur une agence (optimisation des appels API)
     * **Padding** : Réduit sur mobile (`p-3` au lieu de `p-6`, `p-4` au lieu de `p-6` pour les cards)
@@ -326,6 +329,7 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
   * Liste des menus de navigation avec icônes :
     * **Tableau de bord** : Icône LayoutDashboard, lien vers `/dashboard`
     * **Agences** : Icône Building2
+    * **Calendrier** : Icône Calendar, lien vers `/dashboard/calendrier` (visible pour tous les utilisateurs)
     * **Utilisateurs** : Icône Users (visible uniquement pour Super Admin)
     * **Logs** : Icône FileText (visible uniquement pour Super Admin)
     * **Sauvegardes** : Icône HardDrive (visible uniquement pour Super Admin)
@@ -370,7 +374,7 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
 * **Restrictions d'accès par rôle** :
   * **Menu de navigation** :
     * Boutons "Utilisateurs", "Logs" et "Sauvegardes" : Visibles uniquement pour les utilisateurs avec le rôle **Super Admin**
-    * Bouton "Agences" : Visible pour tous les utilisateurs
+    * Boutons "Agences" et "Calendrier" : Visibles pour tous les utilisateurs
   * **Gestion des agences** :
     * Bouton "Ajouter une agence" : Disponible uniquement pour les utilisateurs avec les rôles **Super user** ou **Super Admin**
     * Bouton "Modifier" d'une agence : Disponible pour les utilisateurs avec les rôles **Super user** ou **Super Admin**
@@ -381,6 +385,28 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
     * Les utilisateurs avec le rôle **User** ne peuvent **pas** modifier les détails d'une agence
     * Le bouton "Modifier" dans la vue des détails d'une agence (mobile et desktop) n'est **pas visible** pour les utilisateurs de type **User**
     * La fonction `handleEditAgencyFromMaster` retourne immédiatement si l'utilisateur est de type **User**, empêchant toute tentative d'édition
+
+* **Page Calendrier** (`/dashboard/calendrier`) :
+  * **Objectif** : Vue calendrier de toutes les tâches (toutes agences), design inspiré de Google Agenda.
+  * **Layout** : Barre latérale gauche (sidebar dédiée) + zone principale à droite. La sidebar peut être repliée.
+  * **Sidebar Calendrier** :
+    * Bouton **« + Créer »** (lien vers `/dashboard/agences`) pour créer une tâche depuis une agence.
+    * **Mini-calendrier** : affichage du mois avec navigation par flèches ; clic sur un jour pour définir la date affichée dans la vue principale. Le jour courant est mis en évidence (pastille bleue), la date de focus en gris.
+    * Champ **« Rechercher… »** : filtre en direct sur le titre des tâches et le nom de l’agence.
+    * Section **« Tâches »** : case à cocher « Afficher les clôturées » pour inclure ou exclure les tâches clôturées.
+  * **Barre du haut (zone principale)** :
+    * Bouton **« Aujourd’hui »** pour revenir à la date du jour.
+    * Flèches précédent / suivant (période selon la vue).
+    * Titre de la période affichée (ex. « Février 2026 », « Janv. - févr. 2026 Semaine 6 », « 1 février 2026 Semaine 5 », « Févr. - Juil. 2026 »).
+    * Sélecteur de vue : **Mois** | **Semaine** | **Jour** | **Planning**.
+  * **Vues** :
+    * **Vue Mois** : Grille LUN–DIM (semaine commençant le lundi), numéro du jour en haut à gauche de chaque case, jour courant en pastille bleue. Tâches affichées en barres colorées (bordure gauche selon importance : bleu INFO, orange CRITIQUE, rouge URGENT, gris clôturée). Au-delà de 4 tâches par jour, affichage « +N ».
+    * **Vue Semaine** : En-têtes des jours (LUN 26, MAR 27, …) avec colonne horaire (00:00 à 23:00) à gauche. Ligne « Jour entier » en haut de chaque jour avec les tâches ; grille horaire en pointillés en dessous.
+    * **Vue Jour** : Un seul jour avec en-tête (ex. DIM. 1), bloc « Jour entier » listant les tâches du jour (pastille de couleur, titre, agence), puis grille horaire (00:00–23:00).
+    * **Vue Planning (agenda)** : Liste chronologique des tâches sur plusieurs mois (période chargée : 6 mois à partir du mois affiché). Regroupement par date (ex. « 1 FÉVR, DIM. », « 4 FÉVR, MER. ») avec pour chaque tâche : pastille de couleur, « Jour entier », titre, nom de l’agence.
+  * **API** : `GET /api/tasks?from=YYYY-MM-DD&to=YYYY-MM-DD` (paramètres optionnels) retourne les tâches pour la plage demandée (session requise). Utilisée pour alimenter les quatre vues.
+  * **Données affichées** : Les tâches sont positionnées par **date de création** (`createdAt`). Pas d’heure de début/fin dans le modèle actuel ; toutes les tâches sont affichées en « Jour entier ».
+  * **Accès** : Visible pour tous les utilisateurs connectés (lien dans la sidebar principale).
 
 ---
 
@@ -1159,8 +1185,8 @@ Aucun autre type autorisé.
   * Les éléments de menu et boutons sont masqués selon le rôle de l'utilisateur
   * Récupération du rôle via l'API `/api/auth/me` au chargement des composants
 * **Menu de navigation** :
-  * **Super Admin** : Accès à tous les menus (Agences, Utilisateurs, Logs, Sauvegardes, Paramètres)
-  * **Super user** et **User** : Accès uniquement au menu "Agences"
+  * **Super Admin** : Accès à tous les menus (Tableau de bord, Agences, Calendrier, Utilisateurs, Logs, Sauvegardes, Paramètres)
+  * **Super user** et **User** : Accès aux menus "Tableau de bord", "Agences" et "Calendrier" uniquement
 * **Gestion des agences** :
   * **Super Admin** :
     * Peut créer de nouvelles agences (bouton "Ajouter" visible)
@@ -1973,3 +1999,13 @@ L'application doit être conforme aux standards de sécurité OWASP Top 10 2021.
   * **Navigation** : Accessible via le sidebar dans la section Paramètres, sous l'onglet Logs
   * **Fonctionnalités** : Identiques à la page dédiée `/dashboard/monitoring` (statistiques, alertes, résolution)
   * **Avantage** : Centralisation de toutes les fonctionnalités d'administration dans une seule page
+
+### 23.4 Page Calendrier (2026-02-21)
+
+* **Page Calendrier** : ✅ **IMPLÉMENTÉ** (2026-02-21)
+  * **Route** : `/dashboard/calendrier`, lien dans la sidebar (icône Calendar)
+  * **Design** : Inspiré de Google Agenda (sidebar gauche + zone principale, quatre vues)
+  * **Sidebar** : Bouton « + Créer » (lien agences), mini-calendrier, recherche, filtre « Afficher les clôturées » ; sidebar repliable
+  * **Vues** : Mois (grille LUN–DIM), Semaine (créneaux horaires + jour entier), Jour (un jour + grille horaire), Planning (liste chronologique sur 6 mois)
+  * **API** : `GET /api/tasks?from=&to=` pour le chargement des tâches par plage de dates
+  * **Accès** : Tous les utilisateurs connectés

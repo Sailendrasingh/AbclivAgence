@@ -1,0 +1,20 @@
+---
+description: Vérifie l'absence de régression (tests, build) lors de nouvelles features ou corrections de bugs. Référence .cursor/skills/non-regression-preservation/
+alwaysApply: true
+---
+
+# Préservation non-régression — ABCLIV Agency
+
+**Avant et après toute modification** (feature, bug fix, refactoring).
+
+## Workflow
+1. **Avant** : `npm run test` pour baseline
+2. **Pendant** : garder les tests au vert ; écrire tests pour nouveau code
+3. **Après** : `npm run test` + `npm run build` + `npm run lint`
+
+## Règles
+- **Nouvelle route API** → ajouter `__tests__/route.test.ts` (401, RBAC, validation)
+- **Bug fix** → test de régression obligatoire (reproduit le bug, passe après fix)
+- **Ne pas commiter** si `npm run test` échoue
+
+Tests : `app/api/**/__tests__/route.test.ts`, `lib/__tests__/*.test.ts`, `e2e/*.spec.ts`

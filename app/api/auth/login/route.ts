@@ -25,11 +25,11 @@ export async function POST(request: NextRequest) {
     // Rate limiting par IP
     const ipAddress = getClientIP(request) || "unknown"
     const rateLimit = checkRateLimit(`login:${ipAddress}`)
-    
+
     if (!rateLimit.allowed) {
       const minutesLeft = Math.ceil((rateLimit.resetAt - Date.now()) / 60000)
       return NextResponse.json(
-        { 
+        {
           error: `Trop de tentatives. Réessayez dans ${minutesLeft} minute(s).`,
           lockedUntil: new Date(rateLimit.resetAt).toISOString()
         },
@@ -46,11 +46,10 @@ export async function POST(request: NextRequest) {
         login,
         reason: "Utilisateur inexistant",
       }, request)
-      
+
       // Vérifier et alerter sur les tentatives multiples
-      const ipAddress = getClientIP(request) || "unknown"
       await checkFailedLoginAttempts(login, ipAddress)
-      
+
       return NextResponse.json(
         { error: "Identifiant ou mot de passe incorrect" },
         { status: 401 }
@@ -61,11 +60,10 @@ export async function POST(request: NextRequest) {
       await createLog(user.id, "TENTATIVE_CONNEXION_ECHOUEE", {
         reason: "Utilisateur désactivé",
       }, request)
-      
+
       // Vérifier et alerter sur les tentatives multiples
-      const ipAddress = getClientIP(request) || "unknown"
       await checkFailedLoginAttempts(login, ipAddress)
-      
+
       return NextResponse.json(
         { error: "Identifiant ou mot de passe incorrect" },
         { status: 401 }
@@ -76,7 +74,7 @@ export async function POST(request: NextRequest) {
     if (user.lockedUntil && user.lockedUntil > new Date()) {
       const minutesLeft = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000)
       return NextResponse.json(
-        { 
+        {
           error: `Compte verrouillé. Réessayez dans ${minutesLeft} minute(s).`,
           lockedUntil: user.lockedUntil.toISOString()
         },
@@ -85,19 +83,19 @@ export async function POST(request: NextRequest) {
     }
 
     const isValidPassword = await verifyPassword(user.passwordHash, password)
-    
+
     if (!isValidPassword) {
-      
+
       // Incrémenter les tentatives échouées
       const newFailedAttempts = (user.failedLoginAttempts || 0) + 1
       const shouldLock = newFailedAttempts >= MAX_FAILED_ATTEMPTS
-      
+
       try {
         await prisma.user.update({
           where: { id: user.id },
           data: {
             failedLoginAttempts: newFailedAttempts,
-            lockedUntil: shouldLock 
+            lockedUntil: shouldLock
               ? new Date(Date.now() + LOCKOUT_DURATION_MS)
               : null,
           },
@@ -108,27 +106,26 @@ export async function POST(request: NextRequest) {
           console.error("Error updating failed login attempts:", updateError)
         }
       }
-      
+
       await createLog(user.id, "TENTATIVE_CONNEXION_ECHOUEE", {
         reason: "Mot de passe incorrect",
         failedAttempts: newFailedAttempts,
         locked: shouldLock,
       }, request)
-      
+
       // Vérifier et alerter sur les tentatives multiples
-      const ipAddress = getClientIP(request) || "unknown"
       await checkFailedLoginAttempts(login, ipAddress)
-      
+
       if (shouldLock) {
         return NextResponse.json(
-          { 
+          {
             error: `Compte verrouillé après ${MAX_FAILED_ATTEMPTS} tentatives échouées. Réessayez dans 15 minutes.`,
             lockedUntil: new Date(Date.now() + LOCKOUT_DURATION_MS).toISOString()
           },
           { status: 423 }
         )
       }
-      
+
       return NextResponse.json(
         { error: "Identifiant ou mot de passe incorrect" },
         { status: 401 }
@@ -139,7 +136,7 @@ export async function POST(request: NextRequest) {
     const isSuperAdmin = user.role === "Super Admin"
     const twoFactorRequired = isSuperAdmin
     const requiresTwoFactorSetup = twoFactorRequired && !user.twoFactorEnabled
-    
+
     // Si 2FA obligatoire mais non activé, permettre la connexion mais indiquer qu'il faut configurer le 2FA
     // On créera la session pour permettre l'accès à la page de configuration 2FA
 
@@ -168,13 +165,13 @@ export async function POST(request: NextRequest) {
         // Incrémenter les tentatives échouées pour 2FA
         const newFailedAttempts = (user.failedLoginAttempts || 0) + 1
         const shouldLock = newFailedAttempts >= MAX_FAILED_ATTEMPTS
-        
+
         try {
           await prisma.user.update({
             where: { id: user.id },
             data: {
               failedLoginAttempts: newFailedAttempts,
-              lockedUntil: shouldLock 
+              lockedUntil: shouldLock
                 ? new Date(Date.now() + LOCKOUT_DURATION_MS)
                 : null,
             },
@@ -185,29 +182,26 @@ export async function POST(request: NextRequest) {
             console.error("Error updating failed login attempts:", updateError)
           }
         }
-        
+
         await createLog(user.id, "TENTATIVE_CONNEXION_ECHOUEE", {
           reason: "Code 2FA incorrect",
           failedAttempts: newFailedAttempts,
           locked: shouldLock,
         }, request)
-        
+
         // Vérifier et alerter sur les tentatives multiples
-        const ipAddress = request.headers.get("x-forwarded-for") || 
-                         request.headers.get("x-real-ip") || 
-                         "unknown"
         await checkFailedLoginAttempts(login, ipAddress)
-        
+
         if (shouldLock) {
           return NextResponse.json(
-            { 
+            {
               error: `Compte verrouillé après ${MAX_FAILED_ATTEMPTS} tentatives échouées. Réessayez dans 15 minutes.`,
               lockedUntil: new Date(Date.now() + LOCKOUT_DURATION_MS).toISOString()
             },
             { status: 423 }
           )
         }
-        
+
         return NextResponse.json(
           { error: "Code 2FA incorrect" },
           { status: 401 }
@@ -223,10 +217,10 @@ export async function POST(request: NextRequest) {
         lockedUntil: null,
       },
     })
-    
+
     // Réinitialiser le rate limiting pour cette IP
     resetRateLimit(`login:${ipAddress}`)
-    
+
     await createLog(user.id, "CONNEXION", null, request)
 
     // Vérifier et créer la table Session si nécessaire
@@ -240,27 +234,27 @@ export async function POST(request: NextRequest) {
     // Créer une session sécurisée avec token aléatoire
     try {
       const { createSecureSession } = await import("@/lib/session-secure")
-      
+
       // Créer la réponse d'abord
-      const response = NextResponse.json({ 
+      const response = NextResponse.json({
         success: true,
         requiresTwoFactorSetup, // Indiquer si le 2FA doit être configuré
       })
-      
+
       // Créer la session et définir le cookie sur la réponse
       const sessionToken = await createSecureSession(user.id, response)
-      
+
       // Créer un token CSRF pour cette session et le définir sur la réponse
       const csrfToken = await createCSRFToken(response)
-      
+
       // Ajouter le token CSRF dans le corps de la réponse
-      const responseData = { 
+      const responseData = {
         success: true,
         csrfToken,
         requiresTwoFactorSetup,
       }
       const finalResponse = NextResponse.json(responseData)
-      
+
       // Copier tous les cookies de la réponse originale (session + CSRF)
       response.cookies.getAll().forEach(cookie => {
         finalResponse.cookies.set(cookie.name, cookie.value, {
@@ -272,8 +266,7 @@ export async function POST(request: NextRequest) {
         })
       })
 
-      console.log(`[LOGIN] Session sécurisée créée pour l'utilisateur ${user.login} (${user.id}) avec token ${sessionToken.substring(0, 16)}...`)
-      console.log(`[LOGIN] Cookies dans la réponse:`, finalResponse.cookies.getAll().map(c => c.name))
+      console.log(`[LOGIN] Session créée pour ${user.login}`)
 
       return finalResponse
     } catch (sessionError: any) {
@@ -284,18 +277,18 @@ export async function POST(request: NextRequest) {
         if (!(global as any).__loginFallbackLogged) {
           console.warn("[LOGIN] Table Session non disponible, utilisation du fallback temporaire")
           console.warn("[LOGIN] Pour activer les sessions sécurisées: arrêtez le serveur, exécutez 'npx prisma generate', puis redémarrez")
-          ;(global as any).__loginFallbackLogged = true
+            ; (global as any).__loginFallbackLogged = true
         }
-        
+
         try {
           // Fallback temporaire : utiliser l'ancien système de session
           const { createSession } = await import("@/lib/session")
           await createSession(user.id)
-          
+
           // Créer un token CSRF pour cette session
           const csrfToken = await createCSRFToken()
 
-          const response = NextResponse.json({ 
+          const response = NextResponse.json({
             success: true,
             csrfToken,
             requiresTwoFactorSetup, // Indiquer si le 2FA doit être configuré
@@ -315,7 +308,7 @@ export async function POST(request: NextRequest) {
     console.error("Login error message:", error?.message)
     console.error("Login error code:", error?.code)
     return NextResponse.json(
-      { 
+      {
         error: "Erreur serveur",
         details: process.env.NODE_ENV === "development" ? error?.message : undefined
       },

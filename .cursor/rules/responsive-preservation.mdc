@@ -1,0 +1,22 @@
+---
+description: Vérifie le responsive Mobile/Tablette/Desktop lors des modifications d'UI. Référence .cursor/skills/responsive-preservation/
+alwaysApply: true
+---
+
+# Préservation responsive — ABCLIV Agency
+
+**Avant toute modification UI** (composants, layouts, formulaires, dialogs) : appliquer cette vérification.
+
+## Breakpoints
+- Mobile: < 768px (avant `md`)
+- `sm` 640px | `md` 768px | `lg` 1024px
+
+## Règles essentielles
+- Padding : `p-4 sm:p-6` ; Espacements : `gap-2 sm:gap-4`
+- Grilles : `grid-cols-1 sm:grid-cols-2` ou `grid-cols-2 sm:grid-cols-3 md:grid-cols-4`
+- Boutons : `w-full sm:w-auto`, min-height 44px
+- Dialogs : `max-w-[95vw] sm:max-w-lg`, `p-4 sm:p-6`
+- Images : `max-w-full`, `object-contain`
+- Pas de largeur fixe px ; pas de scroll horizontal non voulu
+
+Détails : `.cursor/skills/responsive-preservation/SKILL.md`

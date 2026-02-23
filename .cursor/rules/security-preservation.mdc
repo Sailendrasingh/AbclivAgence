@@ -1,0 +1,19 @@
+---
+description: Vérifie la sécurité (OWASP, auth, validation, chemins) lors de toute modification. Référence .cursor/skills/security-preservation/
+alwaysApply: true
+---
+
+# Préservation sécurité — ABCLIV Agency
+
+**Avant toute modification** : appliquer cette vérification si tu modifies routes API, auth, uploads, chemins, dépendances ou logique sensible.
+
+## Checklist rapide
+
+- **API** : `getSession()` avant traitement ; `requireCSRF()` sur POST/PUT/PATCH/DELETE
+- **Validation** : Zod (`validateRequest`) + `sanitize()` après validation
+- **Chemins** : pas de path traversal ; rejeter `..`, `/`, `\` ; vérifier `startsWith(uploadsDir)`
+- **Uploads** : magic bytes (JPEG, PNG uniquement)
+- **Secrets** : aucun `console.log` de tokens/sessions/cookies ; argon2 pour mots de passe
+- **Interdits** : `$queryRaw`/`$executeRaw`, `dangerouslySetInnerHTML` (sauf FOUC layout), dépendances non PRD, API hors BAN
+
+En cas de doute : demander confirmation. Réf. `SECURITY.md`, PRD Section 15.

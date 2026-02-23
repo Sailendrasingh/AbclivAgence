@@ -96,7 +96,7 @@ export default function DashboardLanding() {
   const { globalMetrics, agencyStates, recentActivity, urgentTasks, recentAlerts, recentAgencies } = data
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 md:p-8 bg-slate-50 dark:bg-background">
+    <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 md:p-8 bg-slate-50 dark:bg-background">
       <div className="max-w-6xl mx-auto flex flex-col" style={{ gap: '2.5rem' }}>
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Vue d'ensemble</h2>
@@ -107,7 +107,7 @@ export default function DashboardLanding() {
 
         {/* KPIs ROW */}
         <div className="grid md:grid-cols-2 lg:grid-cols-4" style={{ gap: '1.5rem' }}>
-          <Card>
+          <Card className="transition-all duration-200 hover:scale-[1.02] hover:shadow-lg cursor-default">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Agences Totales</CardTitle>
               <Building2 className="h-4 w-4 text-muted-foreground" />
@@ -118,7 +118,7 @@ export default function DashboardLanding() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="transition-all duration-200 hover:scale-[1.02] hover:shadow-lg cursor-default">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Tâches Ouvertes</CardTitle>
               <CheckSquare className="h-4 w-4 text-muted-foreground" />
@@ -131,7 +131,7 @@ export default function DashboardLanding() {
 
           {isAdmin && (
             <>
-              <Card>
+              <Card className="transition-all duration-200 hover:scale-[1.02] hover:shadow-lg cursor-default">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Utilisateurs Actifs</CardTitle>
                   <Users className="h-4 w-4 text-muted-foreground" />
@@ -142,7 +142,7 @@ export default function DashboardLanding() {
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="transition-all duration-200 hover:scale-[1.02] hover:shadow-lg cursor-default">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium text-red-600 dark:text-red-400">Alertes Sécurité</CardTitle>
                   <ShieldAlert className="h-4 w-4 text-red-600 dark:text-red-400" />
