@@ -4,44 +4,43 @@
 @tailwind utilities;
 
 @layer base {
-  /* Thème clair : orange dégradé (sans .dark) */
+  /* Thème clair : Lumière — indigo & slate (moderne, très lisible) */
   :root,
   .light {
-    /* Couleurs orange, pas violet */
-    --background: 28 55% 92%;
+    --background: 30 20% 98%;
     --surface: 0 0% 100%;
-    --foreground: 24 30% 12%;
+    --foreground: 222 47% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 24 30% 12%;
+    --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 24 30% 12%;
+    --popover-foreground: 222 47% 11%;
 
-    --primary: 26 90% 52%;
+    --primary: 239 84% 57%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 25 50% 88%;
-    --secondary-foreground: 24 30% 12%;
-    --muted: 28 40% 90%;
-    --muted-foreground: 24 22% 38%;
-    --accent: 26 85% 88%;
-    --accent-foreground: 26 75% 20%;
+    --secondary: 230 25% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+    --accent: 239 84% 96%;
+    --accent-foreground: 239 84% 40%;
 
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --danger: 0 84.2% 60.2%;
+    --danger: 0 72% 51%;
     --danger-foreground: 0 0% 100%;
 
-    --border: 26 35% 85%;
+    --border: 220 13% 91%;
     --input: 0 0% 100%;
-    --ring: 26 90% 52%;
-    --radius: 0.375rem;
+    --ring: 239 84% 57%;
+    --radius: 0.5rem;
 
-    --gradient-orange-start: 18 85% 82%;
-    --gradient-orange-mid: 28 70% 90%;
-    --gradient-orange-end: 42 50% 96%;
+    --gradient-orange-start: 239 60% 97%;
+    --gradient-orange-mid: 30 20% 98%;
+    --gradient-orange-end: 0 0% 100%;
 
     --chart-tooltip-bg: 0 0% 100%;
-    --chart-tooltip-fg: 24 30% 12%;
+    --chart-tooltip-fg: 222 47% 11%;
   }
 
   .dark {
@@ -119,14 +118,14 @@
     @apply text-foreground;
   }
 
-  /* Mode light : dégradé orange visible sur tout l'écran */
+  /* Mode light : fond neutre doux (plus de dégradé orange) */
   :root body,
   .light body {
     background: linear-gradient(
-      160deg,
-      hsl(18, 85%, 82%) 0%,
-      hsl(28, 70%, 90%) 50%,
-      hsl(42, 50%, 96%) 100%
+      165deg,
+      hsl(30, 20%, 98%) 0%,
+      hsl(0, 0%, 100%) 45%,
+      hsl(240, 20%, 99%) 100%
     );
     background-attachment: fixed;
     min-height: 100vh;
@@ -144,7 +143,6 @@
     min-height: 100vh;
   }
 
-  /* En mode light, le shell du dashboard laisse voir le dégradé orange (pas de fond plein) */
   .light .dashboard-shell {
     background: transparent !important;
   }
@@ -220,6 +218,10 @@
     background: linear-gradient(to right,
         hsl(var(--primary)),
         hsl(var(--gradient-orange-mid)));
+  }
+
+  .light .brand-gradient {
+    background: linear-gradient(135deg, hsl(239, 84%, 57%), hsl(243, 75%, 65%));
   }
 
   .dark .brand-gradient {

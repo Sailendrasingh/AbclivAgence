@@ -321,29 +321,26 @@ export default function AgencesPage() {
     }
   }, [search, filter, isMounted])
 
+  const loadAgenciesRef = useRef(loadAgencies)
+  loadAgenciesRef.current = loadAgencies
+
   // Synchroniser la ref avec l'état selectedAgency
   useEffect(() => {
     selectedAgencyRef.current = selectedAgency
   }, [selectedAgency])
 
-  // Récupération du rôle utilisateur et du token CSRF (prioritaire)
+  // Récupération du rôle utilisateur et du token CSRF (prioritaire) — uniquement au montage
   useEffect(() => {
     if (!isMounted) return
 
     const fetchUserRole = async () => {
       try {
-        // Récupérer le token CSRF en premier pour éviter les erreurs 403
         const response = await apiFetch("/api/auth/me")
         if (response.ok) {
           const data = await response.json()
           setUserRole(data.role)
-
-          // Stocker le token CSRF si disponible (prioritaire)
           if (data.csrfToken) {
             setCSRFToken(data.csrfToken)
-            console.log("[AGENCES] Token CSRF récupéré et stocké")
-          } else {
-            console.warn("[AGENCES] Aucun token CSRF reçu de /api/auth/me")
           }
         }
       } catch (error) {
@@ -351,7 +348,6 @@ export default function AgencesPage() {
       }
     }
 
-    // Charger les paramètres depuis l'API
     const loadSettings = async () => {
       try {
         const response = await apiFetch("/api/settings")
@@ -366,11 +362,10 @@ export default function AgencesPage() {
       }
     }
 
-    // Exécuter fetchUserRole et loadSettings en premier, puis loadAgencies
     Promise.all([fetchUserRole(), loadSettings()]).then(() => {
-      loadAgencies()
+      loadAgenciesRef.current()
     })
-  }, [loadAgencies, isMounted])
+  }, [isMounted])
 
   // Marquer le composant comme monté et charger masterWidth depuis localStorage
   useEffect(() => {

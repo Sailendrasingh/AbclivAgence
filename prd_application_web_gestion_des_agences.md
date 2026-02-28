@@ -53,7 +53,7 @@ Aucune autre finalité.
 
   * Thème clair et sombre fournis par shadcn/ui
 * CSS : Tailwind CSS
-* Base de données : SQLite
+* Base de données : **PostgreSQL** (recommandé production et dev). SQLite conservé en option pour scripts de test/migration (voir `lib/prisma.ts`).
 * ORM : **Prisma 5.22.0 (obligatoire)**
 * API externe autorisée : **BAN uniquement**
 
@@ -121,14 +121,11 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
 * **Activation** : Mode dark via classe `dark` sur `<html>`, mode clair via classe `light` (géré par `ThemeToggle` et script inline dans `<head>`)
 * **Configuration Tailwind** : `darkMode: ["class"]`
 * **Implémentation** : Variables CSS HSL dans `app/theme.css`
-* **Thème clair (orange dégradé)** :
-  * Ambiance chaude avec dégradé orange visible
-  * Couleur principale : **Orange** (HSL: 26 90% 52%)
-  * **Fond en dégradé** : Le body et la zone principale utilisent un dégradé orange visible (orange chaud → pêche → crème), défini en HSL (ex. 18° 85% 82% → 28° 70% 90% → 42° 50% 96%). Le wrapper du dashboard (classe `dashboard-shell`) a un fond transparent en mode clair pour laisser voir ce dégradé sur tout l'écran.
-  * Variables `:root` et `.light` partagées pour garantir l'application du thème orange (primary, accent, border, etc. en teintes orange)
-  * Surfaces de contenu : Cards et popovers en blanc (`--card: 0 0% 100%`) pour une lisibilité optimale sur le dégradé
-  * Texte : `--foreground` sombre (HSL ~24 30% 12%) pour contraste suffisant
-  * Tokens avec teintes orange et bordures (`--radius: 0.375rem`)
+* **Thème clair** : Deux variantes documentées ; implémentation dans `app/theme.css` (variables `:root` et `.light`).
+  * **Variante « Lumière » (actuelle)** : Moderne et très lisible. Couleur principale **Indigo** (HSL: 239 84% 57%). Fond neutre en dégradé doux (blanc chaud → blanc). Texte slate foncé (`--foreground`: 222 47% 11%). Surfaces en blanc. Bordures gris clair. `--radius: 0.5rem`.
+  * **Variante « Orange dégradé » (historique)** : Ambiance chaude, dégradé orange visible (orange → pêche → crème). Primary orange (HSL: 26 90% 52%). Le wrapper `dashboard-shell` peut rester transparent pour laisser voir le dégradé.
+  * Surfaces de contenu : Cards et popovers en blanc pour une lisibilité optimale.
+  * Tokens : primary, accent, border, radius définis dans `theme.css`.
 * **Thème sombre** :
   * Ambiance raffinée avec profondeur et contraste améliorés (inspirée de CoreUI Dark)
   * Couleur principale : **Violet / Bleu** (HSL: 239 84% 67%)
@@ -222,7 +219,8 @@ Les dépendances suivantes sont autorisées et utilisées dans le projet :
     * **Tous les dialogs** : Padding réduit sur mobile (`p-4 sm:p-6`), scroll vertical si contenu trop long
 * **Zone Master** :
   * **Structure en deux parties** :
-    * **Partie fixe (non scrollable)** : Titre "Agences", bouton "Ajouter", champ de recherche et filtres d'état
+    * **Partie fixe (non scrollable)** : Titre "Agences", bouton "Ajouter", champ de recherche et filtres d'état (Tous, OK, INFO, ALERTE, FERMÉE)
+    * **Comportement des filtres** : Un seul appel API (`GET /api/agencies?search=...&filter=...`) par changement de filtre ou de recherche (debounce 300 ms sur la recherche ; pas de double appel au clic sur un filtre)
     * **Partie scrollable** : Liste des agences avec ascenseur vertical qui commence à partir du premier agence
   * Liste agences avec nom et état
   * **Tri automatique** : Les agences sont triées par nom (ordre alphabétique) dans la zone Master
@@ -1210,7 +1208,7 @@ Aucun autre type autorisé.
 
 * Logs de connexion
 * Logs actions utilisateur
-* Stockage : SQLite
+* Stockage : **PostgreSQL** (ou SQLite si DATABASE_URL en `file:`)
 * Export : **CSV uniquement**
 * Rétention : **30 jours**
 * **Interface utilisateur** :
@@ -1271,7 +1269,8 @@ Aucun autre type autorisé.
   * Commande : `npm run backup`
   * Format du nom de fichier : `backup-YYYY-MM-DDTHH-mm-ss-sssZ.encrypted.zip` (timestamp ISO)
   * **Format de sauvegarde** : Archive ZIP compressée et chiffrée contenant :
-    * La base de données SQLite complète (`prisma/dev.db`)
+    * **PostgreSQL** : Dump SQL via `pg_dump` (script `scripts/backup.ts`, module `lib/db-backup.ts`). Si `DATABASE_URL` est une URL `postgresql://`, la sauvegarde utilise ce format.
+    * **SQLite (rétrocompatibilité)** : Fichier base complète (`prisma/dev.db`) lorsque `DATABASE_URL` pointe vers un fichier `file:`.
     * Le dossier `/uploads` complet avec toutes les photos et fichiers uploadés
   * **Compression** : Niveau de compression maximal (zlib level 9) pour optimiser l'espace disque
   * **Chiffrement** : **AES-256-GCM** (Advanced Encryption Standard avec Galois/Counter Mode)
@@ -1321,7 +1320,8 @@ Aucun autre type autorisé.
         * Pour les sauvegardes `.encrypted.zip` : Déchiffrement automatique puis extraction complète de l'archive (base de données + dossier uploads)
           * **Déchiffrement** : Détection automatique du format chiffré et déchiffrement avec la clé `ENCRYPTION_KEY`
           * **Bibliothèque d'extraction** : `yauzl` (bibliothèque légère sans dépendances externes)
-          * La base de données est restaurée dans `prisma/dev.db`
+          * **PostgreSQL** : Restauration via `psql` (si `DATABASE_URL` est une URL `postgresql://`). Voir `lib/db-backup.ts`.
+          * **SQLite** : La base de données est restaurée dans `prisma/dev.db` (si `DATABASE_URL` en `file:`).
           * Le dossier `/uploads` est remplacé par celui de la sauvegarde
           * Une sauvegarde de l'état actuel est créée automatiquement avant la restauration
           * **Sécurité** : Protection contre les chemins malformés (chemins avec `..`, chemins absolus) - ces entrées sont ignorées lors de l'extraction
@@ -1366,7 +1366,8 @@ L'application doit être conforme aux standards de sécurité OWASP Top 10 2021.
 * **Vérification des permissions** : Les actions sensibles vérifient le rôle (ex: historique, sauvegardes)
 * **Protection des routes** : Proxy (anciennement middleware) protège les routes `/dashboard` et `/api`
 * **Protection path traversal** : Validation stricte des chemins de fichiers pour éviter l'accès non autorisé aux fichiers système
-  * Dans `app/api/files/[...path]/route.ts` : Vérification que le chemin résolu est bien dans le dossier `uploads/`
+  * Dans `app/api/files/[...path]/route.ts` : Vérification que le chemin résolu est bien dans le dossier `uploads/` (`startsWith(uploadsDir)`)
+  * Sauvegardes : rejet de `filename` contenant `..`, `/` ou `\` ; utilisation de `resolve()` et vérification que le chemin résolu reste dans le répertoire des sauvegardes (DELETE et POST restore). Pour `DELETE /api/backups/[filename]` : `filePath.startsWith(backupsDir)` après `resolve()`
   * Utilisation de `resolve()` pour normaliser les chemins et détecter les tentatives de path traversal
 * **Rate limiting** : Système de limitation du nombre de tentatives par IP
   * Limite : 5 tentatives par IP toutes les 15 minutes
@@ -1400,7 +1401,8 @@ L'application doit être conforme aux standards de sécurité OWASP Top 10 2021.
 ### 15.3 A03:2021 – Injection
 
 * **Prisma ORM** : Utilisation de Prisma protège contre les injections SQL
-* **Pas de requêtes SQL brutes** : Aucune utilisation de `$queryRaw` ou `$executeRaw`
+* **Pas de requêtes SQL brutes** : Aucune utilisation de `$queryRaw` ou `$executeRaw` dans le code applicatif. Exception documentée : `lib/ensure-session-table.ts` utilise `$queryRaw` avec une requête fixe (aucune entrée utilisateur) pour vérifier l'existence de la table Session. Les scripts de migration one-off peuvent utiliser `$executeRawUnsafe` en environnement contrôlé.
+* **CSRF** : Toutes les routes modifiantes (POST, PUT, PATCH, DELETE) protégées par `requireCSRF()` ou `verifyCSRFToken`, notamment : agencies, contacts, addresses, upload, settings, users, **backups (DELETE, POST restore)**, **alerts (POST resolve)**, **history restore (technical, agencies)**.
 * **Validation des entrées** :
   * **Schémas Zod** : Validation stricte avec Zod pour tous les champs (users, contacts, agencies, addresses, pcs, etc.)
   * **Validation regex** : Validation stricte avec regex pour les champs spécifiques (poste, agent, ligne directe)
@@ -1440,7 +1442,7 @@ L'application doit être conforme aux standards de sécurité OWASP Top 10 2021.
   * `Permissions-Policy` (limitation des APIs)
 * **Mode strict React** : `reactStrictMode: true` dans `next.config.js`
 * **Variables d'environnement** : Utilisation de `.env` pour la configuration
-  * **DATABASE_URL** : Chemin vers la base de données SQLite (ex: `file:./prisma/dev.db`)
+  * **DATABASE_URL** : URL de la base de données. **PostgreSQL** (recommandé) : `postgresql://user:password@host:port/dbname`. **SQLite** (dev/test) : `file:./prisma/dev.db`. Ne pas écraser avec une URL SQLite dans `.env.local` si le schéma Prisma est configuré pour PostgreSQL.
   * **ENCRYPTION_KEY** : **OBLIGATOIRE** - Clé de chiffrement pour les sauvegardes et la base de données (minimum 32 caractères)
     * **Génération** : Utiliser `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` pour générer une clé sécurisée
     * **Sécurité** : Ne jamais commiter cette clé dans Git, utiliser `.env.local` en développement et variables d'environnement sécurisées en production
@@ -1710,7 +1712,7 @@ L'application doit être conforme aux standards de sécurité OWASP Top 10 2021.
 ### 20.2 Configuration requise
 
 * **Variables d'environnement obligatoires** :
-  * `DATABASE_URL` : Chemin vers la base de données SQLite de production (ex: `file:/var/www/abcliv-agency/prisma/production.db`)
+  * `DATABASE_URL` : URL de la base de données (PostgreSQL recommandé : `postgresql://...` ; ou SQLite : `file:/var/www/abcliv-agency/prisma/production.db`)
   * `ENCRYPTION_KEY` : Clé de chiffrement de 64 caractères hexadécimaux (générée avec `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`)
   * `NODE_ENV` : Doit être défini à `"production"`
   * `NEXT_PUBLIC_APP_URL` : URL publique de l'application (optionnel)
