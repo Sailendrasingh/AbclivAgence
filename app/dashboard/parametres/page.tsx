@@ -1056,48 +1056,41 @@ function ParametresPageContent() {
           { label: tabLabels[activeTab] || activeTab },
         ]}
       />
-      <div className="flex justify-between items-center mb-4 sm:mb-6 mt-2">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4 sm:mb-6 mt-2">
         <h1 className="text-xl sm:text-2xl font-bold">Paramètres</h1>
+        <div className="flex flex-wrap gap-1 p-1 rounded-lg bg-muted">
+          {[
+            { value: "general", label: "Général", icon: Sliders },
+            { value: "utilisateurs", label: "Utilisateurs", icon: Users },
+            { value: "sauvegardes", label: "Sauvegardes", icon: HardDrive },
+            { value: "logs", label: "Logs", icon: FileText },
+            { value: "monitoring", label: "Monitoring", icon: Activity },
+          ].map((item) => {
+            const Icon = item.icon
+            const isActive = activeTab === item.value
+            return (
+              <button
+                key={item.value}
+                onClick={() => {
+                  setActiveTab(item.value)
+                  router.push(`/dashboard/parametres?tab=${item.value}`)
+                }}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-all min-h-[44px] sm:min-h-0",
+                  isActive
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                )}
+              >
+                <Icon className="h-4 w-4 shrink-0" />
+                <span>{item.label}</span>
+              </button>
+            )
+          })}
+        </div>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-6 mt-4">
-        {/* Navigation verticale */}
-        <nav className="w-56 shrink-0">
-          <div className="flex flex-col gap-1 overflow-visible -mx-1 px-1 sticky top-4">
-            {[
-              { value: "general", label: "Général", icon: Sliders, color: "border-blue-500" },
-              { value: "utilisateurs", label: "Utilisateurs", icon: Users, color: "border-emerald-500" },
-              { value: "sauvegardes", label: "Sauvegardes", icon: HardDrive, color: "border-amber-500" },
-              { value: "logs", label: "Logs", icon: FileText, color: "border-purple-500" },
-              { value: "monitoring", label: "Monitoring", icon: Activity, color: "border-red-500" },
-            ].map((item) => {
-              const Icon = item.icon
-              const isActive = activeTab === item.value
-              return (
-                <button
-                  key={item.value}
-                  onClick={() => {
-                    setActiveTab(item.value)
-                    router.push(`/dashboard/parametres?tab=${item.value}`)
-                  }}
-                  className={cn(
-                    "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 whitespace-nowrap min-h-[44px]",
-                    "border-l-[3px] border-b-0",
-                    isActive
-                      ? `${item.color} bg-card shadow-sm text-foreground`
-                      : "border-transparent hover:bg-card/50 text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  <Icon className={cn("h-4 w-4 shrink-0", isActive && "text-primary")} />
-                  <span>{item.label}</span>
-                </button>
-              )
-            })}
-          </div>
-        </nav>
-
-        {/* Contenu de la section active */}
-        <div className="flex-1 min-w-0 md:min-w-[600px]">
+      <div className="mt-4">
 
           {activeTab === "general" && (
             loading ? (
@@ -1899,7 +1892,6 @@ function ParametresPageContent() {
             </div>
           )}
         </div>
-      </div>
 
       {/* Dialog de confirmation de purge des logs */}
       <Dialog open={purgeLogsDialogOpen} onOpenChange={setPurgeLogsDialogOpen}>
