@@ -25,7 +25,12 @@ export default function ClientPieChart({ data, colors }: { data: any[], colors: 
                     </Pie>
                     <Tooltip
                         formatter={(value: any, name: any) => [value, `État ${name}`]}
-                        contentStyle={{ borderRadius: '8px', backgroundColor: 'var(--background)' }}
+                        contentStyle={{
+                            borderRadius: '8px',
+                            backgroundColor: 'hsl(var(--chart-tooltip-bg))',
+                            color: 'hsl(var(--chart-tooltip-fg))',
+                            border: '1px solid hsl(var(--border))'
+                        }}
                     />
                     <Legend verticalAlign="bottom" height={36} />
                 </PieChart>

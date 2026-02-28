@@ -39,6 +39,9 @@
     --gradient-orange-start: 18 85% 82%;
     --gradient-orange-mid: 28 70% 90%;
     --gradient-orange-end: 42 50% 96%;
+
+    --chart-tooltip-bg: 0 0% 100%;
+    --chart-tooltip-fg: 24 30% 12%;
   }
 
   .dark {
@@ -70,6 +73,10 @@
     --border: 220 14% 24%;
     --input: 220 14% 22%;
     --ring: 239 84% 67%;
+
+    /* Tooltip graphique : blanc cassé en thème sombre */
+    --chart-tooltip-bg: 40 15% 96%;
+    --chart-tooltip-fg: 24 25% 15%;
   }
 }
 
