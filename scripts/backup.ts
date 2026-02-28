@@ -5,139 +5,104 @@ import { existsSync } from "fs"
 import archiver from "archiver"
 import { encryptFile } from "../lib/encryption"
 import { saveChecksum, cleanupOrphanedChecksums } from "../lib/backup-integrity"
+import { isPostgresUrl, pgDumpToFile } from "../lib/db-backup"
 
 async function backup() {
   const backupsDir = join(process.cwd(), "backups")
-  const dbUrl = process.env.DATABASE_URL || "file:./prisma/dev.db"
-  const dbPathRaw = dbUrl.replace(/^file:/, "").trim()
-  const dbPath = dbPathRaw.startsWith("/") ? dbPathRaw : join(process.cwd(), dbPathRaw)
+  const dbUrl = process.env.DATABASE_URL || ""
   const uploadsDir = join(process.cwd(), "uploads")
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-")
   const backupZipPath = join(backupsDir, `backup-${timestamp}.zip`)
   const backupPath = join(backupsDir, `backup-${timestamp}.encrypted.zip`)
+  const dumpPath = join(backupsDir, `dump-${timestamp}.sql`)
+
+  if (!isPostgresUrl(dbUrl)) {
+    console.error("DATABASE_URL doit être une URL PostgreSQL (postgresql://...)")
+    process.exit(1)
+  }
 
   try {
-    // Créer le dossier backups s'il n'existe pas
     if (!existsSync(backupsDir)) {
       await mkdir(backupsDir, { recursive: true })
     }
 
-    // Vérifier que la base de données existe
-    if (!existsSync(dbPath)) {
-      console.error("Base de données non trouvée:", dbPath)
-      process.exit(1)
+    console.log("Dump PostgreSQL via pg_dump...")
+    pgDumpToFile(dbUrl, dumpPath)
+    if (!existsSync(dumpPath)) {
+      throw new Error("Le dump n'a pas été créé")
     }
 
-    // Créer l'archive ZIP (temporaire, non chiffrée)
     const output = createWriteStream(backupZipPath)
-    const archive = archiver("zip", {
-      zlib: { level: 9 } // Compression maximale
-    })
-
-    // Gérer les erreurs de l'archive
-    archive.on("error", (err) => {
-      throw err
-    })
-
-    // Pipe l'archive vers le fichier
+    const archive = archiver("zip", { zlib: { level: 9 } })
+    archive.on("error", (err) => { throw err })
     archive.pipe(output)
-
-    // Ajouter la base de données à l'archive
-    archive.file(dbPath, { name: "dev.db" })
-
-    // Ajouter le dossier uploads s'il existe
+    archive.file(dumpPath, { name: "dump.sql" })
     if (existsSync(uploadsDir)) {
       archive.directory(uploadsDir, "uploads")
     }
-
-    // Finaliser l'archive
     await archive.finalize()
 
-    // Attendre que l'écriture soit terminée
-    await new Promise((resolve, reject) => {
-      output.on("close", () => {
-        console.log(`Archive ZIP créée: ${archive.pointer()} bytes`)
-        resolve(undefined)
-      })
+    await new Promise<void>((resolve, reject) => {
+      output.on("close", () => resolve())
       output.on("error", reject)
     })
 
-    // Chiffrer l'archive ZIP
+    await unlink(dumpPath)
+
     console.log("Chiffrement de la sauvegarde...")
     await encryptFile(backupZipPath, backupPath)
     console.log(`Sauvegarde chiffrée créée: ${backupPath}`)
-
-    // Supprimer le fichier ZIP non chiffré
     await unlink(backupZipPath)
 
-    const { stat } = await import("fs/promises")
     const backupStats = await stat(backupPath)
-    console.log(`Taille de la sauvegarde chiffrée: ${backupStats.size} bytes`)
+    console.log(`Taille: ${backupStats.size} bytes`)
 
-    // Calculer et sauvegarder le checksum SHA-256
-    console.log("Calcul du checksum SHA-256...")
     try {
       const checksum = await saveChecksum(backupPath)
-      console.log(`Checksum SHA-256: ${checksum}`)
-      console.log(`Checksum sauvegardé dans: ${backupPath}.sha256`)
-    } catch (checksumError: any) {
-      console.error(`Erreur lors du calcul du checksum:`, checksumError)
-      // Ne pas faire échouer la sauvegarde si le checksum échoue
+      console.log(`Checksum: ${checksum}`)
+    } catch (checksumError: unknown) {
+      console.error("Erreur checksum:", checksumError)
     }
 
-    // Nettoyer les sauvegardes de plus de 10 jours
     const files = await readdir(backupsDir)
     const now = Date.now()
     const tenDaysAgo = now - 10 * 24 * 60 * 60 * 1000
 
     for (const file of files) {
-      if (file.startsWith("backup-") && (
-        file.endsWith(".encrypted.zip") ||
-        file.endsWith(".zip") ||
-        file.endsWith(".db")
-      )) {
+      if (file.startsWith("backup-") && (file.endsWith(".encrypted.zip") || file.endsWith(".zip"))) {
         const filePath = join(backupsDir, file)
         const stats = await stat(filePath)
-
         if (stats.mtimeMs < tenDaysAgo) {
           await unlink(filePath)
-          // Supprimer aussi le fichier de checksum associé s'il existe
           const checksumPath = `${filePath}.sha256`
           if (existsSync(checksumPath)) {
-            try {
-              await unlink(checksumPath)
-            } catch { }
+            try { await unlink(checksumPath) } catch { }
           }
           console.log(`Sauvegarde supprimée: ${file}`)
         }
       }
     }
 
-    // Nettoyer les checksums orphelins
     try {
       const orphanedChecksums = await cleanupOrphanedChecksums(backupsDir)
-      if (orphanedChecksums > 0) {
-        console.log(`${orphanedChecksums} checksum(s) orphelin(s) nettoyé(s)`)
-      }
+      if (orphanedChecksums > 0) console.log(`${orphanedChecksums} checksum(s) orphelin(s) nettoyé(s)`)
     } catch (error) {
-      console.warn("Erreur lors du nettoyage des checksums orphelins:", error)
+      console.warn("Nettoyage checksums:", error)
     }
 
-    // Nettoyer les logs obsolètes (plus de 30 jours)
     console.log("Nettoyage des anciens logs...")
     try {
       const { cleanupOldLogs } = await import("../lib/logs")
       await cleanupOldLogs()
-      console.log("Nettoyage des logs terminé.")
+      console.log("Nettoyage terminé.")
     } catch (logError) {
-      console.warn("Erreur lors du nettoyage des logs:", logError)
+      console.warn("Logs:", logError)
     }
-
   } catch (error) {
+    if (existsSync(dumpPath)) unlink(dumpPath).catch(() => {})
     console.error("Erreur lors de la sauvegarde:", error)
     process.exit(1)
   }
 }
 
 backup()
-

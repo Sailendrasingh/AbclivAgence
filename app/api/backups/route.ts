@@ -9,6 +9,7 @@ import archiver from "archiver"
 import { encryptFile } from "@/lib/encryption"
 import { saveChecksum, verifyFileIntegrity, cleanupOrphanedChecksums } from "@/lib/backup-integrity"
 import { alertSensitiveAction } from "@/lib/alerts"
+import { isPostgresUrl, pgDumpToFile } from "@/lib/db-backup"
 
 // GET : Lister toutes les sauvegardes
 export async function GET(request: NextRequest) {
@@ -107,23 +108,18 @@ export async function POST(request: NextRequest) {
 
   try {
     const backupsDir = join(process.cwd(), "backups")
-    // Utiliser le même chemin que l'app (ex: file:/app/data/prod.db en prod)
-    const dbUrl = process.env.DATABASE_URL || "file:./prisma/dev.db"
-    const dbPathRaw = dbUrl.replace(/^file:/, "").trim()
-    const { isAbsolute } = await import("path")
-    const dbPath = isAbsolute(dbPathRaw) ? dbPathRaw : join(process.cwd(), dbPathRaw)
+    const dbUrl = process.env.DATABASE_URL || ""
+
+    if (!isPostgresUrl(dbUrl)) {
+      return NextResponse.json(
+        { error: "La sauvegarde nécessite PostgreSQL (DATABASE_URL postgresql://...)" },
+        { status: 400 }
+      )
+    }
 
     // Créer le dossier backups s'il n'existe pas
     if (!existsSync(backupsDir)) {
       await mkdir(backupsDir, { recursive: true })
-    }
-
-    // Vérifier que la base de données existe
-    if (!existsSync(dbPath)) {
-      return NextResponse.json(
-        { error: "Base de données non trouvée" },
-        { status: 404 }
-      )
     }
 
     // Générer le nom de fichier avec timestamp
@@ -131,47 +127,42 @@ export async function POST(request: NextRequest) {
     const backupZipPath = join(backupsDir, `backup-${timestamp}.zip`)
     const backupPath = join(backupsDir, `backup-${timestamp}.encrypted.zip`)
     const uploadsDir = join(process.cwd(), "uploads")
+    const dumpPath = join(backupsDir, `dump-${timestamp}.sql`)
 
-    // Créer l'archive ZIP (temporaire, non chiffrée)
-    const output = createWriteStream(backupZipPath)
-    const archive = archiver("zip", {
-      zlib: { level: 9 } // Compression maximale
-    })
+    try {
+      // Dump PostgreSQL via pg_dump
+      pgDumpToFile(dbUrl, dumpPath)
+      if (!existsSync(dumpPath)) {
+        throw new Error("Le dump PostgreSQL n'a pas été créé")
+      }
 
-    // Attendre que l'écriture soit terminée
-    const archivePromise = new Promise<void>((resolve, reject) => {
-      output.on("close", () => {
-        console.log(`Archive créée: ${archive.pointer()} bytes`)
-        resolve()
-      })
-      output.on("error", (err) => {
-        console.error("Erreur lors de l'écriture de l'archive:", err)
-        reject(err)
+      // Créer l'archive ZIP (temporaire, non chiffrée)
+      const output = createWriteStream(backupZipPath)
+      const archive = archiver("zip", {
+        zlib: { level: 9 }
       })
 
-      // Gérer les erreurs de l'archive
-      archive.on("error", (err: Error) => {
-        console.error("Erreur lors de la création de l'archive:", err)
-        reject(err)
+      const archivePromise = new Promise<void>((resolve, reject) => {
+        output.on("close", () => {
+          console.log(`Archive créée: ${archive.pointer()} bytes`)
+          resolve()
+        })
+        output.on("error", reject)
+        archive.on("error", (err: Error) => reject(err))
       })
-    })
 
-    // Pipe l'archive vers le fichier
-    archive.pipe(output)
-
-    // Ajouter la base de données à l'archive
-    archive.file(dbPath, { name: "dev.db" })
-
-    // Ajouter le dossier uploads s'il existe
-    if (existsSync(uploadsDir)) {
-      archive.directory(uploadsDir, "uploads")
+      archive.pipe(output)
+      archive.file(dumpPath, { name: "dump.sql" })
+      if (existsSync(uploadsDir)) {
+        archive.directory(uploadsDir, "uploads")
+      }
+      await archive.finalize()
+      await archivePromise
+    } finally {
+      if (existsSync(dumpPath)) {
+        await unlink(dumpPath).catch(() => {})
+      }
     }
-
-    // Finaliser l'archive
-    await archive.finalize()
-
-    // Attendre que l'écriture soit terminée
-    await archivePromise
 
     // Chiffrer l'archive ZIP
     try {

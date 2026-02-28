@@ -4,32 +4,23 @@ import path from 'path'
 // ⚠️ IMPORTANT: S'assurer que nous utilisons la bonne base de données
 // Ne jamais utiliser test.db en dehors des tests
 if (process.env.NODE_ENV !== 'test') {
-  // TOUJOURS utiliser un chemin absolu pour éviter les problèmes avec Next.js
-  // Le chemin relatif peut pointer vers un mauvais répertoire selon le contexte d'exécution
-  // Même si .env contient un chemin relatif, on le convertit en absolu
-  // Cela s'applique aussi en production pour garantir que le chemin est correct
-  const dbPath = path.join(process.cwd(), 'prisma', 'dev.db')
-  
-  // Convertir le chemin relatif en absolu si nécessaire
-  let finalDbPath = dbPath
-  if (process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith('file:./')) {
-    // Le .env contient un chemin relatif, on le convertit en absolu
-    finalDbPath = path.resolve(process.cwd(), process.env.DATABASE_URL.replace('file:', ''))
-  } else if (process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith('file:')) {
-    // Si DATABASE_URL contient déjà un chemin (relatif ou absolu), le convertir en absolu
-    const dbUrlPath = process.env.DATABASE_URL.replace('file:', '')
-    if (!path.isAbsolute(dbUrlPath)) {
-      finalDbPath = path.resolve(process.cwd(), dbUrlPath)
-    } else {
-      finalDbPath = dbUrlPath
+  const dbUrl = process.env.DATABASE_URL || ''
+  // Pour SQLite (file:) : convertir le chemin relatif en absolu
+  if (dbUrl.startsWith('file:')) {
+    const dbPath = path.join(process.cwd(), 'prisma', 'dev.db')
+    let finalDbPath = dbPath
+    if (dbUrl.startsWith('file:./')) {
+      finalDbPath = path.resolve(process.cwd(), dbUrl.replace('file:', ''))
+    } else if (dbUrl.startsWith('file:')) {
+      const dbUrlPath = dbUrl.replace('file:', '')
+      finalDbPath = path.isAbsolute(dbUrlPath) ? dbUrlPath : path.resolve(process.cwd(), dbUrlPath)
+    }
+    process.env.DATABASE_URL = `file:${finalDbPath}`
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[PRISMA] Base SQLite (chemin absolu): ${finalDbPath}`)
     }
   }
-  
-  process.env.DATABASE_URL = `file:${finalDbPath}`
-  if (process.env.NODE_ENV === 'development') {
-    console.log(`[PRISMA] Base de données forcée (chemin absolu): ${finalDbPath}`)
-    console.log(`[PRISMA] CWD: ${process.cwd()}`)
-  }
+  // Pour PostgreSQL : DATABASE_URL postgresql://... est utilisée telle quelle
 }
 
 const globalForPrisma = globalThis as unknown as {

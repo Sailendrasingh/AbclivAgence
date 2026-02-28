@@ -1,8 +1,8 @@
 FROM node:20-bullseye-slim
 
-# Dépendances système minimales pour argon2/sharp
+# Dépendances système : argon2/sharp + postgresql-client pour pg_dump/psql (sauvegardes)
 RUN apt-get update && \
-    apt-get install -y python3 build-essential && \
+    apt-get install -y python3 build-essential postgresql-client && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

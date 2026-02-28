@@ -1,6 +1,6 @@
 # Application de Gestion des Agences
 
-Application web de gestion des agences développée avec Next.js, React, TypeScript, Prisma et SQLite.
+Application web de gestion des agences développée avec Next.js, React, TypeScript, Prisma et PostgreSQL.
 
 ## 🚀 Installation
 
@@ -19,7 +19,7 @@ Application web de gestion des agences développée avec Next.js, React, TypeScr
    
    Créer un fichier `.env` à la racine du projet :
    ```env
-   DATABASE_URL="file:./prisma/dev.db"
+   DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DATABASE"
    ENCRYPTION_KEY="votre-cle-de-chiffrement-32-caracteres"
    NODE_ENV="development"
    ```
@@ -31,9 +31,9 @@ Application web de gestion des agences développée avec Next.js, React, TypeScr
    
    La variable `ENCRYPTION_KEY` est **obligatoire** et utilisée pour chiffrer les sauvegardes de la base de données et des fichiers uploadés.
 
-4. **Initialiser la base de données**
+4. **Initialiser la base de données** (PostgreSQL doit être démarré)
    ```bash
-   npx prisma migrate dev
+   npx prisma migrate deploy
    npx prisma generate
    ```
 
@@ -73,9 +73,9 @@ L'application sera accessible sur `http://localhost:3000`
 
 ## 🗄️ Base de données
 
-L'application utilise SQLite avec Prisma ORM. La base de données de développement est `prisma/dev.db`.
+L'application utilise **PostgreSQL** avec Prisma ORM. Voir `MIGRATION_POSTGRESQL.md` pour la configuration détaillée.
 
-⚠️ **Note** : La base de données n'est pas versionnée dans Git. Chaque développeur doit créer sa propre base de données locale.
+⚠️ **Note** : PostgreSQL doit tourner (Docker ou serveur). Les sauvegardes utilisent `pg_dump`/`psql`.
 
 ## 🔒 Chiffrement des sauvegardes
 
@@ -87,7 +87,7 @@ Toutes les sauvegardes sont automatiquement chiffrées avec **AES-256-GCM** avan
 
 ## 🧪 Tests
 
-Les tests utilisent une base de données séparée (`prisma/test.db`) pour éviter d'affecter les données de développement.
+Les tests utilisent une base PostgreSQL de test. Définir `DATABASE_URL` vers une base dédiée (ex: `abcliv_test`).
 
 ## 🚀 Déploiement en Production
 
@@ -147,7 +147,7 @@ npm run audit:fix
 
 - **Framework** : Next.js 14
 - **Langage** : TypeScript
-- **Base de données** : SQLite avec Prisma ORM
+- **Base de données** : PostgreSQL avec Prisma ORM
 - **UI** : React, Tailwind CSS, shadcn/ui
 - **Tests** : Jest, Playwright
 - **Authentification** : Session-based avec 2FA (TOTP)

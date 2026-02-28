@@ -15,6 +15,8 @@
     "test:all": "npm run test && npm run test:e2e",
     "check:data": "npx tsx scripts/verify-data.ts",
     "restore:admin": "npx tsx scripts/restore-admin.ts",
+    "test:auth": "npx tsx scripts/test-auth-admin.ts",
+    "postgres:init": "powershell -ExecutionPolicy Bypass -File scripts/postgres-init.ps1",
     "reset:admin": "npx tsx scripts/reset-admin-password.ts",
     "disable:2fa:admin": "npx tsx scripts/disable-2fa-admin.ts",
     "clean:quarantine": "npx tsx scripts/clean-quarantine.ts",

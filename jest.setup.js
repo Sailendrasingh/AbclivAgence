@@ -1,8 +1,11 @@
 import '@testing-library/jest-dom'
 
 // ⚠️ IMPORTANT: Définir DATABASE_URL AVANT tout import de Prisma
-// FORCER l'utilisation de la base de test pour éviter de supprimer les données de production
-process.env.DATABASE_URL = 'file:./prisma/test.db'
+// PostgreSQL : utiliser une base de test (ex: postgresql://user:pass@localhost:5432/abcliv_test)
+// Si non défini, les tests échoueront.
+if (!process.env.DATABASE_URL || !process.env.DATABASE_URL.startsWith('postgresql')) {
+  process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/abcliv_test'
+}
 process.env.NODE_ENV = 'test'
 process.env.ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'test-encryption-key-32-chars-long!!'
 
@@ -46,14 +49,15 @@ afterEach(async () => {
   try {
     // Vérifier que nous utilisons bien la base de test
     const dbUrl = process.env.DATABASE_URL || ''
-    if (!dbUrl.includes('test.db')) {
-      console.warn('ATTENTION: Les tests utilisent une base de données non-test:', dbUrl)
+    if (!dbUrl.includes('test') && !dbUrl.includes('_test')) {
+      console.warn('ATTENTION: DATABASE_URL ne semble pas pointer vers une base de test:', dbUrl)
       console.warn('Le nettoyage a été ignoré pour éviter de supprimer les données de production')
       return
     }
 
     const { prisma } = require('@/lib/prisma')
     // Nettoyer toutes les tables (ordre important pour les contraintes)
+    await prisma.session.deleteMany()
     await prisma.log.deleteMany()
     await prisma.technicalHistory.deleteMany()
     await prisma.agencyHistory.deleteMany()
@@ -66,7 +70,9 @@ afterEach(async () => {
     await prisma.photoGroup.deleteMany()
     await prisma.contact.deleteMany()
     await prisma.address.deleteMany()
+    await prisma.task.deleteMany()
     await prisma.agency.deleteMany()
+    await prisma.alert.deleteMany()
     await prisma.user.deleteMany()
     await prisma.appSettings.deleteMany()
   } catch (error) {

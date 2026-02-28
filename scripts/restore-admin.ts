@@ -10,10 +10,7 @@ import { hashPassword } from '../lib/auth';
 
 import path from 'path';
 
-// Forcer l'utilisation de la base de production
-if (!process.env.DATABASE_URL || process.env.DATABASE_URL.includes('test.db')) {
-  process.env.DATABASE_URL = `file:./prisma/dev.db`;
-}
+// DATABASE_URL doit pointer vers la base principale (pas la base de test)
 
 const prisma = new PrismaClient();
 
