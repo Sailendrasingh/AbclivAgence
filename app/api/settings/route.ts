@@ -8,16 +8,7 @@ import { updateSettingsSchema } from "@/lib/validations"
 export async function GET(request: NextRequest) {
   try {
     const session = await getSession()
-    
-    // Log pour debug
-    console.log("[SETTINGS GET] Session:", session ? { id: session.id, login: session.login, role: session.role } : "null")
-    
-    // Vérifier les cookies reçus
-    const cookieHeader = request.headers.get("cookie")
-    console.log("[SETTINGS GET] Cookie header:", cookieHeader ? "présent" : "absent")
-    
     if (!session) {
-      console.log("[SETTINGS GET] Pas de session, retour 401")
       return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
     }
 

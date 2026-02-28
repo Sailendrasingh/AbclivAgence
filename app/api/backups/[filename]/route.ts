@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { unlink } from "fs/promises"
-import { join } from "path"
+import { join, resolve } from "path"
 import { existsSync } from "fs"
 import { getSession } from "@/lib/session"
+import { requireCSRF } from "@/lib/csrf-middleware"
 import { createLog } from "@/lib/logs"
 import { alertSensitiveAction } from "@/lib/alerts"
 
@@ -15,6 +16,9 @@ export async function DELETE(
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
   }
+
+  const csrfError = await requireCSRF(request)
+  if (csrfError) return csrfError
 
   // Seul le Super Admin peut supprimer des sauvegardes
   if (session.role !== "Super Admin") {
@@ -51,8 +55,11 @@ export async function DELETE(
       )
     }
 
-    const backupsDir = join(process.cwd(), "backups")
-    const filePath = join(backupsDir, filename)
+    const backupsDir = resolve(process.cwd(), "backups")
+    const filePath = resolve(backupsDir, filename)
+    if (!filePath.startsWith(backupsDir)) {
+      return NextResponse.json({ error: "Nom de fichier invalide" }, { status: 400 })
+    }
 
     // Vérifier que le fichier existe
     if (!existsSync(filePath)) {
@@ -70,9 +77,8 @@ export async function DELETE(
     if (existsSync(checksumPath)) {
       try {
         await unlink(checksumPath)
-      } catch (error) {
+      } catch {
         // Ignorer les erreurs de suppression du checksum
-        console.warn(`Impossible de supprimer le checksum ${checksumPath}:`, error)
       }
     }
 

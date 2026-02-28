@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSession } from "@/lib/session"
+import { requireCSRF } from "@/lib/csrf-middleware"
 import { resolveAlert } from "@/lib/alerts"
 import { createLog } from "@/lib/logs"
 
@@ -12,6 +13,9 @@ export async function POST(
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
   }
+
+  const csrfError = await requireCSRF(request)
+  if (csrfError) return csrfError
 
   // Seul le Super Admin peut résoudre les alertes
   if (session.role !== "Super Admin") {

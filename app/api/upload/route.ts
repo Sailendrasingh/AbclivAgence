@@ -56,9 +56,6 @@ export async function POST(request: NextRequest) {
     const csrfTokenFromHeader = request.headers.get("x-csrf-token")
     const csrfToken = (csrfTokenFromForm && typeof csrfTokenFromForm === "string" ? csrfTokenFromForm : null) || csrfTokenFromHeader
 
-
-    console.log("[UPLOAD] CSRF validation:", csrfToken ? "token présent" : "absent")
-
     // Valider le token CSRF
     const { verifyCSRFToken } = await import("@/lib/csrf")
     const isValid = await verifyCSRFToken(csrfToken)

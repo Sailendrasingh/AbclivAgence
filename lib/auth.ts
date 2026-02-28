@@ -82,13 +82,8 @@ export async function verifyPassword(
   password: string
 ): Promise<boolean> {
   try {
-    console.log(`[VERIFY PASSWORD] Hash length: ${hash.length}, Password length: ${password.length}`)
-    console.log(`[VERIFY PASSWORD] Hash starts with $argon2: ${hash.startsWith('$argon2')}`)
-    const result = await argon2.verify(hash, password)
-    console.log(`[VERIFY PASSWORD] Result: ${result}`)
-    return result
-  } catch (error) {
-    console.error("Error verifying password:", error)
+    return await argon2.verify(hash, password)
+  } catch {
     return false
   }
 }

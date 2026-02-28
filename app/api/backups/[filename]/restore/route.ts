@@ -4,6 +4,7 @@ import { createWriteStream } from "fs"
 import { join, dirname, resolve } from "path"
 import { existsSync } from "fs"
 import { getSession } from "@/lib/session"
+import { requireCSRF } from "@/lib/csrf-middleware"
 import { createLog } from "@/lib/logs"
 import yauzl from "yauzl"
 import { decryptFile, isEncryptedFile } from "@/lib/encryption"
@@ -22,6 +23,9 @@ export async function POST(
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
   }
+
+  const csrfError = await requireCSRF(request)
+  if (csrfError) return csrfError
 
   if (session.role !== "Super Admin") {
     return NextResponse.json({ error: "Accès refusé" }, { status: 403 })

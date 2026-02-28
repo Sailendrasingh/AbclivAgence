@@ -83,7 +83,6 @@ export async function PUT(request: NextRequest) {
     // (sauf la session actuelle qui sera invalidée par le client)
     if (passwordChanged) {
       await invalidateAllUserSessions(session.id)
-      console.log(`[PROFILE] Toutes les sessions de l'utilisateur ${session.id} ont été invalidées après changement de mot de passe`)
     }
 
     await createLog(session.id, "PROFIL_MODIFIE", {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSession } from "@/lib/session"
+import { requireCSRF } from "@/lib/csrf-middleware"
 import { restoreAgencyVersion } from "@/lib/history"
 import { prisma } from "@/lib/prisma"
 import { createLog } from "@/lib/logs"
@@ -13,6 +14,9 @@ export async function POST(
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
   }
+
+  const csrfError = await requireCSRF(request)
+  if (csrfError) return csrfError
 
   // Vérifier que l'utilisateur est Super Admin
   if (session.role !== "Super Admin") {

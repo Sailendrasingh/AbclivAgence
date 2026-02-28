@@ -37,7 +37,6 @@ export async function apiFetch(
     
     // Si pas de token, essayer de le récupérer depuis l'API (avec retry)
     if (!csrfToken) {
-      console.log("[API-FETCH] Token CSRF non trouvé, récupération depuis /api/auth/me...")
       // Essayer plusieurs fois avec un délai court
       for (let attempt = 0; attempt < 3 && !csrfToken; attempt++) {
         csrfToken = await fetchCSRFToken()
@@ -56,15 +55,8 @@ export async function apiFetch(
         if (!formData.has("_csrf")) {
           formData.append("_csrf", csrfToken)
         }
-        console.log("[API-FETCH] CSRF token ajouté au FormData:", csrfToken.substring(0, 10) + "...")
       }
-      // Toujours ajouter dans le header (fonctionne pour JSON et FormData)
       requestHeaders["x-csrf-token"] = csrfToken
-      console.log("[API-FETCH] CSRF token ajouté au header:", csrfToken.substring(0, 10) + "...")
-    } else {
-      console.error("[API-FETCH] ERREUR: Aucun token CSRF disponible après tentative de récupération!")
-      // Ne pas bloquer la requête, mais logger l'erreur
-      // Le serveur retournera une erreur 403 si le token est manquant
     }
   }
 
