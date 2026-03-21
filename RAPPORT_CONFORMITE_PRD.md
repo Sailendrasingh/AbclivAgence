@@ -29,7 +29,7 @@
 ✅ **TypeScript obligatoire** : Tous les fichiers `.tsx` et `.ts` utilisent TypeScript
 ✅ **shadcn/ui** : Composants utilisés (Button, Dialog, Card, etc.)
 ✅ **Tailwind CSS** : Configuration présente dans `tailwind.config.ts`
-✅ **SQLite** : Confirmé dans `prisma/schema.prisma` (`provider = "sqlite"`)
+✅ **PostgreSQL** : Confirmé dans `prisma/schema.prisma` (`provider = "postgresql"`)
 ✅ **Prisma ORM** : Utilisé partout (`@prisma/client`)
 ✅ **API BAN uniquement** : Vérifié dans `app/api/ban/search/route.ts`
 
@@ -339,7 +339,7 @@ Toutes les dépendances listées dans le PRD sont présentes dans `package.json`
 
 ✅ **Logs de connexion** : Implémentés
 ✅ **Logs actions utilisateur** : Implémentés
-✅ **Stockage SQLite** : Confirmé
+✅ **Stockage PostgreSQL** : Confirmé
 ✅ **Export CSV** : Uniquement
 ✅ **Rétention 30 jours** : Fonction `cleanupOldLogs` implémentée
 ✅ **Interface** : Page `/dashboard/logs` (Super Admin uniquement)

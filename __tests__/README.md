@@ -34,7 +34,7 @@ npm run test:all
 
 - **Jest** : Configuration dans `jest.config.js`
 - **Playwright** : Configuration dans `playwright.config.ts`
-- **Base de test** : `prisma/test.db` (créée automatiquement)
+- **Base de test** : PostgreSQL dédiée via `DATABASE_URL` (ex: `abcliv_test`)
 
 ## Notes
 

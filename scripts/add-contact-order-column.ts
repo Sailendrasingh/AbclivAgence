@@ -4,11 +4,7 @@
  */
 
 import { PrismaClient } from '@prisma/client';
-import path from 'path';
-
-// Forcer l'utilisation de la base de production
-const dbPath = path.join(__dirname, '..', 'prisma', 'dev.db');
-process.env.DATABASE_URL = `file:${dbPath}`;
+import 'dotenv/config';
 
 const prisma = new PrismaClient();
 

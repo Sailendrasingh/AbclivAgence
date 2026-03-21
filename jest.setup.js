@@ -44,7 +44,7 @@ jest.mock('next/headers', () => ({
 }))
 
 // Nettoyer la base de données après chaque test
-// IMPORTANT: S'assurer que DATABASE_URL pointe vers test.db avant le nettoyage
+// IMPORTANT: S'assurer que DATABASE_URL pointe vers une base de test avant le nettoyage
 afterEach(async () => {
   try {
     // Vérifier que nous utilisons bien la base de test

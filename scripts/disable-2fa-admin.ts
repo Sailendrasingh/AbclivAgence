@@ -3,12 +3,8 @@
  * Usage: npx tsx scripts/disable-2fa-admin.ts
  */
 
-import path from 'path';
+import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
-
-// Forcer l'utilisation de la base de production
-const dbPath = path.join(__dirname, '..', 'prisma', 'dev.db');
-process.env.DATABASE_URL = `file:${dbPath}`;
 
 const prisma = new PrismaClient();
 

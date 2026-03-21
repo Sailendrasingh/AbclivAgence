@@ -109,7 +109,7 @@ export default function DashboardLanding() {
         <div className="grid md:grid-cols-2 lg:grid-cols-4" style={{ gap: '1.5rem' }}>
           <Card className="transition-all duration-200 hover:scale-[1.02] hover:shadow-lg cursor-default">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Agences Totales</CardTitle>
+              <CardTitle className="text-sm font-medium">Totale Agences</CardTitle>
               <Building2 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -160,7 +160,7 @@ export default function DashboardLanding() {
         <div className="grid md:grid-cols-2 lg:grid-cols-7" style={{ gap: '1.5rem' }}>
           <Card className="col-span-1 lg:col-span-3">
             <CardHeader className="pb-0">
-              <CardTitle>État du Parc</CardTitle>
+              <CardTitle>Etat des Agences</CardTitle>
               <CardDescription>Répartition des agences selon leur statut d'alerte.</CardDescription>
             </CardHeader>
             <CardContent className="w-full flex items-center justify-center p-6 min-h-[300px]">

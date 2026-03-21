@@ -4,19 +4,9 @@
  */
 
 import { PrismaClient } from '@prisma/client';
-import path from 'path';
-
-// Forcer l'utilisation de la base de développement
-const dbPath = path.join(__dirname, '..', 'prisma', 'dev.db');
-process.env.DATABASE_URL = `file:${dbPath}`;
+import 'dotenv/config';
 
 const prisma = new PrismaClient();
-
-interface PC {
-    id: string;
-    name: string;
-    order: number;
-}
 
 async function initializeOrders() {
   console.log(`🔧 Initialisation des ordres des PC...
@@ -30,11 +20,11 @@ async function initializeOrders() {
 
     for (const technical of technicals) {
       // Récupérer tous les PC pour ce technical, triés par createdAt
-      const pcs: PC[] = await prisma.$queryRawUnsafe(`
-        SELECT id, name, "order" FROM PC 
-        WHERE "technicalId" = '${technical.id}' 
-        ORDER BY "createdAt" ASC;
-      `);
+      const pcs = await prisma.pC.findMany({
+        where: { technicalId: technical.id },
+        select: { id: true, name: true, order: true },
+        orderBy: { createdAt: 'asc' },
+      });
 
       if (Array.isArray(pcs) && pcs.length > 0) {
         console.log(`
@@ -42,9 +32,10 @@ async function initializeOrders() {
         
         // Mettre à jour chaque PC avec un ordre séquentiel
         for (let i = 0; i < pcs.length; i++) {
-          await prisma.$executeRawUnsafe(`
-            UPDATE PC SET "order" = ${i} WHERE id = '${pcs[i].id}';
-          `);
+          await prisma.pC.update({
+            where: { id: pcs[i].id },
+            data: { order: i },
+          });
           console.log(`   - ${pcs[i].name}: order = ${i}`);
         }
       }

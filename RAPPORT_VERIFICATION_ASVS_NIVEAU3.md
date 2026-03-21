@@ -269,7 +269,7 @@ L'évaluation a été effectuée en examinant :
 - **V6.1.1** : ⚠️ **Paramètres argon2** : Pas de configuration explicite des paramètres (mémoire, temps, parallélisme)
 - **V6.2.1** : ⚠️ **Gestion des clés** : Pas de rotation automatique des clés de chiffrement
 - **V6.2.2** : ⚠️ **Stockage des clés** : Clé stockée en variable d'environnement (devrait être dans un gestionnaire de secrets)
-- **V6.3.1** : ⚠️ **Chiffrement au repos** : Base de données SQLite non chiffrée automatiquement (script disponible mais non appliqué)
+- **V6.3.1** : ⚠️ **Chiffrement au repos** : Le chiffrement au repos dépend de la configuration PostgreSQL (disk/volume encryption, TDE managé si disponible).
 
 **Score V6** : **70%** (✅ amélioration de 20% grâce au chiffrement des backups)
 

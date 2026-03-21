@@ -36,7 +36,7 @@ Ce document présente une stratégie complète pour implémenter des tests de no
 **Outils :**
 - **Jest** : Framework de test
 - **NextRequest/NextResponse** : Tests directs des handlers Next.js App Router
-- **Prisma** : Base de données de test (SQLite en mémoire ou fichier séparé)
+- **Prisma** : Base de données de test PostgreSQL dédiée
 
 **Pourquoi :**
 - ✅ Tests isolés des routes API
@@ -62,8 +62,8 @@ Ce document présente une stratégie complète pour implémenter des tests de no
 
 **Outils :**
 - **Prisma** : ORM avec base de test
-- **SQLite en mémoire** : Pour tests rapides (`file::memory:?cache=shared`)
-- **SQLite fichier de test** : Alternative avec fichier dédié (`test.db`)
+- **PostgreSQL local** : Base dédiée pour les tests (`abcliv_test`)
+- **Isolation** : Base séparée de la production/dev
 - **Scripts de seed** : Données de test
 
 **Pourquoi :**
@@ -422,7 +422,7 @@ module.exports = createJestConfig(customJestConfig)
 import '@testing-library/jest-dom'
 
 // Mock des variables d'environnement
-process.env.DATABASE_URL = 'file:./prisma/test.db'
+process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/abcliv_test'
 process.env.NODE_ENV = 'test'
 process.env.ENCRYPTION_KEY = 'test-encryption-key-32-chars-long!!'
 
@@ -582,7 +582,7 @@ jobs:
 Pour isoler les tests de la base de données de développement, créez un fichier `.env.test` :
 
 ```env
-DATABASE_URL="file:./prisma/test.db"
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/abcliv_test"
 NODE_ENV="test"
 ENCRYPTION_KEY="test-encryption-key-32-chars-long!!"
 ```

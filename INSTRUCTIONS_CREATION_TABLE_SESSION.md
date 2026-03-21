@@ -10,9 +10,9 @@ La table `Session` n'existe pas dans la base de données, ce qui cause des erreu
 
 1. **Arrêtez le serveur de développement** (Ctrl+C)
 
-2. **Ouvrez la base de données SQLite** :
+2. **Connectez-vous à PostgreSQL** :
    ```bash
-   sqlite3 prisma/dev.db
+   psql "$DATABASE_URL"
    ```
 
 3. **Exécutez les commandes SQL suivantes** :
@@ -31,7 +31,7 @@ La table `Session` n'existe pas dans la base de données, ce qui cause des erreu
    CREATE UNIQUE INDEX IF NOT EXISTS "Session_token_key" ON "Session"("token");
    ```
 
-4. **Quittez SQLite** : `.quit`
+4. **Quittez psql** : `\q`
 
 5. **Régénérez le client Prisma** :
    ```bash
@@ -80,13 +80,10 @@ La table `Session` n'existe pas dans la base de données, ce qui cause des erreu
 Après avoir créé la table, vérifiez qu'elle existe :
 
 ```bash
-sqlite3 prisma/dev.db "SELECT name FROM sqlite_master WHERE type='table' AND name='Session';"
+psql "$DATABASE_URL" -c "SELECT to_regclass('public.\"Session\"');"
 ```
 
-Vous devriez voir :
-```
-Session
-```
+Vous devriez voir `Session` dans le résultat.
 
 ## Note
 

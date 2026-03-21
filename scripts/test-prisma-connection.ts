@@ -1,21 +1,14 @@
 /**
- * Script pour tester la connexion Prisma avec le chemin absolu
+ * Script pour tester la connexion Prisma
  */
 
+import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
-import path from 'path';
-import fs from 'fs';
-
-// Forcer le chemin absolu
-const dbPath = path.join(process.cwd(), 'prisma', 'dev.db');
-process.env.DATABASE_URL = `file:${dbPath}`;
 
 console.log(`🔍 Test de connexion Prisma...
 `);
-console.log(`CWD: ${process.cwd()}`);
 console.log(`DATABASE_URL: ${process.env.DATABASE_URL}`);
-console.log(`DB Path exists: ${fs.existsSync(dbPath)}
-`);
+console.log('');
 
 const prisma = new PrismaClient();
 

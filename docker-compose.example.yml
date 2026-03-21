@@ -9,7 +9,7 @@ services:
     environment:
       NODE_ENV: "production"
     volumes:
-      # Base SQLite dans un dossier dédié (évite conflits avec prisma/)
+      # Dossier data persistant (si utilisé par des scripts locaux)
       - ./data:/app/data
       # Fichiers uploadés persistants
       - ./uploads:/app/uploads

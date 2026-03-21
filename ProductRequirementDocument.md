@@ -7,7 +7,7 @@
 **Date** : 2026-02-23
 
 ## Overview
-**ABCLIV Agency Dashboard** — Application de gestion d'agences avec calendrier, contacts, données techniques, photos, authentification 2FA, logs, historisation et sauvegardes. Stack : Next.js App Router, TypeScript, shadcn/ui, Tailwind CSS, PostgreSQL (SQLite en option migration/test), Prisma ORM.
+**ABCLIV Agency Dashboard** — Application de gestion d'agences avec calendrier, contacts, données techniques, photos, authentification 2FA, logs, historisation et sauvegardes. Stack : Next.js App Router, TypeScript, shadcn/ui, Tailwind CSS, PostgreSQL, Prisma ORM.
 
 ---
 

@@ -5,14 +5,9 @@
  * Ce script réinitialise le mot de passe de l'utilisateur Admin à "Password"
  */
 
-import path from 'path';
+import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import argon2 from 'argon2';
-
-// Forcer l'utilisation de la base de production
-// Utiliser un chemin absolu pour éviter les problèmes
-const dbPath = path.join(__dirname, '..', 'prisma', 'dev.db');
-process.env.DATABASE_URL = `file:${dbPath}`;
 
 const prisma = new PrismaClient();
 

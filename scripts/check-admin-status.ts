@@ -3,13 +3,9 @@
  * Usage: npx tsx scripts/check-admin-status.ts
  */
 
-import path from 'path';
+import 'dotenv/config';
 import { PrismaClient, User } from '@prisma/client';
 import argon2 from 'argon2';
-
-// Forcer l'utilisation de la base de production
-const dbPath = path.join(__dirname, '..', 'prisma', 'dev.db');
-process.env.DATABASE_URL = `file:${dbPath}`;
 
 const prisma = new PrismaClient();
 

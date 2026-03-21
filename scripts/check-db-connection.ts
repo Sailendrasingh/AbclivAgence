@@ -4,6 +4,7 @@
  */
 
 import { PrismaClient } from '@prisma/client';
+import 'dotenv/config';
 
 console.log(`🔍 Vérification de la connexion à la base de données...
 `);
@@ -42,18 +43,14 @@ async function checkConnection() {
 ⚠️  Aucun utilisateur trouvé dans la base de données`);
     }
     
-    // Vérifier quelle base de données est utilisée
-    const dbPath = process.env.DATABASE_URL || '';
-    if (dbPath.includes('test.db')) {
+    // Vérifier que l'URL de connexion ressemble à une URL PostgreSQL
+    const dbUrl = process.env.DATABASE_URL || '';
+    if (!dbUrl.startsWith('postgresql://') && !dbUrl.startsWith('postgres://')) {
       console.log(`
-⚠️  ATTENTION: La base de données test.db est utilisée !`);
-      console.log(`   Cela ne devrait se produire que lors des tests.`);
-    } else if (dbPath.includes('dev.db')) {
-      console.log(`
-✅ Base de données de développement (dev.db) utilisée - Correct !`);
+⚠️  ATTENTION: DATABASE_URL ne semble pas être PostgreSQL.`);
     } else {
       console.log(`
-ℹ️  Base de données: ${dbPath}`);
+✅ URL PostgreSQL détectée`);
     }
     
   } catch (error: any) {

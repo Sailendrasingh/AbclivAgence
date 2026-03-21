@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo, startTransition } from "react"
 import Image from "next/image"
+import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -160,6 +161,8 @@ interface PhotoGroup {
 }
 
 export default function AgencesPage() {
+  const searchParams = useSearchParams()
+  const deepLinkedAgencyId = searchParams.get("id") || searchParams.get("agencyId")
   const [agencies, setAgencies] = useState<Agency[]>([])
   const [selectedAgency, setSelectedAgency] = useState<Agency | null>(null)
   const selectedAgencyRef = useRef<Agency | null>(null)
@@ -227,6 +230,7 @@ export default function AgencesPage() {
   // États Dirty State
   const [pendingAgencyToSelect, setPendingAgencyToSelect] = useState<Agency | null>(null)
   const [showDirtyDialog, setShowDirtyDialog] = useState(false)
+  const [hasAppliedDeepLink, setHasAppliedDeepLink] = useState(false)
 
   // Modale de confirmation (suppressions) et toasts
   const { toast } = useToast()
@@ -437,6 +441,23 @@ export default function AgencesPage() {
 
     return () => clearTimeout(timeoutId)
   }, [search, filter, loadAgencies])
+
+  // Si on arrive depuis le dashboard avec ?id=<agencyId>, sélectionner l'agence ciblée une seule fois.
+  useEffect(() => {
+    if (hasAppliedDeepLink) return
+    if (!deepLinkedAgencyId) return
+    if (agencies.length === 0) return
+
+    const targetAgency = agencies.find((agency) => agency.id === deepLinkedAgencyId)
+    if (targetAgency) {
+      setSelectedAgency(targetAgency)
+      if (isMobile) {
+        setShowDetailsOnMobile(true)
+      }
+    }
+
+    setHasAppliedDeepLink(true)
+  }, [hasAppliedDeepLink, deepLinkedAgencyId, agencies, isMobile])
 
   useEffect(() => {
     if (selectedAgency) {

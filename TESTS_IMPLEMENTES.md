@@ -313,7 +313,7 @@ npm run test:all
 
 ### Base de Données de Test
 
-Les tests utilisent une base de données SQLite séparée (`prisma/test.db`) définie dans `jest.setup.js`.
+Les tests utilisent une base de données PostgreSQL de test dédiée, définie dans `jest.setup.js`.
 
 ### Variables d'Environnement
 

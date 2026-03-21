@@ -114,11 +114,11 @@ test('should login', async ({ page }) => {
 
 ### Base de Données de Test
 
-Les tests utilisent une base de données SQLite séparée (`prisma/test.db`).
+Les tests utilisent une base de données PostgreSQL dédiée (ex: `abcliv_test`).
 
 **Fichier `.env.test` :**
 ```env
-DATABASE_URL="file:./prisma/test.db"
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/abcliv_test"
 NODE_ENV="test"
 ENCRYPTION_KEY="test-encryption-key-32-chars-long!!"
 ```
@@ -188,7 +188,7 @@ Vérifier que les alias `@/*` sont correctement configurés dans `jest.config.js
 
 ### Erreur de base de données
 
-S'assurer que `.env.test` existe et que `DATABASE_URL` pointe vers `prisma/test.db`.
+S'assurer que `.env.test` existe et que `DATABASE_URL` pointe vers une base PostgreSQL de test dédiée.
 
 ### Tests E2E échouent
 

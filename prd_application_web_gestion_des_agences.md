@@ -53,7 +53,7 @@ Aucune autre finalité.
 
   * Thème clair et sombre fournis par shadcn/ui
 * CSS : Tailwind CSS
-* Base de données : **PostgreSQL** (recommandé production et dev). SQLite conservé en option pour scripts de test/migration (voir `lib/prisma.ts`).
+* Base de données : **PostgreSQL** (obligatoire en runtime projet).
 * ORM : **Prisma 5.22.0 (obligatoire)**
 * API externe autorisée : **BAN uniquement**
 
@@ -1208,7 +1208,7 @@ Aucun autre type autorisé.
 
 * Logs de connexion
 * Logs actions utilisateur
-* Stockage : **PostgreSQL** (ou SQLite si DATABASE_URL en `file:`)
+* Stockage : **PostgreSQL**
 * Export : **CSV uniquement**
 * Rétention : **30 jours**
 * **Interface utilisateur** :
@@ -1270,7 +1270,6 @@ Aucun autre type autorisé.
   * Format du nom de fichier : `backup-YYYY-MM-DDTHH-mm-ss-sssZ.encrypted.zip` (timestamp ISO)
   * **Format de sauvegarde** : Archive ZIP compressée et chiffrée contenant :
     * **PostgreSQL** : Dump SQL via `pg_dump` (script `scripts/backup.ts`, module `lib/db-backup.ts`). Si `DATABASE_URL` est une URL `postgresql://`, la sauvegarde utilise ce format.
-    * **SQLite (rétrocompatibilité)** : Fichier base complète (`prisma/dev.db`) lorsque `DATABASE_URL` pointe vers un fichier `file:`.
     * Le dossier `/uploads` complet avec toutes les photos et fichiers uploadés
   * **Compression** : Niveau de compression maximal (zlib level 9) pour optimiser l'espace disque
   * **Chiffrement** : **AES-256-GCM** (Advanced Encryption Standard avec Galois/Counter Mode)
@@ -1321,7 +1320,6 @@ Aucun autre type autorisé.
           * **Déchiffrement** : Détection automatique du format chiffré et déchiffrement avec la clé `ENCRYPTION_KEY`
           * **Bibliothèque d'extraction** : `yauzl` (bibliothèque légère sans dépendances externes)
           * **PostgreSQL** : Restauration via `psql` (si `DATABASE_URL` est une URL `postgresql://`). Voir `lib/db-backup.ts`.
-          * **SQLite** : La base de données est restaurée dans `prisma/dev.db` (si `DATABASE_URL` en `file:`).
           * Le dossier `/uploads` est remplacé par celui de la sauvegarde
           * Une sauvegarde de l'état actuel est créée automatiquement avant la restauration
           * **Sécurité** : Protection contre les chemins malformés (chemins avec `..`, chemins absolus) - ces entrées sont ignorées lors de l'extraction
@@ -1442,7 +1440,7 @@ L'application doit être conforme aux standards de sécurité OWASP Top 10 2021.
   * `Permissions-Policy` (limitation des APIs)
 * **Mode strict React** : `reactStrictMode: true` dans `next.config.js`
 * **Variables d'environnement** : Utilisation de `.env` pour la configuration
-  * **DATABASE_URL** : URL de la base de données. **PostgreSQL** (recommandé) : `postgresql://user:password@host:port/dbname`. **SQLite** (dev/test) : `file:./prisma/dev.db`. Ne pas écraser avec une URL SQLite dans `.env.local` si le schéma Prisma est configuré pour PostgreSQL.
+  * **DATABASE_URL** : URL de la base de données PostgreSQL : `postgresql://user:password@host:port/dbname`.
   * **ENCRYPTION_KEY** : **OBLIGATOIRE** - Clé de chiffrement pour les sauvegardes et la base de données (minimum 32 caractères)
     * **Génération** : Utiliser `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` pour générer une clé sécurisée
     * **Sécurité** : Ne jamais commiter cette clé dans Git, utiliser `.env.local` en développement et variables d'environnement sécurisées en production
@@ -1712,7 +1710,7 @@ L'application doit être conforme aux standards de sécurité OWASP Top 10 2021.
 ### 20.2 Configuration requise
 
 * **Variables d'environnement obligatoires** :
-  * `DATABASE_URL` : URL de la base de données (PostgreSQL recommandé : `postgresql://...` ; ou SQLite : `file:/var/www/abcliv-agency/prisma/production.db`)
+  * `DATABASE_URL` : URL de la base de données PostgreSQL (`postgresql://...`)
   * `ENCRYPTION_KEY` : Clé de chiffrement de 64 caractères hexadécimaux (générée avec `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`)
   * `NODE_ENV` : Doit être défini à `"production"`
   * `NEXT_PUBLIC_APP_URL` : URL publique de l'application (optionnel)

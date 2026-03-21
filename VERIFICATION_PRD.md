@@ -10,7 +10,7 @@
 - [x] TypeScript obligatoire
 - [x] shadcn/ui avec thème clair/sombre
 - [x] Tailwind CSS
-- [x] SQLite
+- [x] PostgreSQL
 - [x] Prisma ORM
 - [x] API BAN uniquement
 - [x] PWA (manifest.json, service worker)
@@ -90,7 +90,7 @@
 ### 10. Logs (Section 12) ✅
 - [x] Logs de connexion
 - [x] Logs actions utilisateur
-- [x] Stockage SQLite
+- [x] Stockage PostgreSQL
 - [x] Export CSV uniquement
 - [x] Rétention 30 jours (fonction cleanupOldLogs)
 - [x] Page /dashboard/logs

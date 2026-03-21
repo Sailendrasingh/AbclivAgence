@@ -4,56 +4,56 @@ import { existsSync } from "fs"
 import { encryptFile, isEncryptedFile } from "../lib/encryption"
 
 /**
- * Script pour chiffrer la base de données existante
+ * Script pour chiffrer un fichier de sauvegarde base de données
  * 
  * Usage: npx tsx scripts/encrypt-database.ts
  * 
- * Ce script crée une copie chiffrée de la base de données.
- * La base de données originale est conservée comme backup.
+ * Ce script crée une copie chiffrée d'un dump SQL.
+ * Le fichier original est conservé comme backup.
  */
 async function encryptDatabase() {
-  const dbPath = join(process.cwd(), "prisma", "dev.db")
-  const encryptedDbPath = join(process.cwd(), "prisma", "dev.encrypted.db")
-  const backupDbPath = join(process.cwd(), "prisma", "dev.backup.db")
+  const sourcePath = join(process.cwd(), "backups", "latest.sql")
+  const encryptedPath = join(process.cwd(), "backups", "latest.sql.enc")
+  const backupPath = join(process.cwd(), "backups", "latest.sql.bak")
 
   try {
-    // Vérifier que la base de données existe
-    if (!existsSync(dbPath)) {
-      console.error("❌ Base de données non trouvée:", dbPath)
+    // Vérifier que le fichier source existe
+    if (!existsSync(sourcePath)) {
+      console.error("❌ Fichier source non trouvé:", sourcePath)
       process.exit(1)
     }
 
-    // Vérifier si la base est déjà chiffrée
-    const dbData = await readFile(dbPath)
-    if (isEncryptedFile(dbData)) {
-      console.log("⚠️  La base de données semble déjà être chiffrée.")
-      console.log("   Si vous souhaitez la re-chiffrer, supprimez d'abord le fichier chiffré.")
+    // Vérifier si le fichier est déjà chiffré
+    const fileData = await readFile(sourcePath)
+    if (isEncryptedFile(fileData)) {
+      console.log("⚠️  Le fichier semble déjà être chiffré.")
+      console.log("   Si vous souhaitez le re-chiffrer, supprimez d'abord le fichier chiffré.")
       process.exit(0)
     }
 
     // Vérifier si un fichier chiffré existe déjà
-    if (existsSync(encryptedDbPath)) {
-      console.error("❌ Un fichier chiffré existe déjà:", encryptedDbPath)
+    if (existsSync(encryptedPath)) {
+      console.error("❌ Un fichier chiffré existe déjà:", encryptedPath)
       console.error("   Supprimez-le d'abord si vous souhaitez créer un nouveau fichier chiffré.")
       process.exit(1)
     }
 
-    console.log("📦 Chiffrement de la base de données...")
-    console.log(`   Source: ${dbPath}`)
+    console.log("📦 Chiffrement du fichier de sauvegarde...")
+    console.log(`   Source: ${sourcePath}`)
     
-    // Créer une sauvegarde de la base originale
-    console.log("💾 Création d'une sauvegarde de la base originale...")
-    await writeFile(backupDbPath, dbData)
-    console.log(`   Sauvegarde créée: ${backupDbPath}`)
+    // Créer une sauvegarde du fichier original
+    console.log("💾 Création d'une sauvegarde du fichier original...")
+    await writeFile(backupPath, fileData)
+    console.log(`   Sauvegarde créée: ${backupPath}`)
 
-    // Chiffrer la base de données
-    await encryptFile(dbPath, encryptedDbPath)
+    // Chiffrer le fichier
+    await encryptFile(sourcePath, encryptedPath)
     
-    const originalStats = await stat(dbPath)
-    const encryptedStats = await stat(encryptedDbPath)
+    const originalStats = await stat(sourcePath)
+    const encryptedStats = await stat(encryptedPath)
     
-    console.log("✅ Base de données chiffrée avec succès!")
-    console.log(`   Fichier chiffré: ${encryptedDbPath}`)
+    console.log("✅ Fichier chiffré avec succès!")
+    console.log(`   Fichier chiffré: ${encryptedPath}`)
     console.log(`   Taille originale: ${originalStats.size} bytes`)
     console.log(`   Taille chiffrée: ${encryptedStats.size} bytes`)
     console.log("")

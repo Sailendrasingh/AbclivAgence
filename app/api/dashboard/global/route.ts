@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
             select: { createdAt: true }
         })
 
-        // Pour ne pas faire de group by complexe sur les dates avec SQLite, on aggrège en JS :
+        // On agrège en JS pour garder une logique de comptage lisible.
         const activityMap: Record<string, { created: number, closed: number }> = {}
         last7Days.forEach(d => {
             activityMap[d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })] = { created: 0, closed: 0 }

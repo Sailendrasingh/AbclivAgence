@@ -1,18 +1,12 @@
 /**
- * Utilitaires de sauvegarde/restauration selon le type de base (PostgreSQL ou SQLite).
+ * Utilitaires de sauvegarde/restauration PostgreSQL.
  * PostgreSQL : utilise pg_dump et psql (postgresql-client doit être installé).
  */
 
 import { spawnSync } from "child_process"
-import { existsSync } from "fs"
-import { join } from "path"
 
 export function isPostgresUrl(url: string): boolean {
   return !!(url && (url.startsWith("postgresql://") || url.startsWith("postgres://")))
-}
-
-export function isSqliteUrl(url: string): boolean {
-  return !!(url && url.startsWith("file:"))
 }
 
 /**
@@ -64,10 +58,3 @@ export function pgRestoreFromFile(dbUrl: string, dumpPath: string): void {
   }
 }
 
-/**
- * Obtenir le chemin du fichier de base pour SQLite (pour rétrocompatibilité).
- */
-export function getSqliteDbPath(dbUrl: string, cwd: string): string {
-  const dbPathRaw = dbUrl.replace(/^file:/, "").trim()
-  return dbPathRaw.startsWith("/") ? dbPathRaw : join(cwd, dbPathRaw)
-}

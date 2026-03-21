@@ -3,14 +3,8 @@
  * Usage: npx tsx scripts/check-database.ts
  */
 
-import { PrismaClient } from '@prisma/client';
-
-// Forcer l'utilisation de la base de production (dev.db)
-// Si DATABASE_URL n'est pas défini, utiliser dev.db par défaut
-if (!process.env.DATABASE_URL || process.env.DATABASE_URL.includes('test.db')) {
-  process.env.DATABASE_URL = 'file:./prisma/dev.db';
-  console.log(`⚠️  Utilisation de la base de production (dev.db)`);
-}
+import 'dotenv/config';
+import { AgencyState, PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 

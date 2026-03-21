@@ -863,7 +863,7 @@ En cas de problème :
 
 - **Ubuntu Server LTS** : Ce guide est spécifiquement conçu pour Ubuntu Server LTS. Les commandes peuvent différer sur d'autres distributions Linux.
 - **PostgreSQL en production** : recommandé pour la robustesse, les sauvegardes `pg_dump`/`psql` et la montée en charge.
-- **SQLite** : à réserver aux usages locaux, tests ciblés ou migration ponctuelle.
+- **Base de données runtime** : PostgreSQL uniquement.
 - **ClamAV** : Optionnel mais fortement recommandé pour la sécurité. L'application fonctionne avec un scan heuristique en fallback.
 - **Sauvegardes** : Configurer des sauvegardes automatiques régulières de la base de données et des fichiers uploadés.
 - **Monitoring** : Surveiller régulièrement les logs et les performances de l'application.

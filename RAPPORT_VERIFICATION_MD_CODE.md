@@ -103,7 +103,7 @@ Vérification complète de tous les fichiers MD et du code source pour s'assurer
    - TypeScript ✅
    - shadcn/ui ✅
    - Prisma 5.19 ✅
-   - SQLite ✅
+   - PostgreSQL ✅
 
 2. **Interface utilisateur** : ✅ 100% conforme
    - Organisation Master/Détails ✅

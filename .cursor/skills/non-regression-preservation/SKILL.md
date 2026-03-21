@@ -116,7 +116,7 @@ e2e/*.spec.ts                        # E2E Playwright (auth, agencies)
 1. **Ne pas commiter si `npm run test` échoue**
 2. **Nouvelle route API** → nouveau fichier `route.test.ts`
 3. **Bug fix** → test de régression obligatoire
-4. **Base de test** : `DATABASE_URL` pointe vers `prisma/test.db` ou mémoire
+4. **Base de test** : `DATABASE_URL` pointe vers une base PostgreSQL dédiée (ex: `abcliv_test`)
 5. **Isolation** : chaque test nettoie ses données (`beforeEach` / `afterEach`)
 
 ---
