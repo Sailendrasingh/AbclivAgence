@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { verifyTwoFactorToken } from "@/lib/auth"
+import { requireCSRF } from "@/lib/csrf-middleware"
 
 export async function POST(request: NextRequest) {
+  const csrfError = await requireCSRF(request)
+  if (csrfError) return csrfError
+
   try {
     const { userId, token } = await request.json()
 

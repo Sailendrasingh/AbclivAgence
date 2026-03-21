@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getSession } from "@/lib/session"
 import { createLog } from "@/lib/logs"
+import { requireCSRF } from "@/lib/csrf-middleware"
 
 const ALLOWED_TYPES = ["Bureau", "Connexion", "Armoire électrique", "Agence", "Divers"]
 
@@ -10,6 +11,8 @@ export async function POST(request: NextRequest) {
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
   }
+  const csrfError = await requireCSRF(request)
+  if (csrfError) return csrfError
 
   try {
     const body = await request.json()

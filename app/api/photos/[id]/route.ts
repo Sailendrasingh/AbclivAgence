@@ -5,6 +5,7 @@ import { createLog } from "@/lib/logs"
 import { unlink } from "fs/promises"
 import { join } from "path"
 import { existsSync } from "fs"
+import { requireCSRF } from "@/lib/csrf-middleware"
 
 const ALLOWED_TYPES = ["Bureau", "Connexion", "Armoire électrique", "Agence", "Divers"]
 
@@ -17,6 +18,8 @@ export async function PUT(
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
   }
+  const csrfError = await requireCSRF(request)
+  if (csrfError) return csrfError
 
   try {
     const body = await request.json()
@@ -73,7 +76,6 @@ export async function PUT(
           
           if (existsSync(filePath)) {
             await unlink(filePath)
-            console.log(`Fichier photo supprimé: ${filePath}`)
           }
         } catch (fileError) {
           // Ignorer les erreurs de suppression de fichier (fichier déjà supprimé, etc.)
@@ -129,6 +131,8 @@ export async function DELETE(
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
   }
+  const csrfError = await requireCSRF(request)
+  if (csrfError) return csrfError
 
   try {
     // Récupérer le groupe photo avant suppression
@@ -154,7 +158,6 @@ export async function DELETE(
         
         if (existsSync(filePath)) {
           await unlink(filePath)
-          console.log(`Fichier photo supprimé: ${filePath}`)
         }
       } catch (fileError) {
         // Ignorer les erreurs de suppression de fichier (fichier déjà supprimé, etc.)

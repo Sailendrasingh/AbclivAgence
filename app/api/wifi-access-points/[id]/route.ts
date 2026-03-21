@@ -4,6 +4,7 @@ import { getSession } from "@/lib/session"
 import { createLog } from "@/lib/logs"
 import { encryptWifiPassword } from "@/lib/wifi-vault"
 import { logError } from "@/lib/logger"
+import { requireCSRF } from "@/lib/csrf-middleware"
 
 export async function PUT(
   request: NextRequest,
@@ -14,6 +15,8 @@ export async function PUT(
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
   }
+  const csrfError = await requireCSRF(request)
+  if (csrfError) return csrfError
 
   try {
     const body = await request.json()
@@ -81,6 +84,8 @@ export async function DELETE(
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
   }
+  const csrfError = await requireCSRF(request)
+  if (csrfError) return csrfError
 
   try {
     await prisma.wifiAccessPoint.delete({

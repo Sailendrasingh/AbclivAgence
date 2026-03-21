@@ -33,8 +33,9 @@ export async function validateRequest<T>(
       message: err.message || "Erreur de validation",
     })) || []
     
+    const bodyKeys = body && typeof body === "object" ? Object.keys(body as Record<string, unknown>) : []
     console.error("[VALIDATION] Erreurs de validation:", errors)
-    console.error("[VALIDATION] Données reçues:", JSON.stringify(body, null, 2))
+    console.warn("[VALIDATION] Clés reçues:", bodyKeys)
     
     // Créer un message d'erreur principal plus descriptif
     // Si c'est une erreur de mot de passe, combiner tous les messages
@@ -68,7 +69,7 @@ export async function validateRequest<T>(
     }
   } catch (error) {
     // Erreur de parsing JSON ou autre erreur
-    console.error("[VALIDATION] Erreur inattendue:", error)
+    console.error("[VALIDATION] Erreur inattendue:", error instanceof Error ? error.message : String(error))
     return {
       success: false,
       error: NextResponse.json(
@@ -110,7 +111,7 @@ export function validateData<T>(
       }
     }
     
-    console.error("[VALIDATION] Erreur inattendue:", error)
+    console.error("[VALIDATION] Erreur inattendue:", error instanceof Error ? error.message : String(error))
     return {
       success: false,
       error: error instanceof Error ? error.message : "Erreur de validation inconnue",

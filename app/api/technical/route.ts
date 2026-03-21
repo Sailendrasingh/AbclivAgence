@@ -3,12 +3,15 @@ import { prisma } from "@/lib/prisma"
 import { getSession } from "@/lib/session"
 import { createLog } from "@/lib/logs"
 import { createTechnicalHistory } from "@/lib/history"
+import { requireCSRF } from "@/lib/csrf-middleware"
 
 export async function POST(request: NextRequest) {
   const session = await getSession()
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
   }
+  const csrfError = await requireCSRF(request)
+  if (csrfError) return csrfError
 
   try {
     const body = await request.json()
@@ -81,12 +84,12 @@ export async function PUT(request: NextRequest) {
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
   }
+  const csrfError = await requireCSRF(request)
+  if (csrfError) return csrfError
 
   try {
     const body = await request.json()
     const { technicalId, ...updateData } = body
-
-    console.log("PUT /api/technical - Received data:", { technicalId, updateData })
 
     if (!technicalId) {
       return NextResponse.json(
@@ -151,14 +154,10 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    console.log("PUT /api/technical - Cleaned data:", cleanedData)
-
     const updatedTechnical = await prisma.technical.update({
       where: { id: technicalId },
       data: cleanedData,
     })
-    
-    console.log("PUT /api/technical - Updated technical:", updatedTechnical)
 
     // Créer l'entrée d'historique pour les notes techniques uniquement
     if ("technicalNotes" in updateData) {

@@ -74,10 +74,16 @@ L'application sera accessible sur `http://localhost:3000`
 - `npm run start` - Lancer l'application en mode production
 - `npm run test` - Lancer les tests unitaires
 - `npm run test:e2e` - Lancer les tests end-to-end
+- `npm run test:e2e:critical` - Lancer la campagne e2e critique sécurité
+- `npm run test:e2e:mobile:perf` - Lancer la revue UX/perf mobile automatisée
 - `npm run restore:admin` - Restaurer l'utilisateur Admin
 - `npm run reset:admin` - Réinitialiser le mot de passe Admin
 - `npm run disable:2fa:admin` - Désactiver le 2FA pour Admin
 - `npm run check:data` - Vérifier l'état de la base de données
+- `npm run backup` - Créer une sauvegarde manuelle chiffrée
+- `npm run backup:drill` - Vérifier la restaurabilité de la dernière sauvegarde
+- `npm run secrets:check` - Vérifier l'état des secrets et la rotation de clé
+- `npm run security:audit:mini` - Générer un mini-audit sécurité interne
 - `npm run audit` - Scanner les vulnérabilités des dépendances
 - `npm run audit:fix` - Corriger automatiquement les vulnérabilités
 - `npm run audit:production` - Scanner uniquement les dépendances de production

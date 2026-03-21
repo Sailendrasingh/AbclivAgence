@@ -49,6 +49,9 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // Première passe CSRF via header (cas standard apiFetch)
+    const csrfHeaderValidation = await requireCSRF(request)
+
     // Pour FormData, on doit parser le FormData d'abord pour extraire le token CSRF
     // car request.formData() ne peut être appelé qu'une seule fois
     const formData = await request.formData()
@@ -61,7 +64,8 @@ export async function POST(request: NextRequest) {
     const isValid = await verifyCSRFToken(csrfToken)
 
 
-    if (!isValid) {
+    // Accepter soit un token header valide, soit le fallback _csrf dans le FormData.
+    if (csrfHeaderValidation && !isValid) {
       return NextResponse.json(
         { error: "Token CSRF invalide ou manquant" },
         { status: 403 }
@@ -157,7 +161,7 @@ export async function POST(request: NextRequest) {
       }
     } catch (exifError) {
       // Si la lecture EXIF échoue, on essaie d'utiliser lastModified du File object
-      console.log("Erreur lecture EXIF:", exifError)
+      console.warn("Erreur lecture EXIF")
     }
 
     // Si pas de date EXIF, utiliser lastModified du File object (date de modification originale du fichier)

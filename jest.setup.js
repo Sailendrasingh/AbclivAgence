@@ -2,9 +2,21 @@ import '@testing-library/jest-dom'
 
 // ⚠️ IMPORTANT: Définir DATABASE_URL AVANT tout import de Prisma
 // PostgreSQL : utiliser une base de test (ex: postgresql://user:pass@localhost:5432/abcliv_test)
-// Si non défini, les tests échoueront.
-if (!process.env.DATABASE_URL || !process.env.DATABASE_URL.startsWith('postgresql')) {
-  process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/abcliv_test'
+// Si DATABASE_URL ne pointe pas déjà vers une base de test, on force une DB de test dédiée.
+const currentDbUrl = process.env.DATABASE_URL || ''
+let derivedTestDbUrl = 'postgresql://postgres:postgres@localhost:5432/abcliv_test'
+if (currentDbUrl.startsWith('postgresql://') || currentDbUrl.startsWith('postgres://')) {
+  try {
+    const parsed = new URL(currentDbUrl)
+    parsed.pathname = '/abcliv_test'
+    derivedTestDbUrl = parsed.toString()
+  } catch {
+    // Fallback conservateur: URL de test locale par défaut
+  }
+}
+const defaultTestDbUrl = process.env.DATABASE_URL_TEST || derivedTestDbUrl
+if (!currentDbUrl.startsWith('postgresql') || (!currentDbUrl.includes('test') && !currentDbUrl.includes('_test'))) {
+  process.env.DATABASE_URL = defaultTestDbUrl
 }
 process.env.NODE_ENV = 'test'
 process.env.ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'test-encryption-key-32-chars-long!!'

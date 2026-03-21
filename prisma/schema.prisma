@@ -38,6 +38,9 @@ model Session {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model Agency {
@@ -58,6 +61,9 @@ model Agency {
   photos        PhotoGroup[]
   technical     Technical?
   tasks         Task[]
+
+  @@index([state])
+  @@index([updatedAt])
 }
 
 model Address {
@@ -74,6 +80,8 @@ model Address {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   agency     Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  @@index([agencyId])
 }
 
 model Contact {
@@ -89,6 +97,9 @@ model Contact {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   agency      Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  @@index([agencyId])
+  @@index([agencyId, order])
 }
 
 model Technical {
@@ -148,6 +159,9 @@ model PC {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   technical    Technical @relation(fields: [technicalId], references: [id], onDelete: Cascade)
+
+  @@index([technicalId])
+  @@index([technicalId, order])
 }
 
 model Printer {
@@ -166,6 +180,8 @@ model Printer {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   technical    Technical @relation(fields: [technicalId], references: [id], onDelete: Cascade)
+
+  @@index([technicalId])
 }
 
 model WifiAccessPoint {
@@ -180,6 +196,8 @@ model WifiAccessPoint {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   technical         Technical @relation(fields: [technicalId], references: [id], onDelete: Cascade)
+
+  @@index([technicalId])
 }
 
 model Camera {
@@ -192,6 +210,8 @@ model Camera {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   technical   Technical @relation(fields: [technicalId], references: [id], onDelete: Cascade)
+
+  @@index([technicalId])
 }
 
 model DynamicField {
@@ -203,6 +223,9 @@ model DynamicField {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   technical   Technical @relation(fields: [technicalId], references: [id], onDelete: Cascade)
+
+  @@index([technicalId])
+  @@index([technicalId, order])
 }
 
 model TechnicalHistory {
@@ -214,6 +237,9 @@ model TechnicalHistory {
   createdAt   DateTime  @default(now())
   user        User      @relation(fields: [userId], references: [id])
   technical   Technical @relation(fields: [technicalId], references: [id], onDelete: Cascade)
+
+  @@index([technicalId, createdAt])
+  @@index([userId])
 }
 
 model PhotoGroup {
@@ -225,6 +251,8 @@ model PhotoGroup {
   updatedAt DateTime @updatedAt
   title     String?
   agency    Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  @@index([agencyId])
 }
 
 model AgencyHistory {
@@ -236,6 +264,9 @@ model AgencyHistory {
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id])
   agency    Agency   @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  @@index([agencyId, createdAt])
+  @@index([userId])
 }
 
 model Log {
@@ -247,6 +278,9 @@ model Log {
   userAgent String?
   createdAt DateTime @default(now())
   user      User?    @relation(fields: [userId], references: [id])
+
+  @@index([createdAt])
+  @@index([userId, createdAt])
 }
 
 model Task {
@@ -264,6 +298,13 @@ model Task {
   agency      Agency    @relation(fields: [agencyId], references: [id], onDelete: Cascade)
   creator     User      @relation("TaskCreator", fields: [createdBy], references: [id])
   closer      User?     @relation("TaskCloser", fields: [closedBy], references: [id])
+
+  @@index([agencyId])
+  @@index([createdBy])
+  @@index([closedBy])
+  @@index([createdAt])
+  @@index([closedAt])
+  @@index([importance, closedAt, createdAt])
 }
 
 model AppSettings {
@@ -289,4 +330,7 @@ model Alert {
   resolvedBy String?
   createdAt  DateTime  @default(now())
   user       User?     @relation(fields: [userId], references: [id])
+
+  @@index([resolved, createdAt])
+  @@index([userId, createdAt])
 }

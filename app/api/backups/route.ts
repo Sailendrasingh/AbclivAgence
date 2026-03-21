@@ -8,8 +8,9 @@ import { createLog } from "@/lib/logs"
 import archiver from "archiver"
 import { encryptFile } from "@/lib/encryption"
 import { saveChecksum, verifyFileIntegrity, cleanupOrphanedChecksums } from "@/lib/backup-integrity"
-import { alertSensitiveAction } from "@/lib/alerts"
+import { alertSensitiveAction, createAlert } from "@/lib/alerts"
 import { isPostgresUrl, pgDumpToFile } from "@/lib/db-backup"
+import { requireCSRF } from "@/lib/csrf-middleware"
 
 // GET : Lister toutes les sauvegardes
 export async function GET(request: NextRequest) {
@@ -93,6 +94,8 @@ export async function POST(request: NextRequest) {
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
   }
+  const csrfError = await requireCSRF(request)
+  if (csrfError) return csrfError
 
   // Vérifier que l'utilisateur est Super Admin
   if (session.role !== "Super Admin") {
@@ -144,7 +147,6 @@ export async function POST(request: NextRequest) {
 
       const archivePromise = new Promise<void>((resolve, reject) => {
         output.on("close", () => {
-          console.log(`Archive créée: ${archive.pointer()} bytes`)
           resolve()
         })
         output.on("error", reject)
@@ -184,7 +186,7 @@ export async function POST(request: NextRequest) {
     let checksum: string | undefined
     try {
       checksum = await saveChecksum(backupPath)
-      console.log(`[BACKUP] Checksum SHA-256 sauvegardé pour ${backupPath}`)
+      console.info(`[BACKUP] Checksum SHA-256 sauvegardé`)
     } catch (checksumError: any) {
       console.error(`[BACKUP] Erreur lors du calcul du checksum:`, checksumError)
       // Ne pas faire échouer la sauvegarde si le checksum échoue, mais logger l'erreur
@@ -228,7 +230,7 @@ export async function POST(request: NextRequest) {
     try {
       const orphanedChecksums = await cleanupOrphanedChecksums(backupsDir)
       if (orphanedChecksums > 0) {
-        console.log(`[BACKUP] ${orphanedChecksums} checksum(s) orphelin(s) nettoyé(s)`)
+        console.info(`[BACKUP] ${orphanedChecksums} checksum(s) orphelin(s) nettoyé(s)`)
       }
     } catch (error) {
       console.warn("[BACKUP] Erreur lors du nettoyage des checksums orphelins:", error)
@@ -257,7 +259,17 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     )
   } catch (error: any) {
-    console.error("Error creating backup:", error)
+    console.error("Error creating backup:", error?.message || String(error))
+    const { getClientIP } = await import("@/lib/get-client-ip")
+    await createAlert(
+      "SUSPICIOUS_PATTERN",
+      "high",
+      "Échec de création de sauvegarde",
+      "Une tentative de création de sauvegarde a échoué.",
+      { error: error?.message || String(error) },
+      session.id,
+      getClientIP(request)
+    )
     return NextResponse.json(
       {
         error: "Erreur lors de la création de la sauvegarde",
@@ -274,6 +286,8 @@ export async function DELETE(request: NextRequest) {
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
   }
+  const csrfError = await requireCSRF(request)
+  if (csrfError) return csrfError
 
   // Seul le Super Admin peut purger toutes les sauvegardes
   if (session.role !== "Super Admin") {
@@ -351,7 +365,17 @@ export async function DELETE(request: NextRequest) {
       deletedCount,
     })
   } catch (error) {
-    console.error("Error purging backups:", error)
+    console.error("Error purging backups:", error instanceof Error ? error.message : String(error))
+    const { getClientIP } = await import("@/lib/get-client-ip")
+    await createAlert(
+      "SUSPICIOUS_PATTERN",
+      "high",
+      "Échec de purge des sauvegardes",
+      "La purge des sauvegardes a échoué.",
+      { error: error instanceof Error ? error.message : String(error) },
+      session.id,
+      getClientIP(request)
+    )
     return NextResponse.json(
       { error: "Erreur lors de la purge des sauvegardes" },
       { status: 500 }

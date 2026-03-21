@@ -104,7 +104,6 @@ export async function POST(
 
     // ÉTAPE 1: Mettre le fichier en quarantaine
     const quarantineInfo = await quarantineFile(buffer, file.name)
-    console.log(`[PHOTO] Fichier mis en quarantaine: ${quarantineInfo.filePath}`)
 
     // ÉTAPE 2: Scanner le fichier en quarantaine
     const scanResult = await scanQuarantinedFile(quarantineInfo, buffer)
@@ -127,8 +126,6 @@ export async function POST(
         { status: 403 }
       )
     }
-
-    console.log(`[PHOTO] Fichier approuvé par scan: ${scanResult.engine} - Propre`)
 
     // ÉTAPE 3: Traiter l'image dans un sandbox (redimensionnement)
     let processedBuffer: Buffer
@@ -162,8 +159,6 @@ export async function POST(
     // Supprimer le fichier de la quarantaine (déjà traité)
     await removeFromQuarantine(quarantineInfo.filePath)
     
-    console.log(`[PHOTO] Fichier traité et sauvegardé: ${finalFilePath}`)
-
     // Récupérer l'ancienne photo pour la supprimer
     const user = await prisma.user.findUnique({
       where: { id },

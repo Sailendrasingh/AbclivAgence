@@ -6,24 +6,18 @@
  */
 
 import 'dotenv/config';
-import { PrismaClient } from '@prisma/client';
 import argon2 from 'argon2';
-
-const prisma = new PrismaClient();
+import { disconnectPrisma, getAdminOrNull, printAdminMissingHint, prisma } from './admin-utils';
 
 async function resetAdminPassword() {
   console.log(`🔧 Réinitialisation du mot de passe Admin...
 `);
 
   try {
-    // Vérifier si l'admin existe
-    const existingAdmin = await prisma.user.findUnique({
-      where: { login: 'Admin' },
-    });
+    const existingAdmin = await getAdminOrNull();
 
     if (!existingAdmin) {
-      console.log(`❌ L'utilisateur Admin n'existe pas`);
-      console.log(`💡 Utilisez "npm run restore:admin" pour créer l'utilisateur Admin`);
+      printAdminMissingHint();
       return;
     }
 
@@ -52,7 +46,7 @@ async function resetAdminPassword() {
     console.error('❌ Erreur lors de la réinitialisation:', error);
     process.exit(1);
   } finally {
-    await prisma.$disconnect();
+    await disconnectPrisma();
   }
 }
 

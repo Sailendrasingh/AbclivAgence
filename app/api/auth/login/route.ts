@@ -7,6 +7,7 @@ import { createCSRFToken } from "@/lib/csrf"
 import { ensureSessionTable } from "@/lib/ensure-session-table"
 import { checkFailedLoginAttempts } from "@/lib/alerts"
 import { getClientIP } from "@/lib/get-client-ip"
+import { createAlert } from "@/lib/alerts"
 
 const MAX_FAILED_ATTEMPTS = 5
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000 // 15 minutes
@@ -113,6 +114,18 @@ export async function POST(request: NextRequest) {
         locked: shouldLock,
       }, request)
 
+      if (shouldLock) {
+        await createAlert(
+          "ACCOUNT_LOCKED",
+          "high",
+          "Compte verrouillé après échecs de connexion",
+          `Le compte ${user.login} a été verrouillé après ${MAX_FAILED_ATTEMPTS} tentatives échouées.`,
+          { login: user.login, failedAttempts: newFailedAttempts },
+          user.id,
+          ipAddress
+        )
+      }
+
       // Vérifier et alerter sur les tentatives multiples
       await checkFailedLoginAttempts(login, ipAddress)
 
@@ -188,6 +201,18 @@ export async function POST(request: NextRequest) {
           failedAttempts: newFailedAttempts,
           locked: shouldLock,
         }, request)
+
+        if (shouldLock) {
+          await createAlert(
+            "ACCOUNT_LOCKED",
+            "high",
+            "Compte verrouillé après échecs 2FA",
+            `Le compte ${user.login} a été verrouillé après des codes 2FA invalides.`,
+            { login: user.login, failedAttempts: newFailedAttempts },
+            user.id,
+            ipAddress
+          )
+        }
 
         // Vérifier et alerter sur les tentatives multiples
         await checkFailedLoginAttempts(login, ipAddress)
@@ -266,11 +291,9 @@ export async function POST(request: NextRequest) {
         })
       })
 
-      console.log(`[LOGIN] Session créée pour ${user.login}`)
-
       return finalResponse
     } catch (sessionError: any) {
-      console.error("[LOGIN] Erreur lors de createSecureSession:", sessionError)
+      console.error("[LOGIN] Erreur lors de createSecureSession:", sessionError instanceof Error ? sessionError.message : String(sessionError))
       // Si le modèle Session n'est pas disponible, utiliser l'ancien système temporairement
       if (sessionError?.code === 'P2021' || sessionError?.message?.includes('Session') || sessionError?.message?.includes('Prisma') || sessionError?.message?.includes('does not exist')) {
         // Ne logger qu'une seule fois pour éviter le spam
@@ -296,17 +319,14 @@ export async function POST(request: NextRequest) {
 
           return response
         } catch (fallbackError: any) {
-          console.error("[LOGIN] Erreur lors du fallback:", fallbackError)
+          console.error("[LOGIN] Erreur lors du fallback:", fallbackError instanceof Error ? fallbackError.message : String(fallbackError))
           throw fallbackError
         }
       }
       throw sessionError
     }
   } catch (error: any) {
-    console.error("Login error:", error)
-    console.error("Login error stack:", error?.stack)
-    console.error("Login error message:", error?.message)
-    console.error("Login error code:", error?.code)
+    console.error("Login error:", error?.message || String(error))
     return NextResponse.json(
       {
         error: "Erreur serveur",

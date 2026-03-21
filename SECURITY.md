@@ -38,6 +38,8 @@ Ce document résume les risques identifiés, les correctifs appliqués et les re
 - **Backup DELETE** : Contrôle path traversal sur `filename` (rejet de `..`, `/`, `\`) + `resolve()` et `startsWith(backupsDir)`.
 - **Sanitization** : `lib/sanitize.ts` utilisé (ex. agences) pour limiter les risques XSS.
 - **Layout** : `dangerouslySetInnerHTML` limité à un script de thème statique (pas d’entrée utilisateur).
+  - **Exception contrôlée** : `app/layout.tsx` est autorisé uniquement pour le script anti-FOUC de thème.
+  - **Condition** : aucune interpolation de donnée utilisateur, contenu statique versionné.
 
 ---
 

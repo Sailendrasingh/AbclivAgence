@@ -4,22 +4,18 @@
  */
 
 import 'dotenv/config';
-import { PrismaClient, User } from '@prisma/client';
 import argon2 from 'argon2';
-
-const prisma = new PrismaClient();
+import { disconnectPrisma, getAdminOrNull, printAdminMissingHint } from './admin-utils';
 
 async function checkAdminStatus() {
   console.log(`🔍 Vérification de l'état du compte Admin...
 `);
 
   try {
-    const admin: User | null = await prisma.user.findUnique({
-      where: { login: 'Admin' },
-    });
+    const admin = await getAdminOrNull();
 
     if (!admin) {
-      console.log(`❌ L'utilisateur Admin n'existe pas`);
+      printAdminMissingHint();
       return;
     }
 
@@ -70,7 +66,7 @@ async function checkAdminStatus() {
   } catch (error) {
     console.error('❌ Erreur:', error);
   } finally {
-    await prisma.$disconnect();
+    await disconnectPrisma();
   }
 }
 

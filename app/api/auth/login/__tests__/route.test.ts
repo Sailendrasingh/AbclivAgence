@@ -16,8 +16,25 @@ jest.mock('@/lib/logs', () => ({
 
 describe('POST /api/auth/login', () => {
   beforeEach(async () => {
-    // Nettoyer la base de test d'abord
+    // Nettoyer la base de test d'abord (ordre important pour les FK)
+    await prisma.session.deleteMany()
+    await prisma.log.deleteMany()
+    await prisma.technicalHistory.deleteMany()
+    await prisma.agencyHistory.deleteMany()
+    await prisma.dynamicField.deleteMany()
+    await prisma.camera.deleteMany()
+    await prisma.wifiAccessPoint.deleteMany()
+    await prisma.printer.deleteMany()
+    await prisma.pC.deleteMany()
+    await prisma.technical.deleteMany()
+    await prisma.photoGroup.deleteMany()
+    await prisma.contact.deleteMany()
+    await prisma.address.deleteMany()
+    await prisma.task.deleteMany()
+    await prisma.agency.deleteMany()
+    await prisma.alert.deleteMany()
     await prisma.user.deleteMany()
+    await prisma.appSettings.deleteMany()
     jest.clearAllMocks()
   })
 

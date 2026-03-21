@@ -4,21 +4,17 @@
  */
 
 import 'dotenv/config';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { disconnectPrisma, getAdminOrNull, printAdminMissingHint, prisma } from './admin-utils';
 
 async function disable2FA() {
   console.log(`🔧 Désactivation du 2FA pour le compte Admin...
 `);
 
   try {
-    const admin = await prisma.user.findUnique({
-      where: { login: 'Admin' },
-    });
+    const admin = await getAdminOrNull();
 
     if (!admin) {
-      console.log(`❌ L'utilisateur Admin n'existe pas`);
+      printAdminMissingHint();
       return;
     }
 
@@ -49,7 +45,7 @@ async function disable2FA() {
     console.error('❌ Erreur:', error);
     process.exit(1);
   } finally {
-    await prisma.$disconnect();
+    await disconnectPrisma();
   }
 }
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getSession } from "@/lib/session"
 import { createLog } from "@/lib/logs"
+import { requireCSRF } from "@/lib/csrf-middleware"
 
 export async function PUT(
   request: NextRequest,
@@ -12,6 +13,8 @@ export async function PUT(
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
   }
+  const csrfError = await requireCSRF(request)
+  if (csrfError) return csrfError
 
   try {
     const body = await request.json()
@@ -68,6 +71,8 @@ export async function DELETE(
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
   }
+  const csrfError = await requireCSRF(request)
+  if (csrfError) return csrfError
 
   try {
     await prisma.printer.delete({

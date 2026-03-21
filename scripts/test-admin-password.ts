@@ -4,21 +4,17 @@
  */
 
 import 'dotenv/config';
-import { PrismaClient } from '@prisma/client';
 import argon2 from 'argon2';
-
-const prisma = new PrismaClient();
+import { disconnectPrisma, getAdminOrNull, printAdminMissingHint } from './admin-utils';
 
 async function testAdminPassword() {
   console.log(`🔍 Test du mot de passe Admin...\n`);
 
   try {
-    const admin = await prisma.user.findUnique({
-      where: { login: 'Admin' },
-    });
+    const admin = await getAdminOrNull();
 
     if (!admin) {
-      console.log(`❌ L'utilisateur Admin n'existe pas`);
+      printAdminMissingHint();
       return;
     }
 
@@ -28,7 +24,6 @@ async function testAdminPassword() {
     console.log(`   Rôle: ${admin.role}`);
     console.log(`   Actif: ${admin.active ? 'Oui' : 'Non'}`);
     console.log(`   Hash length: ${admin.passwordHash.length}`);
-    console.log(`   Hash preview: ${admin.passwordHash.substring(0, 20)}...`);
     console.log(`   Hash starts with $argon2: ${admin.passwordHash.startsWith('$argon2')}`);
     console.log(`\n🔐 Test de vérification du mot de passe "Password"...`);
 
@@ -57,7 +52,7 @@ async function testAdminPassword() {
   } catch (error) {
     console.error('❌ Erreur:', error);
   } finally {
-    await prisma.$disconnect();
+    await disconnectPrisma();
   }
 }
 

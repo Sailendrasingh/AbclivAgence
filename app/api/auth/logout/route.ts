@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getSecureSession, destroySecureSession } from "@/lib/session-secure"
 import { createLog } from "@/lib/logs"
-import { validateCSRF } from "@/lib/csrf"
+import { requireCSRF } from "@/lib/csrf-middleware"
 
 export async function POST(request: NextRequest) {
-  // Pour la déconnexion, on valide le CSRF si présent mais on ne bloque pas si invalide
-  // Cela permet de se déconnecter même en cas de problème de session/CSRF
-  const csrfValidation = await validateCSRF(request)
-  if (!csrfValidation.valid) {
-    console.warn("[LOGOUT] Token CSRF invalide ou manquant, mais déconnexion autorisée")
-  }
+  const csrfError = await requireCSRF(request)
+  if (csrfError) return csrfError
 
   const session = await getSecureSession()
   

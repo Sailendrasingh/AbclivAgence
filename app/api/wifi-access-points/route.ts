@@ -3,12 +3,15 @@ import { prisma } from "@/lib/prisma"
 import { getSession } from "@/lib/session"
 import { createLog } from "@/lib/logs"
 import { encryptWifiPassword } from "@/lib/wifi-vault"
+import { requireCSRF } from "@/lib/csrf-middleware"
 
 export async function POST(request: NextRequest) {
   const session = await getSession()
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
   }
+  const csrfError = await requireCSRF(request)
+  if (csrfError) return csrfError
 
   try {
     const body = await request.json()

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getSession } from "@/lib/session"
 import { generateTwoFactorSecret, generateQRCode } from "@/lib/auth"
+import { requireCSRF } from "@/lib/csrf-middleware"
 
 export async function POST(
   request: NextRequest,
@@ -12,6 +13,8 @@ export async function POST(
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
   }
+  const csrfError = await requireCSRF(request)
+  if (csrfError) return csrfError
 
   // L'utilisateur ne peut activer 2FA que pour lui-même, sauf Super Admin
   if (session.id !== id && session.role !== "Super Admin") {
@@ -64,6 +67,8 @@ export async function PUT(
   if (!session) {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
   }
+  const csrfError = await requireCSRF(request)
+  if (csrfError) return csrfError
 
   if (session.id !== id && session.role !== "Super Admin") {
     return NextResponse.json({ error: "Non autorisé" }, { status: 401 })
