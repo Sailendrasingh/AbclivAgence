@@ -2,6 +2,9 @@
 
 > ⚠️ **Document historique (snapshot)**
 > Ce rapport est conservé pour traçabilité. En cas de divergence, se référer à `prd_application_web_gestion_des_agences.md` et `README.md`.
+>
+> 🔄 **Mise à jour documentaire 2026-03-21** : ce document est conservé en snapshot.  
+> Pour l'état courant, se référer aussi à `SECURITY.md`, `ARCHITECTURE_SOURCE_OF_TRUTH.md` et `reports/SECURITY_MINI_AUDIT.md` (statut actuel : `0 HIGH / 0 MEDIUM / 0 LOW`).
 
 **Date d'analyse** : 2026-02-22
 **Version PRD** : Dernière version (mise à jour calendrier/dashboard/responsive)

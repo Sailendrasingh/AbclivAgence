@@ -2,6 +2,9 @@
 
 > ⚠️ **Document historique (snapshot)**
 > Ce rapport est conservé pour traçabilité. En cas de divergence, se référer à `prd_application_web_gestion_des_agences.md` et `README.md`.
+>
+> 🔄 **Mise à jour documentaire 2026-03-21** : snapshot conservé.  
+> Les points de conformité actuellement validés (notamment sécurité/CSRF et gouvernance) sont suivis dans `prd_application_web_gestion_des_agences.md`, `SECURITY.md` et `reports/SECURITY_MINI_AUDIT.md`.
 
 Date : $(date)
 

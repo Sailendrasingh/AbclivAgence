@@ -4,7 +4,7 @@
 > Ce document est un **résumé de haut niveau**. En cas d'écart, la source de vérité est `prd_application_web_gestion_des_agences.md`.
 > Références prioritaires : `README.md`, `SECURITY.md`, `MIGRATION_POSTGRESQL.md`.
 
-**Date** : 2026-02-23
+**Date** : 2026-03-21
 
 ## Overview
 **ABCLIV Agency Dashboard** — Application de gestion d'agences avec calendrier, contacts, données techniques, photos, authentification 2FA, logs, historisation et sauvegardes. Stack : Next.js App Router, TypeScript, shadcn/ui, Tailwind CSS, PostgreSQL, Prisma ORM.
@@ -40,6 +40,10 @@
 | 23 | **Tests E2E Playwright** (connexion Admin 2FA, création agence, mobile changement d'agence) | ✅ 100% |
 | 24 | **Accessibilité mobile** (aria-label bouton Retour, correction crash au retour liste) | ✅ 100% |
 | 25 | **Thème sombre raffiné** (dégradé body, contraste, primary violet vif) | ✅ 100% |
+| 26 | **Industrialisation CI/PR** (workflow CI, template PR, quality gates test/lint/build) | ✅ 100% |
+| 27 | **Résilience sauvegardes/secrets** (`backup:drill`, `secrets:check`, workflow mensuel) | ✅ 100% |
+| 28 | **Durcissement sécurité API** (CSRF routes mutatives, lockout alerting, hygiene logs) | ✅ 100% |
+| 29 | **Gouvernance technique** (ADR, source de vérité architecture, mini-audit OWASP interne) | ✅ 100% |
 
 ---
 
@@ -50,6 +54,6 @@
 
 ## Conformité globale : **100%** ✅
 
-Tous les rapports de vérification (`RAPPORT_CONFORMITE_PRD.md`, `VERIFICATION_CONFORMITE_PRD.md`, `AUDIT_FONCTIONNALITES_PRD.md`) confirment la conformité totale au PRD.
+Tous les rapports PRD sont alignés avec la source de vérité `prd_application_web_gestion_des_agences.md`, ainsi que `SECURITY.md`, `ARCHITECTURE_SOURCE_OF_TRUTH.md` et `reports/SECURITY_MINI_AUDIT.md`.
 
 **Recommandation** : Le projet est prêt pour la production.

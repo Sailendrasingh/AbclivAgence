@@ -2009,3 +2009,40 @@ L'application doit être conforme aux standards de sécurité OWASP Top 10 2021.
   * **Vues** : Mois (grille LUN–DIM), Semaine (créneaux horaires + jour entier), Jour (un jour + grille horaire), Planning (liste chronologique sur 6 mois)
   * **API** : `GET /api/tasks?from=&to=` pour le chargement des tâches par plage de dates
   * **Accès** : Tous les utilisateurs connectés
+
+---
+
+## 24. Industrialisation sécurité/qualité (2026-03-21)
+
+### 24.1 Chaîne qualité CI et gouvernance PR
+
+* **Workflow CI** : `.github/workflows/ci.yml`
+  * Exécute `npm ci`, génération Prisma, préparation DB de test PostgreSQL, `npm run lint`, `npm run test`, `npm run build`
+* **Template PR** : `.github/pull_request_template.md` (résumé, plan de test, checklist sécurité, risques, rollback)
+* **Objectif** : rendre les contrôles qualité/sécurité systématiques avant merge
+
+### 24.2 Résilience backups et hygiène secrets
+
+* **Drill de restauration** : script `npm run backup:drill` (`scripts/backup-drill.ts`) pour vérifier la restaurabilité d'une sauvegarde chiffrée
+* **Santé secrets** : script `npm run secrets:check` (`scripts/check-secrets-health.ts`) pour valider présence/longueur de clé et suivi de rotation
+* **Automatisation mensuelle** : `.github/workflows/backup-drill.yml`
+
+### 24.3 Durcissement auth/session/CSRF
+
+* **Lockout alerting** : alerte `ACCOUNT_LOCKED` lors de verrouillage compte après échecs login/2FA
+* **CSRF étendu** : routes API mutatives protégées (`requireCSRF()` ou validation équivalente), avec exception contrôlée pour `POST /api/auth/login`
+* **Logs API** : suppression des logs verbeux sensibles pour limiter l'exposition d'informations
+
+### 24.4 Campagnes e2e critiques
+
+* **Suite critique sécurité** : `npm run test:e2e:critical`
+* **Suite mobile UX/perf** : `npm run test:e2e:mobile:perf`
+* **But** : détecter rapidement les régressions sur parcours à fort impact (auth, redirections, feedback erreur, garde-fous mobile)
+
+### 24.5 Gouvernance technique et audit interne
+
+* **Source de vérité architecture** : `ARCHITECTURE_SOURCE_OF_TRUTH.md`
+* **Registre ADR** : `ADR_INDEX.md` + ADR initiales (`ADR-0001`, `ADR-0002`)
+* **Mini-audit OWASP interne** : `npm run security:audit:mini`
+  * Rapport généré : `reports/SECURITY_MINI_AUDIT.md`
+  * Statut actuel : **0 HIGH / 0 MEDIUM / 0 LOW**

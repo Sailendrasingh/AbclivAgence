@@ -2,6 +2,9 @@
 
 > ⚠️ **Document historique (snapshot)**
 > Ce rapport est conservé pour traçabilité. En cas de divergence, se référer à `prd_application_web_gestion_des_agences.md` et `README.md`.
+>
+> 🔄 **Mise à jour documentaire 2026-03-21** : ce rapport reste un audit d'incohérences interne au PRD à date historique.  
+> Pour l'état courant de référence, utiliser `prd_application_web_gestion_des_agences.md` (mis à jour), `SECURITY.md` et `ARCHITECTURE_SOURCE_OF_TRUTH.md`.
 
 **Document analysé** : `prd_application_web_gestion_des_agences.md`  
 **Date d'analyse** : 2026-02-07  

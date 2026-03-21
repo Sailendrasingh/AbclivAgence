@@ -2,6 +2,9 @@
 
 > ⚠️ **Document historique (snapshot)**
 > Ce rapport est conservé pour traçabilité. En cas de divergence, se référer à `prd_application_web_gestion_des_agences.md` et `README.md`.
+>
+> 🔄 **Mise à jour documentaire 2026-03-21** : ce snapshot reste historique.  
+> État actuel consolidé : conformité PRD maintenue, durcissement CSRF étendu, mini-audit sécurité interne à `0 HIGH / 0 MEDIUM / 0 LOW`, et industrialisation CI/backup drill/secrets check/ADR livrée.
 
 ## ✅ Fonctionnalités implémentées et conformes
 

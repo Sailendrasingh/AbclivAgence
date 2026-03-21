@@ -2,6 +2,9 @@
 
 > ⚠️ **Document historique (snapshot)**
 > Ce rapport est conservé pour traçabilité. En cas de divergence, se référer à `prd_application_web_gestion_des_agences.md` et `README.md`.
+>
+> 🔄 **Mise à jour documentaire 2026-03-21** : snapshot conservé pour historique.  
+> Les évolutions post-audit (durcissement CSRF, e2e critiques/mobile, CI, backup drill, secrets check, ADR, mini-audit sécurité à 0 finding) sont reflétées dans le PRD principal et les documents de référence.
 
 Date : 2026-02-22
 
