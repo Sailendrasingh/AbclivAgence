@@ -1,5 +1,8 @@
 # Rapport de Conformité OWASP Top 10 2021
 
+> ⚠️ **Document d'audit (snapshot)**
+> Rapport conservé pour traçabilité. Les règles opérationnelles actuelles sont consolidées dans `SECURITY.md` et le PRD principal.
+
 **Date d'analyse** : 2026-01-30 (Mise à jour complète)
 **Version OWASP** : Top 10 2021 (dernière version)
 **Niveau de conformité** : **~97%** ✅

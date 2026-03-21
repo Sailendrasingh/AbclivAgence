@@ -2,6 +2,17 @@
 
 Application web de gestion des agences développée avec Next.js, React, TypeScript, Prisma et PostgreSQL.
 
+## Source de vérité documentaire
+
+Pour éviter les ambiguïtés entre anciens rapports et documentation active, les documents de référence à suivre en priorité sont :
+
+- `prd_application_web_gestion_des_agences.md`
+- `README.md` (ce fichier)
+- `SECURITY.md`
+- `MIGRATION_POSTGRESQL.md`
+
+Les fichiers de type `RAPPORT_*`, `VERIFICATION_*`, `AUDIT_*` et certains guides ponctuels peuvent être des snapshots historiques.
+
 ## 🚀 Installation
 
 1. **Cloner le repository**

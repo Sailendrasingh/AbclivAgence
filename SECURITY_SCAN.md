@@ -1,5 +1,8 @@
 # Guide de Scan de Vulnérabilités
 
+> ℹ️ **Document opérationnel complémentaire**
+> Ce guide complète `SECURITY.md`. En cas de divergence sur les exigences de sécurité applicative, `SECURITY.md` fait foi.
+
 Ce document décrit les outils et procédures pour scanner les vulnérabilités dans les dépendances du projet.
 
 ## 🔒 Outils Configurés

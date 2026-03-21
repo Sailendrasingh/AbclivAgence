@@ -1,5 +1,8 @@
 # Restauration des Données - Guide d'Urgence
 
+> ⚠️ **Document historique (SQLite legacy)**
+> Ce guide décrit un ancien scénario SQLite. Pour l'état actuel PostgreSQL, suivre `MIGRATION_POSTGRESQL.md`, `README.md` et `SECURITY.md`.
+
 ## ⚠️ Problème Identifié
 
 Les tests ont peut-être utilisé la base de données de production (`dev.db`) au lieu de la base de test (`test.db`), ce qui a pu supprimer les données de production.

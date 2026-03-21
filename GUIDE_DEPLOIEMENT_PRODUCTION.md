@@ -109,8 +109,8 @@ nano .env
 Contenu du fichier `.env` :
 
 ```env
-# Base de données SQLite
-DATABASE_URL="file:/var/www/abcliv-agency/prisma/production.db"
+# Base de données PostgreSQL (recommandé)
+DATABASE_URL="postgresql://postgres:motdepasse@localhost:5432/abcliv"
 
 # Clé de chiffrement (OBLIGATOIRE - Générer une nouvelle clé pour la production)
 ENCRYPTION_KEY="votre-cle-de-chiffrement-64-caracteres-hexadecimaux"
@@ -862,7 +862,8 @@ En cas de problème :
 ## 📝 Notes Importantes
 
 - **Ubuntu Server LTS** : Ce guide est spécifiquement conçu pour Ubuntu Server LTS. Les commandes peuvent différer sur d'autres distributions Linux.
-- **SQLite en production** : SQLite convient pour des applications avec un volume modéré de requêtes simultanées. Pour un trafic élevé, considérer PostgreSQL ou MySQL.
+- **PostgreSQL en production** : recommandé pour la robustesse, les sauvegardes `pg_dump`/`psql` et la montée en charge.
+- **SQLite** : à réserver aux usages locaux, tests ciblés ou migration ponctuelle.
 - **ClamAV** : Optionnel mais fortement recommandé pour la sécurité. L'application fonctionne avec un scan heuristique en fallback.
 - **Sauvegardes** : Configurer des sauvegardes automatiques régulières de la base de données et des fichiers uploadés.
 - **Monitoring** : Surveiller régulièrement les logs et les performances de l'application.

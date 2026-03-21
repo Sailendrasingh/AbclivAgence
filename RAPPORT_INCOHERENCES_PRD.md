@@ -1,5 +1,8 @@
 # Rapport d'incohérences entre le PRD et le code
 
+> ⚠️ **Document historique (snapshot)**
+> Ce rapport est conservé pour traçabilité. En cas de divergence, se référer à `prd_application_web_gestion_des_agences.md` et `README.md`.
+
 Date : $(date)
 
 ## ✅ Incohérences critiques résolues

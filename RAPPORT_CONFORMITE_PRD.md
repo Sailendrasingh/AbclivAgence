@@ -1,5 +1,8 @@
 # Rapport de Conformité PRD - Analyse Complète
 
+> ⚠️ **Document historique (snapshot)**
+> Ce rapport est conservé pour traçabilité. En cas de divergence, se référer à `prd_application_web_gestion_des_agences.md` et `README.md`.
+
 **Date d'analyse** : 2026-02-22
 **Version PRD** : Dernière version (après mises à jour calendrier/dashboard/responsive)
 

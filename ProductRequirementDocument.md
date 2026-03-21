@@ -1,9 +1,13 @@
 # Product Requirement Document (PRD)
 
+> ⚠️ **Statut documentaire**
+> Ce document est un **résumé de haut niveau**. En cas d'écart, la source de vérité est `prd_application_web_gestion_des_agences.md`.
+> Références prioritaires : `README.md`, `SECURITY.md`, `MIGRATION_POSTGRESQL.md`.
+
 **Date** : 2026-02-23
 
 ## Overview
-**ABCLIV Agency Dashboard** — Application de gestion d'agences avec calendrier, contacts, données techniques, photos, authentification 2FA, logs, historisation et sauvegardes. Stack : Next.js App Router, TypeScript, shadcn/ui, Tailwind CSS, SQLite, Prisma ORM.
+**ABCLIV Agency Dashboard** — Application de gestion d'agences avec calendrier, contacts, données techniques, photos, authentification 2FA, logs, historisation et sauvegardes. Stack : Next.js App Router, TypeScript, shadcn/ui, Tailwind CSS, PostgreSQL (SQLite en option migration/test), Prisma ORM.
 
 ---
 
@@ -11,7 +15,7 @@
 
 | # | Section | Status |
 |---|---------|--------|
-| 1 | **Stack technique** (Next.js, TS, shadcn/ui, Tailwind, SQLite, Prisma, API BAN, PWA) | ✅ 100% |
+| 1 | **Stack technique** (Next.js, TS, shadcn/ui, Tailwind, PostgreSQL, Prisma, API BAN) | ✅ 100% |
 | 2 | **Thèmes** (clair orange / sombre raffiné dégradé, anti-FOUC, transitions, accessibilité) | ✅ 100% |
 | 3 | **Interface** (Master/Détails, redimensionnement, responsive mobile, sidebar, burger menu) | ✅ 100% |
 | 4 | **Données Agence** (photo, nom, état OK/INFO/ALERTE/FERMÉE, adresses BAN, Google Maps) | ✅ 100% |
@@ -21,10 +25,10 @@
 | 8 | **Uploads** (filesystem, 5 MB, JPEG/PNG, magic bytes, cache HTTP optimisé) | ✅ 100% |
 | 9 | **Recherche & Filtres** (tous les champs, debounce 300ms, filtres état) | ✅ 100% |
 | 10 | **Auth & Sécurité** (argon2, 2FA Google Authenticator, RBAC, session timeout, CSRF, verrouillage compte) | ✅ 100% |
-| 11 | **Logs** (connexion, actions, SQLite, CSV, rétention 30j, purge) | ✅ 100% |
+| 11 | **Logs** (connexion, actions, stockage DB + fichiers, CSV, rétention 30j, purge) | ✅ 100% |
 | 12 | **Historisation** (agences max 100 versions, notes techniques, UI consultation + restauration) | ✅ 100% |
-| 13 | **PWA & Offline** (manifest, service worker, file d'attente, sync) | ✅ 100% |
-| 14 | **Sauvegardes** (ZIP db+uploads, rétention 10j, restauration UI, purge) | ✅ 100% |
+| 13 | **PWA & Offline** (hors périmètre actuel / historique) | 🗂️ Historique |
+| 14 | **Sauvegardes** (ZIP chiffré + uploads, PostgreSQL via `pg_dump`/`psql`, rétention 10j, restauration UI, purge) | ✅ 100% |
 | 15 | **OWASP Top 10** (A01-A10 tous couverts) | ✅ 100% |
 | 16 | **Dashboard** (KPIs, graphique circulaire, barres, tâches urgentes, agences récentes, responsive) | ✅ 100% |
 | 17 | **Calendrier** (Mois/Semaine/Jour/Planning, positionnement temporel, UX mobile Google Calendar, FAB, drawer, détails tâche) | ✅ 100% |
