@@ -1,3 +1,4 @@
+import "dotenv/config"
 import { readdir, stat, unlink, mkdir } from "fs/promises"
 import { createWriteStream } from "fs"
 import { join } from "path"
