@@ -370,9 +370,26 @@ function ParametresPageContent() {
     try {
       const response = await apiFetch("/api/logs")
       const data = await response.json()
-      setLogs(data)
+
+      if (!response.ok) {
+        console.error("Erreur chargement logs:", data?.error || response.statusText)
+        setLogs([])
+        return
+      }
+
+      // Compatibilité ascendante: /api/logs peut renvoyer un tableau (legacy)
+      // ou un objet paginé { items, pagination }.
+      if (Array.isArray(data)) {
+        setLogs(data)
+      } else if (data && Array.isArray(data.items)) {
+        setLogs(data.items)
+      } else {
+        console.warn("Format de réponse /api/logs inattendu")
+        setLogs([])
+      }
     } catch (error) {
       console.error("Error loading logs:", error)
+      setLogs([])
     } finally {
       setLoadingLogs(false)
     }
