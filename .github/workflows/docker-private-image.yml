@@ -47,6 +47,10 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
+          build-args: |
+            DATABASE_URL=postgresql://postgres:postgres@localhost:5432/abcliv
+            ENCRYPTION_KEY=test-encryption-key-32-chars-long!!
+            NEXT_TELEMETRY_DISABLED=1
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           provenance: false
