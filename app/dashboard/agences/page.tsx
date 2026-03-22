@@ -281,12 +281,7 @@ export default function AgencesPage() {
 
     setLoading(true)
     try {
-      const response = await fetch(
-        `/api/agencies?search=${encodeURIComponent(search)}&filter=${filter}`,
-        {
-          credentials: 'include'
-        }
-      )
+      const response = await apiFetch(`/api/agencies?search=${encodeURIComponent(search)}&filter=${filter}`)
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -459,16 +454,6 @@ export default function AgencesPage() {
     setHasAppliedDeepLink(true)
   }, [hasAppliedDeepLink, deepLinkedAgencyId, agencies, isMobile])
 
-  useEffect(() => {
-    if (selectedAgency) {
-      // Sur mobile, charger les détails seulement si on affiche la vue détails
-      if (isMobile && !showDetailsOnMobile) {
-        return
-      }
-      loadAgencyDetails(selectedAgency.id)
-    }
-  }, [selectedAgency, isMobile, showDetailsOnMobile, loadAgencyDetails])
-
   // Initialiser les données d'édition après le chargement des détails en mode mobile
   useEffect(() => {
     if (isMobile && editing && fullAgencyData && selectedAgency?.id === fullAgencyData.id) {
@@ -602,7 +587,7 @@ export default function AgencesPage() {
     // Ne pas réinitialiser fullAgencyData immédiatement pour garder l'ancien contenu visible
     setLoadingDetails(true)
     try {
-      const response = await fetch(`/api/agencies/${agencyId}`)
+      const response = await apiFetch(`/api/agencies/${agencyId}`)
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
@@ -642,7 +627,7 @@ export default function AgencesPage() {
       // Récupérer la dernière version de l'historique des notes techniques
       if (data.technical?.id) {
         try {
-          const historyResponse = await fetch(`/api/technical/${data.technical.id}/history`)
+          const historyResponse = await apiFetch(`/api/technical/${data.technical.id}/history`)
           if (historyResponse.ok) {
             const history = await historyResponse.json()
             if (history.length > 0) {
@@ -681,6 +666,16 @@ export default function AgencesPage() {
       setLoadingDetails(false)
     }
   }, [])
+
+  useEffect(() => {
+    if (selectedAgency) {
+      // Sur mobile, charger les détails seulement si on affiche la vue détails
+      if (isMobile && !showDetailsOnMobile) {
+        return
+      }
+      loadAgencyDetails(selectedAgency.id)
+    }
+  }, [selectedAgency, isMobile, showDetailsOnMobile, loadAgencyDetails])
 
   const handleCreateAgency = async () => {
     if (!newAgencyName.trim()) {
@@ -791,9 +786,8 @@ export default function AgencesPage() {
 
             console.log("technicalBody from handleSaveAgency (PUT):", technicalBody)
 
-            const technicalResponse = await fetch("/api/technical", {
+            const technicalResponse = await apiFetch("/api/technical", {
               method: "PUT",
-              headers: { "Content-Type": "application/json" },
               body: JSON.stringify(technicalBody),
             })
 
@@ -818,9 +812,8 @@ export default function AgencesPage() {
 
             console.log("technicalBody from handleSaveAgency (POST):", technicalBody)
 
-            const technicalResponse = await fetch("/api/technical", {
+            const technicalResponse = await apiFetch("/api/technical", {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
               body: JSON.stringify(technicalBody),
             })
 
@@ -1194,9 +1187,8 @@ export default function AgencesPage() {
     if (!technicalId) {
       try {
         // Créer les données techniques vides
-        const technicalResponse = await fetch("/api/technical", {
+        const technicalResponse = await apiFetch("/api/technical", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             agencyId: selectedAgency.id,
           }),
@@ -1391,7 +1383,7 @@ export default function AgencesPage() {
           <div className="flex-shrink-0 p-2 sm:p-4 space-y-2 sm:space-y-4 border-b">
             <div className="flex items-center justify-between mb-2 gap-2">
               <h2 className="text-base sm:text-lg font-semibold truncate">Agences</h2>
-              {(userRole === "Admin" || userRole === "Super Admin") && (
+              {(userRole === "Super user" || userRole === "Super Admin" || userRole === "Admin") && (
                 <Button
                   onClick={handleOpenCreateDialog}
                   size="sm"
@@ -1676,7 +1668,7 @@ export default function AgencesPage() {
                               setLoadingAgencyHistory(true)
                               setIsAgencyHistoryDialogOpen(true)
                               try {
-                                const response = await fetch(
+                                const response = await apiFetch(
                                   `/api/agencies/${selectedAgency.id}/history`
                                 )
                                 if (response.ok) {
@@ -1791,7 +1783,7 @@ export default function AgencesPage() {
                               setLoadingAgencyHistory(true)
                               setIsAgencyHistoryDialogOpen(true)
                               try {
-                                const response = await fetch(
+                                const response = await apiFetch(
                                   `/api/agencies/${selectedAgency.id}/history`
                                 )
                                 if (response.ok) {
@@ -2699,7 +2691,7 @@ export default function AgencesPage() {
                                                           if (!visiblePasswords[ap.id] && !decryptedPasswords[ap.id]) {
                                                             // Récupérer le mot de passe décrypté
                                                             try {
-                                                              const response = await fetch(`/api/wifi-access-points/${ap.id}/password`)
+                                                              const response = await apiFetch(`/api/wifi-access-points/${ap.id}/password`)
                                                               if (response.ok) {
                                                                 const data = await response.json()
                                                                 setDecryptedPasswords((prev) => ({
@@ -3100,7 +3092,7 @@ export default function AgencesPage() {
                                         setLoadingHistory(true)
                                         setIsNotesHistoryDialogOpen(true)
                                         try {
-                                          const response = await fetch(
+                                          const response = await apiFetch(
                                             `/api/technical/${fullAgencyData.technical.id}/history`
                                           )
                                           if (response.ok) {
@@ -3366,9 +3358,8 @@ export default function AgencesPage() {
                   : "/api/wifi-access-points"
                 const method = selectedWifiAP ? "PUT" : "POST"
 
-                const response = await fetch(url, {
+                const response = await apiFetch(url, {
                   method,
-                  headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({
                     technicalId: fullAgencyData.technical.id,
                     ...data,
@@ -3412,9 +3403,8 @@ export default function AgencesPage() {
                 const url = selectedCamera ? `/api/cameras/${selectedCamera.id}` : "/api/cameras"
                 const method = selectedCamera ? "PUT" : "POST"
 
-                const response = await fetch(url, {
+                const response = await apiFetch(url, {
                   method,
-                  headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({
                     technicalId: fullAgencyData.technical.id,
                     ...data,
@@ -3467,9 +3457,8 @@ export default function AgencesPage() {
                   : "/api/dynamic-fields"
                 const method = selectedDynamicField ? "PUT" : "POST"
 
-                const response = await fetch(url, {
+                const response = await apiFetch(url, {
                   method,
-                  headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({
                     technicalId: fullAgencyData.technical.id,
                     ...data,
