@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -70,7 +70,7 @@ export default function MonitoringPage() {
   const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null)
   const [resolveDialogOpen, setResolveDialogOpen] = useState(false)
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true)
     try {
       // Charger les alertes avec les statistiques
@@ -79,7 +79,8 @@ export default function MonitoringPage() {
         const data = await alertsResponse.json()
         setAlerts(data.alerts || [])
         if (data.stats) {
-          // Charger les stats complètes
+          setStats(data.stats)
+        } else {
           const statsResponse = await apiFetch("/api/monitoring/stats")
           if (statsResponse.ok) {
             const statsData = await statsResponse.json()
@@ -87,28 +88,19 @@ export default function MonitoringPage() {
           }
         }
       }
-
-      // Charger les statistiques si pas déjà chargées
-      if (!stats) {
-        const statsResponse = await apiFetch("/api/monitoring/stats")
-        if (statsResponse.ok) {
-          const statsData = await statsResponse.json()
-          setStats(statsData)
-        }
-      }
     } catch (error) {
       console.error("Error loading monitoring data:", error)
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     loadData()
     // Rafraîchir toutes les 30 secondes
     const interval = setInterval(loadData, 30000)
     return () => clearInterval(interval)
-  }, [])
+  }, [loadData])
 
   const handleResolveAlert = async () => {
     if (!selectedAlert) return

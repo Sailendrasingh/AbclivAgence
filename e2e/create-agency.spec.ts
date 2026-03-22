@@ -4,32 +4,7 @@
  * Utilise le flux de connexion Admin avec 2FA
  */
 import { test, expect } from '@playwright/test'
-import { TOTP, Secret } from 'otpauth'
-
-const ADMIN_2FA_SECRET = process.env.ADMIN_2FA_SECRET || '37ZCBWCSRS27VICE6KUG2D66G3OFFDUY'
-
-function generateTOTP(): string {
-  const secret = Secret.fromBase32(ADMIN_2FA_SECRET)
-  const totp = new TOTP({ secret, algorithm: 'SHA1', digits: 6, period: 30 })
-  return totp.generate()
-}
-
-async function loginAsAdmin(page: import('@playwright/test').Page) {
-  await page.goto('/login')
-  await page.fill('#login', 'Admin')
-  await page.fill('#password', 'Password')
-  await page.getByRole('button', { name: /se connecter/i }).click()
-
-  const twoFactorInput = page.locator('#twoFactorToken')
-  try {
-    await twoFactorInput.waitFor({ state: 'visible', timeout: 3000 })
-    await twoFactorInput.fill(generateTOTP())
-    await page.getByRole('button', { name: /se connecter/i }).click()
-  } catch {
-    // Pas de 2FA
-  }
-  await page.waitForURL(/\/(dashboard|dashboard\/agences)/, { timeout: 10000 })
-}
+import { loginAsAdmin } from './utils/auth'
 
 test.describe('Création d\'agence', () => {
   test('créer une nouvelle agence', async ({ page }) => {

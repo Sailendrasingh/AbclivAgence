@@ -251,7 +251,7 @@ export default function AgencesPage() {
   )
   const showError = useCallback((message: string) => {
     toast({ title: message, variant: "destructive" })
-  }, [])
+  }, [toast])
 
   // États pour l'historique des notes techniques
   const [isNotesHistoryDialogOpen, setIsNotesHistoryDialogOpen] = useState(false)
@@ -467,7 +467,7 @@ export default function AgencesPage() {
       }
       loadAgencyDetails(selectedAgency.id)
     }
-  }, [selectedAgency, isMobile, showDetailsOnMobile])
+  }, [selectedAgency, isMobile, showDetailsOnMobile, loadAgencyDetails])
 
   // Initialiser les données d'édition après le chargement des détails en mode mobile
   useEffect(() => {
@@ -680,7 +680,7 @@ export default function AgencesPage() {
     } finally {
       setLoadingDetails(false)
     }
-  }, [isMobile])
+  }, [])
 
   const handleCreateAgency = async () => {
     if (!newAgencyName.trim()) {

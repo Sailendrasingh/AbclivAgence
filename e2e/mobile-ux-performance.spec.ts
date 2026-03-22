@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { expectLoginError } from "./utils/auth";
 
 test.describe("Revue UX performance mobile", () => {
   test.use({ viewport: { width: 390, height: 844 } });
@@ -16,11 +17,11 @@ test.describe("Revue UX performance mobile", () => {
     });
     expect(hasHorizontalOverflow).toBeFalsy();
 
-    await page.fill('input[name="login"], input[type="text"]', "Admin");
-    await page.fill('input[name="password"], input[type="password"]', "bad-password");
+    await page.fill('#login', "UtilisateurInexistantE2E");
+    await page.fill('#password', "bad-password");
     const submitStart = Date.now();
-    await page.click('button[type="submit"]');
-    await expect(page.getByText(/incorrect/i)).toBeVisible({ timeout: 6000 });
+    await page.getByRole("button", { name: /se connecter/i }).click();
+    await expectLoginError(page);
     const duration = Date.now() - submitStart;
 
     // Garde-fou simple pour detecter une degradation majeure UX/perf mobile.

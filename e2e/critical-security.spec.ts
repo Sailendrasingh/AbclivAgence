@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { expectLoginError } from "./utils/auth";
 
 test.describe("Parcours critiques sécurité", () => {
   test("redirige vers login pour zone dashboard non authentifiée", async ({ page }) => {
@@ -8,9 +9,9 @@ test.describe("Parcours critiques sécurité", () => {
 
   test("refuse une connexion avec mauvais mot de passe", async ({ page }) => {
     await page.goto("/login");
-    await page.fill('input[name="login"], input[type="text"]', "Admin");
-    await page.fill('input[name="password"], input[type="password"]', "bad-password");
-    await page.click('button[type="submit"]');
-    await expect(page.getByText(/incorrect/i)).toBeVisible();
+    await page.fill("#login", "UtilisateurInexistantE2E");
+    await page.fill("#password", "bad-password");
+    await page.getByRole("button", { name: /se connecter/i }).click();
+    await expectLoginError(page);
   });
 });

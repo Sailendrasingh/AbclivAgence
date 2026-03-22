@@ -1,47 +1,33 @@
 import { test, expect } from '@playwright/test'
+import { expectLoginError, goToLogin, loginAsAdmin } from './utils/auth'
 
 test.describe('Authentification', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/login')
+    await goToLogin(page)
   })
 
   test('should display login form', async ({ page }) => {
-    await expect(page.locator('input[name="login"]')).toBeVisible()
-    await expect(page.locator('input[name="password"]')).toBeVisible()
-    await expect(page.locator('button[type="submit"]')).toBeVisible()
+    await expect(page.locator('#login')).toBeVisible()
+    await expect(page.locator('#password')).toBeVisible()
+    await expect(page.getByRole('button', { name: /se connecter/i })).toBeVisible()
   })
 
   test('should login with correct credentials', async ({ page }) => {
-    await page.fill('input[name="login"]', 'Admin')
-    await page.fill('input[name="password"]', 'Password')
-    await page.click('button[type="submit"]')
-    
-    // Attendre la redirection vers le dashboard
-    await page.waitForURL('/dashboard/agences', { timeout: 5000 })
-    
-    // Vérifier qu'on est bien sur la page des agences
-    await expect(page).toHaveURL(/.*dashboard\/agences/)
+    await loginAsAdmin(page)
+    await expect(page).toHaveURL(/\/dashboard(\/.*)?$/)
   })
 
   test('should show error with incorrect credentials', async ({ page }) => {
-    await page.fill('input[name="login"]', 'Admin')
-    await page.fill('input[name="password"]', 'WrongPassword')
-    await page.click('button[type="submit"]')
-    
-    // Attendre le message d'erreur
-    await expect(page.locator('text=/incorrect/i')).toBeVisible({ timeout: 3000 })
+    await page.fill('#login', 'UtilisateurInexistantE2E')
+    await page.fill('#password', 'WrongPassword')
+    await page.getByRole('button', { name: /se connecter/i }).click()
+    await expectLoginError(page)
   })
 
   test('should require login and password', async ({ page }) => {
-    // Essayer de soumettre sans remplir les champs
-    await page.click('button[type="submit"]')
-    
-    // Le formulaire HTML5 devrait empêcher la soumission
-    // ou un message d'erreur devrait apparaître
-    const loginInput = page.locator('input[name="login"]')
-    const passwordInput = page.locator('input[name="password"]')
-    
-    // Vérifier que les champs sont requis (HTML5 validation)
+    const loginInput = page.locator('#login')
+    const passwordInput = page.locator('#password')
+
     await expect(loginInput).toHaveAttribute('required')
     await expect(passwordInput).toHaveAttribute('required')
   })

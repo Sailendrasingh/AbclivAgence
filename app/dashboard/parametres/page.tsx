@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, Suspense } from "react"
+import { useState, useEffect, Suspense, useCallback } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -210,7 +210,7 @@ function ParametresPageContent() {
       const interval = setInterval(loadMonitoringData, 30000)
       return () => clearInterval(interval)
     }
-  }, [activeTab])
+  }, [activeTab, loadMonitoringData])
 
   const loadBackups = async () => {
     setLoadingBackups(true)
@@ -458,7 +458,7 @@ function ParametresPageContent() {
     }
   }
 
-  const loadMonitoringData = async () => {
+  const loadMonitoringData = useCallback(async () => {
     setLoadingMonitoring(true)
     try {
       // Charger les alertes avec les statistiques
@@ -467,7 +467,8 @@ function ParametresPageContent() {
         const data = await alertsResponse.json()
         setMonitoringAlerts(data.alerts || [])
         if (data.stats) {
-          // Charger les stats complètes
+          setMonitoringStats(data.stats)
+        } else {
           const statsResponse = await apiFetch("/api/monitoring/stats")
           if (statsResponse.ok) {
             const statsData = await statsResponse.json()
@@ -475,21 +476,12 @@ function ParametresPageContent() {
           }
         }
       }
-
-      // Charger les statistiques si pas déjà chargées
-      if (!monitoringStats) {
-        const statsResponse = await apiFetch("/api/monitoring/stats")
-        if (statsResponse.ok) {
-          const statsData = await statsResponse.json()
-          setMonitoringStats(statsData)
-        }
-      }
     } catch (error) {
       console.error("Error loading monitoring data:", error)
     } finally {
       setLoadingMonitoring(false)
     }
-  }
+  }, [])
 
   const handleResolveAlert = async () => {
     if (!selectedAlert) return

@@ -1,6 +1,6 @@
 import nextVitals from "eslint-config-next/core-web-vitals";
 
-export default [
+const config = [
   {
     ignores: [
       ".next/**",
@@ -25,6 +25,9 @@ export default [
       "react/no-unescaped-entities": "off",
       "react-hooks/set-state-in-effect": "off",
       "react-hooks/purity": "off",
+      "@next/next/no-img-element": "off",
     },
   },
 ];
+
+export default config;

@@ -1,55 +1,62 @@
 import { test, expect } from '@playwright/test'
+import { loginAsAdmin } from './utils/auth'
+
+async function selectSeededAgency(page: import('@playwright/test').Page) {
+  const targetAgency = page.locator('div.cursor-pointer').filter({ hasText: 'Agence E2E Alpha' }).first()
+  await expect(targetAgency).toBeVisible({ timeout: 10000 })
+  await targetAgency.click()
+
+  // Le panneau détails affiche le nom de l'agence en titre.
+  await expect(page.getByRole('heading', { name: 'Agence E2E Alpha' }).first()).toBeVisible({ timeout: 10000 })
+}
 
 test.describe('Gestion des agences', () => {
   test.beforeEach(async ({ page }) => {
-    // Se connecter
-    await page.goto('/login')
-    await page.fill('input[name="login"], input[type="text"]', 'Admin')
-    await page.fill('input[type="password"]', 'Password')
-    await page.click('button[type="submit"]')
-    await page.waitForURL('/dashboard/**', { timeout: 5000 })
-    
-    // Attendre que la page soit chargée
+    await loginAsAdmin(page)
+    await page.goto('/dashboard/agences')
     await page.waitForLoadState('networkidle')
+    await expect(page.locator('input[placeholder*="Rechercher"]')).toBeVisible({ timeout: 10000 })
   })
 
   test('should display agencies list', async ({ page }) => {
-    await expect(page.locator('text=/agence/i')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Agences', exact: true })).toBeVisible()
     await expect(page.locator('input[placeholder*="Rechercher"]')).toBeVisible()
   })
 
   test('should create a new agency', async ({ page }) => {
     // Cliquer sur "Ajouter"
-    const addButton = page.locator('button:has-text("Ajouter")').first()
-    await expect(addButton).toBeVisible()
+    const addButton = page.getByRole('button', { name: /ajouter/i }).first()
+    await expect(addButton).toBeVisible({ timeout: 5000 })
     await addButton.click()
-    
+
     // Attendre que le dialog s'ouvre
-    await expect(page.locator('text=/nouvelle agence|créer/i')).toBeVisible({ timeout: 2000 })
-    
+    await expect(page.getByRole('heading', { name: 'Nouvelle agence' })).toBeVisible({ timeout: 5000 })
+
     // Remplir le formulaire
-    const nameInput = page.locator('input[name="name"], input[placeholder*="nom"]').first()
-    await nameInput.fill('Agence Test E2E')
-    
+    const nameInput = page.locator('#agency-name')
+    await expect(nameInput).toBeVisible({ timeout: 5000 })
+    const agencyName = `Agence Test E2E ${Date.now()}`
+    await nameInput.fill(agencyName)
+
     // Sauvegarder
-    const saveButton = page.locator('button:has-text("Enregistrer"), button:has-text("Créer")').first()
+    const saveButton = page.getByRole('button', { name: 'Créer' })
     await saveButton.click()
-    
+
     // Vérifier que l'agence apparaît dans la liste
-    await expect(page.locator('text=Agence Test E2E')).toBeVisible({ timeout: 5000 })
+    await expect(page.getByText(agencyName)).toBeVisible({ timeout: 10000 })
   })
 
   test('should search agencies', async ({ page }) => {
     // Saisir dans le champ recherche
     const searchInput = page.locator('input[placeholder*="Rechercher"]')
-    await searchInput.fill('Test')
-    
+    await searchInput.fill('E2E')
+
     // Attendre que les résultats se filtrent (debounce)
     await page.waitForTimeout(500)
-    
-    // Vérifier que les résultats sont filtrés
-    const results = page.locator('[class*="agency"], [class*="agence"]')
-    await expect(results.first()).toBeVisible()
+
+    // Vérifier qu'on a toujours au moins un résultat visible
+    const firstResult = page.locator('div.cursor-pointer').first()
+    await expect(firstResult).toBeVisible({ timeout: 10000 })
   })
 
   test('should filter agencies by state', async ({ page }) => {
@@ -68,32 +75,17 @@ test.describe('Gestion des agences', () => {
   })
 
   test('should navigate to agency details', async ({ page }) => {
-    // Attendre que la liste soit chargée
-    await page.waitForTimeout(1000)
-    
-    // Cliquer sur la première agence de la liste
-    const firstAgency = page.locator('div[class*="border"], div[class*="rounded"]').filter({ hasText: /agence/i }).first()
-    if (await firstAgency.isVisible({ timeout: 3000 })) {
-      await firstAgency.click()
-      
-      // Vérifier que les détails sont affichés (onglets)
-      await expect(page.locator('button:has-text("Général"), button:has-text("Technique"), button:has-text("Photos")').first()).toBeVisible({ timeout: 3000 })
-    }
+    await selectSeededAgency(page)
+    await expect(page.getByRole('tab', { name: /Général/i }).first()).toBeVisible({ timeout: 10000 })
+    await expect(page.getByRole('tab', { name: /Technique/i }).first()).toBeVisible({ timeout: 10000 })
   })
 
   test('should edit agency', async ({ page }) => {
-    // Attendre que la liste soit chargée
-    await page.waitForTimeout(1000)
-    
-    // Trouver le bouton Modifier sur la première agence
-    const editButton = page.locator('button[aria-label*="Modifier"], button:has([class*="Edit"])').first()
-    if (await editButton.isVisible({ timeout: 3000 })) {
-      await editButton.click()
-      
-      // Vérifier que le mode édition est activé (boutons Annuler/Enregistrer visibles)
-      await expect(page.locator('button:has-text("Enregistrer")')).toBeVisible({ timeout: 2000 })
-      await expect(page.locator('button:has-text("Annuler")')).toBeVisible()
-    }
+    const editButton = page.locator('button.text-blue-600').first()
+    await expect(editButton).toBeVisible({ timeout: 10000 })
+    await editButton.click()
+    await expect(page.getByRole('button', { name: 'Enregistrer' })).toBeVisible({ timeout: 10000 })
+    await expect(page.getByRole('button', { name: 'Annuler' })).toBeVisible()
   })
 
   test('should display statistics in header', async ({ page }) => {
@@ -102,20 +94,12 @@ test.describe('Gestion des agences', () => {
   })
 
   test('should switch tabs in agency details', async ({ page }) => {
-    // Sélectionner une agence
-    await page.waitForTimeout(1000)
-    const firstAgency = page.locator('div[class*="border"]').first()
-    if (await firstAgency.isVisible({ timeout: 3000 })) {
-      await firstAgency.click()
-      
-      // Cliquer sur l'onglet "Technique"
-      const technicalTab = page.locator('button:has-text("Technique")').first()
-      if (await technicalTab.isVisible({ timeout: 2000 })) {
-        await technicalTab.click()
-        
-        // Vérifier que le contenu technique est affiché
-        await expect(page.locator('text=/réseau|machine|wifi/i')).toBeVisible({ timeout: 2000 })
-      }
-    }
+    await selectSeededAgency(page)
+
+    const technicalTab = page.getByRole('tab', { name: /Technique/i }).first()
+    await expect(technicalTab).toBeVisible({ timeout: 10000 })
+    await technicalTab.click()
+
+    await expect(technicalTab).toHaveAttribute('data-state', 'active')
   })
 })
