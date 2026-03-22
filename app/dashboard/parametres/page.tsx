@@ -197,21 +197,6 @@ function ParametresPageContent() {
     loadSettings()
   }, [])
 
-  useEffect(() => {
-    if (activeTab === "sauvegardes") {
-      loadBackups()
-    } else if (activeTab === "logs") {
-      loadLogs()
-    } else if (activeTab === "utilisateurs") {
-      loadUsers()
-    } else if (activeTab === "monitoring") {
-      loadMonitoringData()
-      // Rafraîchir toutes les 30 secondes
-      const interval = setInterval(loadMonitoringData, 30000)
-      return () => clearInterval(interval)
-    }
-  }, [activeTab, loadMonitoringData])
-
   const loadBackups = async () => {
     setLoadingBackups(true)
     try {
@@ -482,6 +467,21 @@ function ParametresPageContent() {
       setLoadingMonitoring(false)
     }
   }, [])
+
+  useEffect(() => {
+    if (activeTab === "sauvegardes") {
+      loadBackups()
+    } else if (activeTab === "logs") {
+      loadLogs()
+    } else if (activeTab === "utilisateurs") {
+      loadUsers()
+    } else if (activeTab === "monitoring") {
+      loadMonitoringData()
+      // Rafraîchir toutes les 30 secondes
+      const interval = setInterval(loadMonitoringData, 30000)
+      return () => clearInterval(interval)
+    }
+  }, [activeTab, loadMonitoringData])
 
   const handleResolveAlert = async () => {
     if (!selectedAlert) return
