@@ -1,0 +1,51 @@
+name: Deploy Production (Private)
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Tag image GHCR (ex: latest ou sha-abcdef)"
+        required: true
+        default: "latest"
+
+jobs:
+  deploy:
+    name: Deploy on production server
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          script_stop: true
+          envs: IMAGE_TAG,GHCR_USERNAME,GHCR_PAT_READ,PROD_PATH,REPO_NAME
+          script: |
+            set -euo pipefail
+            cd "${PROD_PATH}"
+
+            echo "${GHCR_PAT_READ}" | docker login ghcr.io -u "${GHCR_USERNAME}" --password-stdin
+
+            APP_IMAGE="ghcr.io/${REPO_NAME}:${IMAGE_TAG}" \
+              docker compose -f docker-compose.prod.yml --env-file .env.prod pull
+
+            APP_IMAGE="ghcr.io/${REPO_NAME}:${IMAGE_TAG}" \
+              docker compose -f docker-compose.prod.yml --env-file .env.prod up -d db
+
+            APP_IMAGE="ghcr.io/${REPO_NAME}:${IMAGE_TAG}" \
+              docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm migrate
+
+            APP_IMAGE="ghcr.io/${REPO_NAME}:${IMAGE_TAG}" \
+              docker compose -f docker-compose.prod.yml --env-file .env.prod up -d web
+
+            docker compose -f docker-compose.prod.yml --env-file .env.prod ps
+        env:
+          IMAGE_TAG: ${{ inputs.image_tag }}
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          GHCR_PAT_READ: ${{ secrets.GHCR_PAT_READ }}
+          PROD_PATH: ${{ secrets.PROD_PATH }}
+          REPO_NAME: ${{ github.repository }}
